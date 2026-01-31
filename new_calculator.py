@@ -1,3 +1,5 @@
+[file name]: new_calculator.py
+[file content begin]
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -1454,7 +1456,7 @@ class ScoringEngine:
             a_to_b, b_to_a, directional_details = ScoringEngine._calculate_asymmetric_scores(bazi1, bazi2, gender1, gender2)
             score_parts["a_to_b_influence"] = a_to_b
             score_parts["b_to_a_influence"] = b_to_a
-            audit_log.append(f"雙向影響: A對B={a_to_b:.1f}, B對A={b_to_a:.1f}")
+            audit_log.append(f"雙向影響: 用戶A對用戶B={a_to_b:.1f}, 用戶B對用戶A={b_to_a:.1f}")
             audit_log.extend(directional_details)
             
             # 8. 大運風險
@@ -1729,12 +1731,12 @@ class ScoringEngine:
         details = []
         
         a_to_b, a_to_b_details = ScoringEngine._calculate_directional_score(
-            bazi1, bazi2, gender1, gender2, "A對B"
+            bazi1, bazi2, gender1, gender2, "用戶A對用戶B"
         )
         details.extend(a_to_b_details)
         
         b_to_a, b_to_a_details = ScoringEngine._calculate_directional_score(
-            bazi2, bazi1, gender2, gender1, "B對A"
+            bazi2, bazi1, gender2, gender1, "用戶B對用戶A"
         )
         details.extend(b_to_a_details)
         
@@ -1811,11 +1813,11 @@ class ScoringEngine:
             model = "平衡型"
             details.append(f"差異<{BALANCED_MAX_DIFF}，判定為平衡型")
         elif a_to_b > b_to_a + SUPPLY_MIN_DIFF:
-            model = "供求型 (A供應B)"
-            details.append(f"A對B > B對A + {SUPPLY_MIN_DIFF}，判定為供求型(A供應B)")
+            model = "供求型 (用戶A供應用戶B)"
+            details.append(f"用戶A對用戶B > 用戶B對用戶A + {SUPPLY_MIN_DIFF}，判定為供求型(用戶A供應用戶B)")
         elif b_to_a > a_to_b + SUPPLY_MIN_DIFF:
-            model = "供求型 (B供應A)"
-            details.append(f"B對A > A對B + {SUPPLY_MIN_DIFF}，判定為供求型(B供應A)")
+            model = "供求型 (用戶B供應用戶A)"
+            details.append(f"用戶B對用戶A > 用戶A對用戶B + {SUPPLY_MIN_DIFF}，判定為供求型(用戶B供應用戶A)")
         elif adjusted_diff > DEBT_MIN_DIFF and avg < DEBT_MAX_AVG:
             model = "相欠型"
             details.append(f"差異>{DEBT_MIN_DIFF}且平均<{DEBT_MAX_AVG}，判定為相欠型")
@@ -2051,8 +2053,8 @@ def format_match_result(match_result: Dict, bazi1: Dict = None, bazi2: Dict = No
     
     # 第三條：雙向影響
     influence_message = f"""【雙向影響分析】
-🔄 A對B影響: {match_result['a_to_b_score']:.1f}分
-🔄 B對A影響: {match_result['b_to_a_score']:.1f}分
+🔄 用戶A對用戶B影響: {match_result['a_to_b_score']:.1f}分
+🔄 用戶B對用戶A影響: {match_result['b_to_a_score']:.1f}分
 📈 差異: {abs(match_result['a_to_b_score'] - match_result['b_to_a_score']):.1f}分"""
     messages.append(influence_message)
     
@@ -2280,7 +2282,7 @@ def generate_ai_prompt(match_result: Dict, bazi1: Dict = None, bazi2: Dict = Non
    - 位置：ScoringEngine._calculate_structure_core() 方法
    - 修改：修正六沖配對列表
 
-版本 1.2 (2026-02-01) - 本次修正
+版本 1.2 (2026-02-01)
 主要修改:
 1. 修正錯誤1：testpair測完後都係無2人基本資料
    - 問題：testpair命令結果沒有顯示雙方基本資料
@@ -2307,21 +2309,32 @@ def generate_ai_prompt(match_result: Dict, bazi1: Dict = None, bazi2: Dict = Non
    - 修改：添加is_testpair參數，testpair命令不使用置信度調整
    - 修改：只有在match命令且確實有時間調整時才使用置信度調整
 
-5. 新增功能：
-   - 在format_match_result()中添加【雙方基本資料】部分
-   - 在generate_ai_prompt()中添加完整的雙方八字資料
-   - 在calculate_match()中添加is_testpair參數控制置信度調整
+版本 1.3 (2026-02-01) - 本次修正
+主要修改:
+1. 修正雙向影響分析標識問題（根據要求1）
+   - 問題：雙向影響分析只顯示"A→B"、"B→A"，但不知道誰是A誰是B
+   - 位置：多個地方需要修改
+   - 修改位置1：ScoringEngine.calculate_score_parts() - 審計日誌
+   - 修改位置2：ScoringEngine._calculate_directional_score() - 方向標識
+   - 修改位置3：ScoringEngine._calculate_asymmetric_scores() - 方向參數
+   - 修改位置4：format_match_result() - 雙向影響分析顯示
+   - 修改位置5：ScoringEngine._determine_relationship_model() - 關係模型描述
 
-影響:
-- testpair命令現在顯示完整的雙方基本資料
-- match和testpair結果格式現在完全一致
-- 雙向影響分析現在明確標識A和B是誰
-- testpair命令不再進行置信度調整
-- AI分析提示現在包含完整的八字資料
+2. 修正效果：
+   - 所有顯示雙向影響的地方，將模糊的"A→B"、"B→A"改為明確的"用戶A對用戶B"、"用戶B對用戶A"
+   - 關係模型描述中也明確標識誰供應誰
+   - 讓使用者能清楚知道用戶A和用戶B的身份
 
-注意：
-1. 需要更新bot.py中的test_pair_command()函數，傳遞is_testpair=True參數
-2. 需要更新bot.py中的match()函數，確保傳遞八字數據給format_match_result()
-3. 三方功能（match/testpair/findsoulmate）結果現在保持一致的格式
+3. 保持三方功能（match/testpair/findsoulmate）結果一致
+   - 所有格式化函數使用相同的顯示標準
+   - 雙向影響分析在所有功能中都有明確標識
+
+影響：
+- 雙向影響分析現在明確標識A和B的身份
+- 關係模型描述更加清晰
+- 三方功能保持一致的顯示格式
+
+注意：這個修正需要配合bot.py的修正一起使用，以確保用戶A和用戶B的身份正確傳遞
 """
 # ========== 修正紀錄結束 ==========
+[file content end]
