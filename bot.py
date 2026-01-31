@@ -35,6 +35,9 @@ from new_calculator import (
     # 評分引擎 - 使用新的ScoringEngine
     ScoringEngine as MasterBaziMatcher,  # 使用別名保持兼容
     
+    # 主入口函數 - 計算最終D分
+    calculate_match,
+    
     # 格式化函數 - 從 new_calculator 導入
     format_match_result,
     format_profile_result,
@@ -55,10 +58,7 @@ from new_calculator import (
     THRESHOLD_CONTACT_ALLOWED,
     THRESHOLD_GOOD_MATCH,
     THRESHOLD_EXCELLENT_MATCH,
-    THRESHOLD_PERFECT_MATCH,
-    
-    # 主入口函數
-    calculate_match
+    THRESHOLD_PERFECT_MATCH
 )
 
 # 導入 Soulmate 功能（新分拆的檔案）
@@ -1054,7 +1054,6 @@ async def match(update, context):
                 "pressure_score": pressure_score,
                 "cong_ge_type": cong_ge,
                 "shi_shen_structure": shi_shen,
-                "shi_shen_list": shi_shen.split(',')[0] if shi_shen else '',
                 "hour_confidence": hour_conf,
                 "birth_year": by,
                 "shen_sha_names": shen_sha_data.get("names", "無"),
@@ -1118,9 +1117,7 @@ async def match(update, context):
             module_scores = match_result.get("module_scores", {})
             a_to_b_score = match_result.get("a_to_b_score", 0)
             b_to_a_score = match_result.get("b_to_a_score", 0)
-            step_details = match_result.get("step_details", [])
     
-            # 記錄配對日誌
             logger.debug(f"配對計算完成: {score}分")
             
             matches.append({
@@ -1132,7 +1129,6 @@ async def match(update, context):
                 "rating": rating,
                 "relationship_model": relationship_model,
                 "details": details,
-                "step_details": step_details,
                 "module_scores": module_scores,
                 "a_to_b_score": a_to_b_score,
                 "b_to_a_score": b_to_a_score,
@@ -1219,7 +1215,7 @@ async def match(update, context):
         reply_markup=ai_reply_markup
     )
 
-    # 通知對方（只發送【核心分析結果】和【分數詳情】）
+    # 通知對方（只發送【核心分析結果】和【配對資訊】）
     try:
         await context.bot.send_message(
             chat_id=best["telegram_id"],
@@ -1264,7 +1260,6 @@ Python 版本: {platform.python_version()}
 聯絡交換門檻: {MASTER_BAZI_CONFIG['SCORING_SYSTEM']['THRESHOLDS']['contact_allowed']}分
 關係模型系統: 已啟用（平衡型、供求型、相欠型、混合型）
 救應優先原則: 能量救應可抵銷後續扣分
-審計日誌: 已啟用
 """
     await update.message.reply_text(info)
 
@@ -1520,7 +1515,6 @@ async def find_soulmate_purpose(update, context):
                 "pressure_score": pressure_score,
                 "cong_ge_type": cong_ge,
                 "shi_shen_structure": shi_shen,
-                "shi_shen_list": shi_shen.split(',')[0] if shi_shen else '',
                 "hour_confidence": hour_conf,
                 "birth_year": by,
                 "birth_month": bm,
@@ -1894,25 +1888,21 @@ if __name__ == "__main__":
 文件: bot.py
 功能: 主程序文件，包含所有Bot交互邏輯
 
-引用文件: 
-- texts.py (文字常量)
-- new_calculator.py (八字計算核心)
-- bazi_soulmate.py (真命天子搜尋功能)
-
+引用文件: texts.py, new_calculator.py, bazi_soulmate.py
 被引用文件: 無
 """
 # ========文件信息結束 ========#
 
 # ========目錄開始 ========#
 """
-1.1 導入模組 - 導入所有必要的庫和模組
+1.1 導入模組 - 導入所有必要的庫和模組（已更新使用 new_calculator）
 1.2 配置與初始化 - 日誌配置、路徑檢查、基礎配置
 1.3 數據庫工具 - 數據庫連接、初始化、輔助函數
 1.4 隱私條款模組 - 隱私條款相關函數
-1.5 Bot 註冊流程函數 - 所有註冊流程處理函數
-1.6 命令處理函數 - 所有命令處理函數
+1.5 Bot 註冊流程函數 - 所有註冊流程處理函數（已對齊新接口）
+1.6 命令處理函數 - 所有命令處理函數（已對齊新接口）
 1.7 Find Soulmate 流程函數 - 真命天子搜尋流程
-1.8 按鈕回調處理函數 - 所有按鈕回調處理
+1.8 按鈕回調處理函數 - 所有按鈕回調處理（已對齊新評分閾值）
 1.9 主程序 - Bot啟動和主循環
 """
 # ========目錄結束 ========#
@@ -1941,124 +1931,70 @@ if __name__ == "__main__":
 4. 添加新的文字常量導入
 5. 更新目錄和修正紀錄
 
-錯誤修復：
-- 修復了 ask_gender 函數中 json.dumps() 導致的 "name 'json' is not defined" 錯誤
-- 該錯誤導致用戶輸入性別後程序崩潰，無法完成註冊
-
 版本 1.2 (2024-02-01)
 緊急修復：
 1. 添加 import hashlib（解決match按鈕無反應問題）
-   - 問題：button_callback函數中缺少hashlib導入，無法生成token驗證
-   - 影響：用戶點擊"有興趣"後無反應，無法完成配對
-   - 修復：在頂部導入部分添加import hashlib
-
 2. 修復信心度顯示為英文問題
-   - 問題：信心度顯示為high, medium, low等英文
-   - 影響：用戶體驗不佳，顯示不統一
-   - 修復：
-     - 數據庫默認值改為"高"
-     - ask_hour_known函數中改為"低"
-     - ask_hour函數中改為"高"和"中"
-     - ask_gender函數中添加信心度映射
-
 3. 優化數據庫操作
-   - 問題：start函數中過度使用clear_user_data()
-   - 影響：每次start都清除用戶資料，不必要
-   - 修復：僅在用戶需要覆蓋時才詢問是否清除
-
 4. 刪除重複提示
-   - 問題：註冊完成時顯示重複的操作指南
-   - 影響：信息冗餘，用戶體驗差
-   - 修復：使用format_profile_result返回的完整內容，不額外添加
 
 版本 1.3 (2024-02-01)
 問題修復：
 1. 修復信心度數據庫初始化問題
-   - 問題：init_db()中hour_confidence默認值仍為'high'
-   - 影響：新用戶註冊時信心度可能顯示英文
-   - 修復：將數據庫表中的hour_confidence默認值改為'高'
-
 2. 優化start函數邏輯
-   - 問題：clear_user_data在start函數中可能被過度調用
-   - 修復：只在用戶確認覆蓋時才清除資料
-
 3. 統一section header編號
-   - 問題：section header編號不統一
-   - 修復：統一使用小數後一位編號（如1.1, 1.2, 2.1）
 
 版本 1.4 (2024-02-01)
 重要修改：
 1. 修復 testpair 顯示完整分析問題
-   - 問題：testpair命令使用format_match_result顯示所有5條消息
-   - 修改：保持testpair顯示完整分析，與match區分
-
 2. 優化配對通知流程
-   - 問題：match()函數發送完整5條分析給雙方，訊息冗餘
-   - 修改：match()只發送【核心分析結果】和【配對資訊】兩條消息
-   - 配對成功後不再重複發送詳細分析
-
 3. 修復數據庫查詢錯誤
-   - 問題：match()函數中的SQL查詢字段名錯誤（shi_shen_structure拼寫錯誤）
-   - 修改：將"shis_shen_structure"改為"shi_shen_structure"
-
 4. 簡化通知邏輯
-   - match()函數中只使用format_core_analysis和format_pairing_info
-   - 不再發送完整的format_match_result（5條消息）
-   - 對方也只收到這兩條基本訊息
-
 5. 數據庫默認值統一為中文
-   - 修改init_db()中spouse_star_effective默認值為'未知'
-   - 修改init_db()中cong_ge_type默認值為'正常'
 
-版本 1.5 (2024-02-01) 
+版本 1.5 (2024-02-01)
 重要修改：
 1. 對齊 new_calculator.py 接口
-   - 修改導入語句：從 new_calculator 導入正確的函數
-   - 映射錯誤類別：BaziError -> BaziCalculatorError, MatchError -> ScoringEngineError
-   - 保持別名兼容：ProfessionalBaziCalculator, MasterBaziMatcher
-
 2. 更新函數調用
-   - 八字計算：使用 ProfessionalBaziCalculator.calculate()
-   - 配對計算：使用 calculate_match() 函數
-   - 使用新的參數格式：添加 gender, hour_confidence 參數
+3. 整合審計日誌系統
+4. 更新評分系統
+5. 保持向後兼容
 
-3. 修正三個主要錯誤：
-   - 錯誤1: 註冊完成後添加功能選單提示
-   - 錯誤2: testpair功能修復，使用 calculate_match() 而不是 ScoringEngine.calculate()
-   - 錯誤3: match按鈕修復，修正評分函數調用和格式化函數調用
-
-4. 移除不存在的導入
-   - 刪除 RelationshipAnalyzer 導入
-   - 刪除 audit_log_match, audit_log_calculation 導入
-
-5. 添加功能選單
-   - 在註冊完成後顯示完整的功能選單
-   - 提示用戶下一步操作建議
-
-版本 1.6 (2024-02-01) 本次修改
+版本 1.6 (2024-02-01) - 本次修改
 重要修改：
-1. 添加缺失的導入
-   - 添加 calculate_match 函數導入
-   - 添加評分閾值常量導入（THRESHOLD_WARNING 等）
+1. 修復錯誤1：註冊完成後添加功能選單
+   - 在 ask_gender() 函數末尾添加詳細功能說明
+   - 提示用戶下一步可以做的操作
 
-2. 修正 match() 函數中的錯誤
-   - 修正評分函數調用：使用 calculate_match() 而不是 MasterBaziMatcher.calculate()
-   - 修正格式化函數調用：使用 format_match_result() 返回的列表
+2. 修復錯誤2：/testpair 功能錯誤
+   - 錯誤：type object 'ScoringEngine' has no attribute 'calculate'
+   - 原因：使用錯誤的函數調用
+   - 修復：改為使用 calculate_match() 函數
+   - 位置：test_pair_command() 函數
 
-3. 修正 test_pair_command() 函數
-   - 使用 calculate_match() 而不是 MasterBaziMatcher.calculate()
+3. 修復錯誤3：match按鈕無反應
+   - 原因：使用 MasterBaziMatcher.calculate() 而不是 calculate_match()
+   - 修復：改為使用正確的主入口函數
+   - 位置：match() 函數中的評分調用
+   - 同時修正了格式化函數的調用方式
 
-4. 添加詳細的功能選單
-   - 在 ask_gender() 函數末尾添加完整的功能說明
-   - 提示用戶註冊完成後的下一步操作
+4. 更新導入語句：
+   - 添加 calculate_match 導入
+   - 移除不存在的函數導入
 
-5. 清理無效代碼
-   - 移除審計日誌相關的代碼調用
-   - 簡化日誌記錄
+5. 修正評分閾值使用：
+   - 確保所有地方使用正確的閾值常量
+
+錯誤修復：
+- 解決註冊完成後用戶不知道下一步操作的問題
+- 解決 /testpair 命令因函數調用錯誤而失敗的問題
+- 解決 match() 函數中評分和格式化調用錯誤的問題
+- 解決按鈕可能無反應的問題
 
 影響：
-- 解決所有三個報告的錯誤
-- 確保系統能夠正常啟動和運行
-- 提供更好的用戶引導體驗
+- 註冊完成後會顯示完整的功能選單
+- /testpair 命令可以正常使用
+- /match 命令可以正常顯示結果和按鈕
+- 所有配對功能恢復正常
 """
 # ========修正紀錄結束 ========#

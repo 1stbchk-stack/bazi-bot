@@ -1500,6 +1500,33 @@ class ScoringEngine:
         
         return score, details
     
+
+    # 在 ScoringEngine 類中添加這個方法
+    @staticmethod
+    def _check_hard_problems(bazi1: Dict, bazi2: Dict) -> bool:
+        """檢查硬傷問題"""
+        # 簡化實現，只檢查日支六沖
+        day_branch1 = bazi1.get('day_pillar', '  ')[1]
+        day_branch2 = bazi2.get('day_pillar', '  ')[1]
+    
+        clashes = {'子': '午', '午': '子', '丑': '未', '未': '丑',
+                  '寅': '申', '申': '寅', '卯': '酉', '酉': '卯',
+                  '辰': '戌', '戌': '辰', '巳': '亥', '亥': '巳'}
+    
+        return clashes.get(day_branch1) == day_branch2 or clashes.get(day_branch2) == day_branch1
+    
+    @staticmethod
+    def _check_day_branch_clash(bazi1: Dict, bazi2: Dict) -> bool:
+        """檢查日支六沖"""
+        day_branch1 = bazi1.get('day_pillar', '  ')[1]
+        day_branch2 = bazi2.get('day_pillar', '  ')[1]
+    
+        clashes = {'子': '午', '午': '子', '丑': '未', '未': '丑',
+                  '寅': '申', '申': '寅', '卯': '酉', '酉': '卯',
+                  '辰': '戌', '戌': '辰', '巳': '亥', '亥': '巳'}
+    
+        return clashes.get(day_branch1) == day_branch2 or clashes.get(day_branch2) == day_branch1
+
     @staticmethod
     def _calculate_personality_risk(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
         """計算人格風險分數"""
