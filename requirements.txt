@@ -1,0 +1,11 @@
+python-telegram-bot
+sxtwl
+psycopg2-binary
+redis
+python-dotenv
+pandas
+numpy
+pytz
+aiofiles
+httpx
+python-dateutil
