@@ -1,7 +1,6 @@
 # ========1.1 導入模組開始 ========#
 import os
 import logging
-import sqlite3
 import asyncio
 import json
 import hashlib
@@ -9,6 +8,9 @@ import traceback
 from datetime import datetime
 from contextlib import closing
 from typing import Dict, List, Tuple, Any, Optional
+
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 from telegram import (
     Update,
@@ -93,33 +95,15 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# PostgreSQL 數據庫配置
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+if not DATABASE_URL:
+    logger.error("錯誤: DATABASE_URL 環境變數未設定！")
+    raise ValueError("DATABASE_URL 未設定")
 
-def get_db_path():
-    railway_data = "/data/bazi_match.db"
-    current_dir = "bazi_match.db"
-
-    try:
-        if os.path.exists("/data"):
-            test_file = "/data/.write_test"
-            try:
-                with open(test_file, 'w') as f:
-                    f.write("test")
-                os.remove(test_file)
-                logger.info("/data 目錄可寫，使用持久化儲存")
-                return railway_data
-            except BaseException:
-                logger.warning("/data 目錄不可寫，使用當前目錄")
-                return current_dir
-        else:
-            logger.info("/data 目錄不存在，使用當前目錄")
-            return current_dir
-    except Exception as e:
-        logger.error(f"檢查目錄權限失敗: {e}")
-        return current_dir
-
-DB_PATH = get_db_path()
-logger.info(f"使用數據庫路徑: {DB_PATH}")
+# 修復 Railway PostgreSQL URL 格式
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
 SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "your-secret-key-change-me").strip()
 DAILY_MATCH_LIMIT = 10
@@ -144,221 +128,131 @@ if ADMIN_USER_IDS_STR:
     ASK_DAY,
     ASK_HOUR_KNOWN,
     ASK_HOUR,
+    ASK_MINUTE,
+    ASK_LONGITUDE,
     ASK_GENDER,
     FIND_SOULMATE_RANGE,
     FIND_SOULMATE_PURPOSE,
-) = range(9)
-
-USE_POSTGRES = DATABASE_URL and DATABASE_URL.startswith("postgresql://")
+) = range(11)
 # ========1.2 配置與初始化結束 ========#
 
 # ========1.3 數據庫工具開始 ========#
 def get_conn():
-    if USE_POSTGRES:
-        try:
-            import psycopg2
-            conn_url = DATABASE_URL.replace("postgres://", "postgresql://")
-            return psycopg2.connect(conn_url)
-        except ImportError:
-            logger.warning("未安裝 psycopg2，將使用 SQLite")
-            return sqlite3.connect(DB_PATH)
-        except Exception as e:
-            logger.error(f"PostgreSQL 連接失敗: {e}，使用 SQLite")
-            return sqlite3.connect(DB_PATH)
-    else:
-        return sqlite3.connect(DB_PATH)
-
-def get_placeholder():
-    return "%s" if USE_POSTGRES else "?"
+    """獲取 PostgreSQL 數據庫連接"""
+    try:
+        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        return conn
+    except Exception as e:
+        logger.error(f"PostgreSQL 連接失敗: {e}")
+        raise
 
 def init_db():
+    """初始化 PostgreSQL 數據庫"""
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
-
-            if USE_POSTGRES:
-                logger.info("創建 PostgreSQL 表...")
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id SERIAL PRIMARY KEY,
-                    telegram_id BIGINT UNIQUE NOT NULL,
-                    username TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    active INTEGER DEFAULT 1
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS profiles (
-                    user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-                    birth_year INTEGER,
-                    birth_month INTEGER,
-                    birth_day INTEGER,
-                    birth_hour INTEGER,
-                    birth_minute INTEGER DEFAULT 0,
-                    hour_confidence TEXT DEFAULT '高',
-                    gender TEXT,
-                    year_pillar TEXT,
-                    month_pillar TEXT,
-                    day_pillar TEXT,
-                    hour_pillar TEXT,
-                    zodiac TEXT,
-                    day_stem TEXT,
-                    day_stem_element TEXT,
-                    wood REAL,
-                    fire REAL,
-                    earth REAL,
-                    metal REAL,
-                    water REAL,
-                    day_stem_strength TEXT,
-                    strength_score REAL,
-                    useful_elements TEXT,
-                    harmful_elements TEXT,
-                    spouse_star_status TEXT,
-                    spouse_star_effective TEXT DEFAULT '未知',
-                    spouse_palace_status TEXT,
-                    pressure_score REAL DEFAULT 0,
-                    cong_ge_type TEXT DEFAULT '正常',
-                    shi_shen_structure TEXT,
-                    shen_sha_data TEXT
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS matches (
-                    id SERIAL PRIMARY KEY,
-                    user_a INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                    user_b INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                    score REAL,
-                    user_a_accepted INTEGER DEFAULT 0,
-                    user_b_accepted INTEGER DEFAULT 0,
-                    match_details TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(user_a, user_b)
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS daily_limits (
-                    id SERIAL PRIMARY KEY,
-                    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                    date DATE DEFAULT CURRENT_DATE,
-                    match_count INTEGER DEFAULT 0,
-                    UNIQUE(user_id, date)
-                )
-                ''')
-                cur.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
-                cur.execute('CREATE INDEX IF NOT EXISTS idx_matches_users ON matches(user_a, user_b)')
-            else:
-                logger.info("創建 SQLite 表...")
-                try:
-                    cur.execute('PRAGMA foreign_keys = ON')
-                except BaseException:
-                    pass
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    telegram_id INTEGER UNIQUE NOT NULL,
-                    username TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    active INTEGER DEFAULT 1
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS profiles (
-                    user_id INTEGER PRIMARY KEY,
-                    birth_year INTEGER,
-                    birth_month INTEGER,
-                    birth_day INTEGER,
-                    birth_hour INTEGER,
-                    birth_minute INTEGER DEFAULT 0,
-                    hour_confidence TEXT DEFAULT '高',
-                    gender TEXT,
-                    year_pillar TEXT,
-                    month_pillar TEXT,
-                    day_pillar TEXT,
-                    hour_pillar TEXT,
-                    zodiac TEXT,
-                    day_stem TEXT,
-                    day_stem_element TEXT,
-                    wood REAL,
-                    fire REAL,
-                    earth REAL,
-                    metal REAL,
-                    water REAL,
-                    day_stem_strength TEXT,
-                    strength_score REAL,
-                    useful_elements TEXT,
-                    harmful_elements TEXT,
-                    spouse_star_status TEXT,
-                    spouse_star_effective TEXT DEFAULT '未知',
-                    spouse_palace_status TEXT,
-                    pressure_score REAL DEFAULT 0,
-                    cong_ge_type TEXT DEFAULT '正常',
-                    shi_shen_structure TEXT,
-                    shen_sha_data TEXT,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS matches (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_a INTEGER,
-                    user_b INTEGER,
-                    score REAL,
-                    user_a_accepted INTEGER DEFAULT 0,
-                    user_b_accepted INTEGER DEFAULT 0,
-                    match_details TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_a) REFERENCES users(id),
-                    FOREIGN KEY (user_b) REFERENCES users(id),
-                    UNIQUE(user_a, user_b)
-                )
-                ''')
-                cur.execute('''
-                CREATE TABLE IF NOT EXISTS daily_limits (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    date DATE DEFAULT CURRENT_DATE,
-                    match_count INTEGER DEFAULT 0,
-                    FOREIGN KEY (user_id) REFERENCES users(id),
-                    UNIQUE(user_id, date)
-                )
-                ''')
-                cur.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
-                cur.execute('CREATE INDEX IF NOT EXISTS idx_matches_users ON matches(user_a, user_b)')
-
+            
+            logger.info("創建 PostgreSQL 表...")
+            
+            # 創建 users 表
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                telegram_id BIGINT UNIQUE NOT NULL,
+                username TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                active INTEGER DEFAULT 1
+            )
+            ''')
+            
+            # 創建 profiles 表
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS profiles (
+                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+                birth_year INTEGER,
+                birth_month INTEGER,
+                birth_day INTEGER,
+                birth_hour INTEGER,
+                birth_minute INTEGER DEFAULT 0,
+                hour_confidence TEXT DEFAULT '高',
+                gender TEXT,
+                year_pillar TEXT,
+                month_pillar TEXT,
+                day_pillar TEXT,
+                hour_pillar TEXT,
+                zodiac TEXT,
+                day_stem TEXT,
+                day_stem_element TEXT,
+                wood REAL,
+                fire REAL,
+                earth REAL,
+                metal REAL,
+                water REAL,
+                day_stem_strength TEXT,
+                strength_score REAL,
+                useful_elements TEXT,
+                harmful_elements TEXT,
+                spouse_star_status TEXT,
+                spouse_star_effective TEXT DEFAULT '未知',
+                spouse_palace_status TEXT,
+                pressure_score REAL DEFAULT 0,
+                cong_ge_type TEXT DEFAULT '正常',
+                shi_shen_structure TEXT,
+                shen_sha_data TEXT
+            )
+            ''')
+            
+            # 創建 matches 表
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS matches (
+                id SERIAL PRIMARY KEY,
+                user_a INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                user_b INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                score REAL,
+                user_a_accepted INTEGER DEFAULT 0,
+                user_b_accepted INTEGER DEFAULT 0,
+                match_details TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_a, user_b)
+            )
+            ''')
+            
+            # 創建 daily_limits 表
+            cur.execute('''
+            CREATE TABLE IF NOT EXISTS daily_limits (
+                id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                date DATE DEFAULT CURRENT_DATE,
+                match_count INTEGER DEFAULT 0,
+                UNIQUE(user_id, date)
+            )
+            ''')
+            
+            # 創建索引
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
+            cur.execute('CREATE INDEX IF NOT EXISTS idx_matches_users ON matches(user_a, user_b)')
+            
             conn.commit()
-            logger.info(f"數據庫初始化完成")
+            logger.info("PostgreSQL 數據庫初始化完成")
+            
     except Exception as e:
         logger.error(f"數據庫初始化失敗: {e}")
         raise
 
 def check_daily_limit(user_id):
+    """檢查每日配對限制"""
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
             today = datetime.now().date()
 
-            if USE_POSTGRES:
-                cur.execute("""
-                    INSERT INTO daily_limits (user_id, date, match_count)
-                    VALUES (%s, %s, 1)
-                    ON CONFLICT (user_id, date)
-                    DO UPDATE SET match_count = daily_limits.match_count + 1
-                    RETURNING match_count
-                """, (user_id, today))
-            else:
-                cur.execute("""
-                    INSERT OR IGNORE INTO daily_limits (user_id, date, match_count)
-                    VALUES (?, DATE('now'), 0)
-                """, (user_id,))
-                cur.execute("""
-                    UPDATE daily_limits
-                    SET match_count = match_count + 1
-                    WHERE user_id = ? AND date = DATE('now')
-                """, (user_id,))
-                cur.execute("""
-                    SELECT match_count FROM daily_limits
-                    WHERE user_id = ? AND date = DATE('now')
-                """, (user_id,))
+            cur.execute("""
+                INSERT INTO daily_limits (user_id, date, match_count)
+                VALUES (%s, %s, 1)
+                ON CONFLICT (user_id, date)
+                DO UPDATE SET match_count = daily_limits.match_count + 1
+                RETURNING match_count
+            """, (user_id, today))
 
             result = cur.fetchone()
             conn.commit()
@@ -376,49 +270,51 @@ def clear_user_data(telegram_id):
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
-            placeholder = get_placeholder()
-            cur.execute(f"""
-                DELETE FROM matches
-                WHERE user_a = (SELECT id FROM users WHERE telegram_id = {placeholder})
-                   OR user_b = (SELECT id FROM users WHERE telegram_id = {placeholder})
-            """, (telegram_id, telegram_id))
-            cur.execute(f"""
-                DELETE FROM daily_limits
-                WHERE user_id = (SELECT id FROM users WHERE telegram_id = {placeholder})
-            """, (telegram_id,))
-            cur.execute(f"""
-                DELETE FROM profiles
-                WHERE user_id = (SELECT id FROM users WHERE telegram_id = {placeholder})
-            """, (telegram_id,))
-            cur.execute(f"""
-                DELETE FROM users
-                WHERE telegram_id = {placeholder}
-            """, (telegram_id,))
+            
+            # 先獲取用戶ID
+            cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
+            user_row = cur.fetchone()
+            
+            if not user_row:
+                return True  # 用戶不存在，視為成功
+                
+            user_id = user_row[0]
+            
+            # 刪除關聯數據
+            cur.execute("DELETE FROM matches WHERE user_a = %s OR user_b = %s", (user_id, user_id))
+            cur.execute("DELETE FROM daily_limits WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM profiles WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            
             conn.commit()
             logger.info(f"已清除用戶 {telegram_id} 的資料")
             return True
+            
     except Exception as e:
         logger.error(f"清除用戶資料失敗: {e}")
         return False
 
 def get_internal_user_id(telegram_id):
+    """獲取內部用戶ID"""
     with closing(get_conn()) as conn:
         cur = conn.cursor()
-        cur.execute(f"SELECT id FROM users WHERE telegram_id = {get_placeholder()}", (telegram_id,))
+        cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
         row = cur.fetchone()
         return row[0] if row else None
 
 def get_telegram_id(internal_user_id):
+    """獲取Telegram ID"""
     with closing(get_conn()) as conn:
         cur = conn.cursor()
-        cur.execute(f"SELECT telegram_id FROM users WHERE id = {get_placeholder()}", (internal_user_id,))
+        cur.execute("SELECT telegram_id FROM users WHERE id = %s", (internal_user_id,))
         row = cur.fetchone()
         return row[0] if row else None
 
 def get_username(internal_user_id):
+    """獲取用戶名"""
     with closing(get_conn()) as conn:
         cur = conn.cursor()
-        cur.execute(f"SELECT username FROM users WHERE id = {get_placeholder()}", (internal_user_id,))
+        cur.execute("SELECT username FROM users WHERE id = %s", (internal_user_id,))
         row = cur.fetchone()
         return row[0] if row else None
 
@@ -426,7 +322,7 @@ def get_profile_data(internal_user_id):
     """獲取完整的個人資料數據"""
     with closing(get_conn()) as conn:
         cur = conn.cursor()
-        cur.execute(f"""
+        cur.execute("""
             SELECT 
                 u.username,
                 p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, 
@@ -439,7 +335,7 @@ def get_profile_data(internal_user_id):
                 p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
             FROM users u
             JOIN profiles p ON u.id = p.user_id
-            WHERE u.id = {get_placeholder()}
+            WHERE u.id = %s
         """, (internal_user_id,))
         row = cur.fetchone()
         
@@ -677,7 +573,7 @@ async def ask_hour_known(update, context):
         return ASK_HOUR_KNOWN
 
 async def ask_hour(update, context):
-    """詢問出生時間"""
+    """詢問出生小時"""
     hour_known = context.user_data.get("hour_known", "yes")
 
     if hour_known == "yes":
@@ -691,14 +587,15 @@ async def ask_hour(update, context):
             await update.message.reply_text("時間必須 0-23，請重新輸入：")
             return ASK_HOUR
 
+        context.user_data["birth_hour"] = hour
+        context.user_data["hour_confidence"] = "高"
+        
         # 詢問分鐘
         await update.message.reply_text(
             "請輸入出生分鐘（0-59，如不清楚可輸入0）：\n"
             "例如: 14:30 則輸入30"
         )
-        context.user_data["birth_hour"] = hour
-        context.user_data["hour_confidence"] = "高"
-        return ASK_HOUR  # 繼續詢問分鐘
+        return ASK_MINUTE  # 新增：轉到詢問分鐘的狀態
 
     elif hour_known == "approximate":
         description = update.message.text.strip()
@@ -724,17 +621,17 @@ async def ask_hour(update, context):
         return ASK_GENDER
 
 async def ask_minute(update, context):
-    """詢問出生分鐘"""
+    """詢問出生分鐘 - 修正版"""
     text = update.message.text.strip()
     
     if not text.isdigit():
         await update.message.reply_text("請輸入數字分鐘（0-59），如不清楚可輸入0：")
-        return ASK_HOUR
+        return ASK_MINUTE
     
     minute = int(text)
     if not 0 <= minute <= 59:
         await update.message.reply_text("分鐘必須 0-59，請重新輸入：")
-        return ASK_HOUR
+        return ASK_MINUTE
     
     context.user_data["birth_minute"] = minute
     
@@ -743,7 +640,7 @@ async def ask_minute(update, context):
         "請輸入出生地經度（例如香港114.17，上海121.47）：\n"
         "如不清楚可留空使用預設值（香港經度114.17）"
     )
-    return ASK_HOUR  # 繼續詢問經度
+    return ASK_LONGITUDE  # 轉到詢問經度
 
 async def ask_longitude(update, context):
     """詢問出生地經度"""
@@ -751,36 +648,42 @@ async def ask_longitude(update, context):
     
     if text == "":
         longitude = DEFAULT_LONGITUDE
+        context.user_data["longitude"] = longitude
+        
+        keyboard = [["男", "女"]]
+        reply_markup = ReplyKeyboardMarkup(
+            keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            f"使用預設經度: {DEFAULT_LONGITUDE}\n\n請選擇性別：",
+            reply_markup=reply_markup
+        )
+        return ASK_GENDER
     else:
         try:
             longitude = float(text)
             if not -180 <= longitude <= 180:
                 await update.message.reply_text("經度必須在-180到180之間，請重新輸入：")
-                return ASK_HOUR
+                return ASK_LONGITUDE
+            
+            context.user_data["longitude"] = longitude
+            
+            keyboard = [["男", "女"]]
+            reply_markup = ReplyKeyboardMarkup(
+                keyboard, one_time_keyboard=True, resize_keyboard=True)
+            
+            await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
+            return ASK_GENDER
+            
         except ValueError:
             await update.message.reply_text("請輸入有效的數字經度，例如114.17：")
-            return ASK_HOUR
-    
-    context.user_data["longitude"] = longitude
-    
-    keyboard = [["男", "女"]]
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard, one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
-    return ASK_GENDER
+            return ASK_LONGITUDE
 
 async def ask_gender(update, context):
     """詢問性別並完成註冊"""
     text = update.message.text.strip()
     
-    # 檢查是否是在詢問分鐘或經度後轉到性別
-    if text.isdigit() and len(text) <= 2:  # 可能是分鐘輸入
-        return await ask_minute(update, context)
-    elif text.replace('.', '', 1).isdigit():  # 可能是經度輸入
-        return await ask_longitude(update, context)
-    
     gender = text
-
     if gender not in ["男", "女"]:
         keyboard = [["男", "女"]]
         reply_markup = ReplyKeyboardMarkup(
@@ -788,6 +691,7 @@ async def ask_gender(update, context):
         await update.message.reply_text("請使用下方鍵盤選擇「男」或「女」：", reply_markup=reply_markup)
         return ASK_GENDER
 
+    # 獲取所有註冊資料
     year = context.user_data["birth_year"]
     month = context.user_data["birth_month"]
     day = context.user_data["birth_day"]
@@ -803,7 +707,7 @@ async def ask_gender(update, context):
         return ConversationHandler.END
 
     try:
-        # 使用新的八字計算器，傳入分鐘和經度
+        # 使用新的八字計算器，傳入所有參數
         bazi = ProfessionalBaziCalculator.calculate(
             year, month, day, hour, 
             gender=gender,
@@ -834,24 +738,13 @@ async def ask_gender(update, context):
     with closing(get_conn()) as conn:
         cur = conn.cursor()
 
-        if USE_POSTGRES:
-            cur.execute(f"""
-                INSERT INTO users (telegram_id, username)
-                VALUES ({get_placeholder()}, {get_placeholder()})
-                ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username
-                RETURNING id
-            """, (telegram_id, username))
-        else:
-            cur.execute(f"""
-                INSERT OR IGNORE INTO users (telegram_id, username)
-                VALUES ({get_placeholder()}, {get_placeholder()})
-            """, (telegram_id, username))
-            cur.execute(f"""
-                UPDATE users SET username = {get_placeholder()} WHERE telegram_id = {get_placeholder()}
-            """, (username, telegram_id))
-            cur.execute(
-                f"SELECT id FROM users WHERE telegram_id = {
-                    get_placeholder()}", (telegram_id,))
+        # 插入或更新用戶資料
+        cur.execute("""
+            INSERT INTO users (telegram_id, username)
+            VALUES (%s, %s)
+            ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username
+            RETURNING id
+        """, (telegram_id, username))
 
         row = cur.fetchone()
         if not row:
@@ -861,113 +754,67 @@ async def ask_gender(update, context):
         internal_user_id = row[0]
         elements = bazi.get("elements", {})
 
-        if USE_POSTGRES:
-            cur.execute(f"""
-                INSERT INTO profiles
-                (user_id, birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
-                 year_pillar, month_pillar, day_pillar, hour_pillar,
-                 zodiac, day_stem, day_stem_element,
-                 wood, fire, earth, metal, water,
-                 day_stem_strength, strength_score, useful_elements, harmful_elements,
-                 spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
-                 cong_ge_type, shi_shen_structure, shen_sha_data)
-                VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
-                ON CONFLICT (user_id) DO UPDATE SET
-                    birth_year = EXCLUDED.birth_year,
-                    birth_month = EXCLUDED.birth_month,
-                    birth_day = EXCLUDED.birth_day,
-                    birth_hour = EXCLUDED.birth_hour,
-                    birth_minute = EXCLUDED.birth_minute,
-                    hour_confidence = EXCLUDED.hour_confidence,
-                    gender = EXCLUDED.gender,
-                    year_pillar = EXCLUDED.year_pillar,
-                    month_pillar = EXCLUDED.month_pillar,
-                    day_pillar = EXCLUDED.day_pillar,
-                    hour_pillar = EXCLUDED.hour_pillar,
-                    zodiac = EXCLUDED.zodiac,
-                    day_stem = EXCLUDED.day_stem,
-                    day_stem_element = EXCLUDED.day_stem_element,
-                    wood = EXCLUDED.wood,
-                    fire = EXCLUDED.fire,
-                    earth = EXCLUDED.earth,
-                    metal = EXCLUDED.metal,
-                    water = EXCLUDED.water,
-                    day_stem_strength = EXCLUDED.day_stem_strength,
-                    strength_score = EXCLUDED.strength_score,
-                    useful_elements = EXCLUDED.useful_elements,
-                    harmful_elements = EXCLUDED.harmful_elements,
-                    spouse_star_status = EXCLUDED.spouse_star_status,
-                    spouse_star_effective = EXCLUDED.spouse_star_effective,
-                    spouse_palace_status = EXCLUDED.spouse_palace_status,
-                    pressure_score = EXCLUDED.pressure_score,
-                    cong_ge_type = EXCLUDED.cong_ge_type,
-                    shi_shen_structure = EXCLUDED.shi_shen_structure,
-                    shen_sha_data = EXCLUDED.shen_sha_data
-            """, (
-                internal_user_id, year, month, day, hour, minute, hour_confidence, gender,
-                bazi.get("year_pillar", ""), bazi.get("month_pillar", ""), bazi.get("day_pillar", ""), bazi.get("hour_pillar", ""),
-                bazi.get("zodiac", ""), bazi.get("day_stem", ""), bazi.get("day_stem_element", ""),
-                float(elements.get("木", 0)), float(elements.get("火", 0)),
-                float(elements.get("土", 0)), float(elements.get("金", 0)),
-                float(elements.get("水", 0)), bazi.get("day_stem_strength", "中"),
-                bazi.get("strength_score", 50), ','.join(bazi.get("useful_elements", [])),
-                ','.join(bazi.get("harmful_elements", [])), bazi.get("spouse_star_status", "未知"),
-                bazi.get("spouse_star_effective", "未知"), bazi.get("spouse_palace_status", "未知"),
-                bazi.get("pressure_score", 0), bazi.get("cong_ge_type", "正格"),
-                bazi.get("shi_shen_structure", "普通結構"),
-                json.dumps({"names": bazi.get("shen_sha_names", "無"), "bonus": bazi.get("shen_sha_bonus", 0)})
-            ))
-        else:
-            cur.execute(f"""
-                INSERT OR REPLACE INTO profiles
-                (user_id, birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
-                 year_pillar, month_pillar, day_pillar, hour_pillar,
-                 zodiac, day_stem, day_stem_element,
-                 wood, fire, earth, metal, water,
-                 day_stem_strength, strength_score, useful_elements, harmful_elements,
-                 spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
-                 cong_ge_type, shi_shen_structure, shen_sha_data)
-                VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
-            """, (
-                internal_user_id, year, month, day, hour, minute, hour_confidence, gender,
-                bazi.get("year_pillar", ""), bazi.get("month_pillar", ""), bazi.get("day_pillar", ""), bazi.get("hour_pillar", ""),
-                bazi.get("zodiac", ""), bazi.get("day_stem", ""), bazi.get("day_stem_element", ""),
-                float(elements.get("木", 0)), float(elements.get("火", 0)),
-                float(elements.get("土", 0)), float(elements.get("金", 0)),
-                float(elements.get("水", 0)), bazi.get("day_stem_strength", "中"),
-                bazi.get("strength_score", 50), ','.join(bazi.get("useful_elements", [])),
-                ','.join(bazi.get("harmful_elements", [])), bazi.get("spouse_star_status", "未知"),
-                bazi.get("spouse_star_effective", "未知"), bazi.get("spouse_palace_status", "未知"),
-                bazi.get("pressure_score", 0), bazi.get("cong_ge_type", "正格"),
-                bazi.get("shi_shen_structure", "普通結構"),
-                json.dumps({"names": bazi.get("shen_sha_names", "無"), "bonus": bazi.get("shen_sha_bonus", 0)})
-            ))
+        # 插入或更新八字資料
+        cur.execute("""
+            INSERT INTO profiles
+            (user_id, birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+             year_pillar, month_pillar, day_pillar, hour_pillar,
+             zodiac, day_stem, day_stem_element,
+             wood, fire, earth, metal, water,
+             day_stem_strength, strength_score, useful_elements, harmful_elements,
+             spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
+             cong_ge_type, shi_shen_structure, shen_sha_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s, %s, %s,
+                   %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (user_id) DO UPDATE SET
+                birth_year = EXCLUDED.birth_year,
+                birth_month = EXCLUDED.birth_month,
+                birth_day = EXCLUDED.birth_day,
+                birth_hour = EXCLUDED.birth_hour,
+                birth_minute = EXCLUDED.birth_minute,
+                hour_confidence = EXCLUDED.hour_confidence,
+                gender = EXCLUDED.gender,
+                year_pillar = EXCLUDED.year_pillar,
+                month_pillar = EXCLUDED.month_pillar,
+                day_pillar = EXCLUDED.day_pillar,
+                hour_pillar = EXCLUDED.hour_pillar,
+                zodiac = EXCLUDED.zodiac,
+                day_stem = EXCLUDED.day_stem,
+                day_stem_element = EXCLUDED.day_stem_element,
+                wood = EXCLUDED.wood,
+                fire = EXCLUDED.fire,
+                earth = EXCLUDED.earth,
+                metal = EXCLUDED.metal,
+                water = EXCLUDED.water,
+                day_stem_strength = EXCLUDED.day_stem_strength,
+                strength_score = EXCLUDED.strength_score,
+                useful_elements = EXCLUDED.useful_elements,
+                harmful_elements = EXCLUDED.harmful_elements,
+                spouse_star_status = EXCLUDED.spouse_star_status,
+                spouse_star_effective = EXCLUDED.spouse_star_effective,
+                spouse_palace_status = EXCLUDED.spouse_palace_status,
+                pressure_score = EXCLUDED.pressure_score,
+                cong_ge_type = EXCLUDED.cong_ge_type,
+                shi_shen_structure = EXCLUDED.shi_shen_structure,
+                shen_sha_data = EXCLUDED.shen_sha_data
+        """, (
+            internal_user_id, year, month, day, hour, minute, hour_confidence, gender,
+            bazi.get("year_pillar", ""), bazi.get("month_pillar", ""), bazi.get("day_pillar", ""), bazi.get("hour_pillar", ""),
+            bazi.get("zodiac", ""), bazi.get("day_stem", ""), bazi.get("day_stem_element", ""),
+            float(elements.get("木", 0)), float(elements.get("火", 0)),
+            float(elements.get("土", 0)), float(elements.get("金", 0)),
+            float(elements.get("水", 0)), bazi.get("day_stem_strength", "中"),
+            bazi.get("strength_score", 50), ','.join(bazi.get("useful_elements", [])),
+            ','.join(bazi.get("harmful_elements", [])), bazi.get("spouse_star_status", "未知"),
+            bazi.get("spouse_star_effective", "未知"), bazi.get("spouse_palace_status", "未知"),
+            bazi.get("pressure_score", 0), bazi.get("cong_ge_type", "正格"),
+            bazi.get("shi_shen_structure", "普通結構"),
+            json.dumps({"names": bazi.get("shen_sha_names", "無"), "bonus": bazi.get("shen_sha_bonus", 0)})
+        ))
 
         conn.commit()
-
-    # 準備顯示用的信心度文本
-    confidence_map = {
-        "高": "（高信心度）",
-        "中": "（中信心度，時辰估算）",
-        "低": "（低信心度，時辰未知）"
-    }
-    confidence_text = confidence_map.get(hour_confidence, "（信心度未知）")
 
     # 準備個人資料顯示
     bazi_data_for_display = {
@@ -1002,6 +849,14 @@ async def ask_gender(update, context):
 
     profile_result = format_profile_result(bazi_data_for_display, username)
     
+    # 準備信心度文本
+    confidence_map = {
+        "高": "（高信心度）",
+        "中": "（中信心度，時辰估算）",
+        "低": "（低信心度，時辰未知）"
+    }
+    confidence_text = confidence_map.get(hour_confidence, "（信心度未知）")
+
     # 使用文字常量
     registration_text = REGISTRATION_COMPLETE_TEXT.format(
         confidence_text=confidence_text,
@@ -1076,13 +931,11 @@ async def profile(update, context):
 
     with closing(get_conn()) as conn:
         cur = conn.cursor()
-        cur.execute(
-            f"SELECT username FROM users WHERE id = {
-                get_placeholder()}", (internal_user_id,))
+        cur.execute("SELECT username FROM users WHERE id = %s", (internal_user_id,))
         user_row = cur.fetchone()
         uname = user_row[0] if user_row else "未知"
 
-        cur.execute(f"""
+        cur.execute("""
             SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
                    year_pillar, month_pillar, day_pillar, hour_pillar,
                    zodiac, day_stem, day_stem_element,
@@ -1090,7 +943,7 @@ async def profile(update, context):
                    day_stem_strength, strength_score, useful_elements, harmful_elements,
                    spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
                    cong_ge_type, shi_shen_structure, shen_sha_data
-            FROM profiles WHERE user_id = {get_placeholder()}
+            FROM profiles WHERE user_id = %s
         """, (internal_user_id,))
         p = cur.fetchone()
 
@@ -1168,7 +1021,7 @@ async def match(update, context):
     with closing(get_conn()) as conn:
         cur = conn.cursor()
 
-        cur.execute(f"""
+        cur.execute("""
             SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
                    year_pillar, month_pillar, day_pillar, hour_pillar,
                    zodiac, day_stem, day_stem_element,
@@ -1176,7 +1029,7 @@ async def match(update, context):
                    day_stem_strength, strength_score, useful_elements, harmful_elements,
                    spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
                    cong_ge_type, shi_shen_structure, shen_sha_data
-            FROM profiles WHERE user_id = {get_placeholder()}
+            FROM profiles WHERE user_id = %s
         """, (internal_user_id,))
         me_p = cur.fetchone()
 
@@ -1234,7 +1087,7 @@ async def match(update, context):
         me_profile = to_profile(me_p)
         my_gender = me_p[6]
 
-        cur.execute(f"""
+        cur.execute("""
             SELECT
                 u.id, u.telegram_id, u.username,
                 p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, p.hour_confidence, p.gender,
@@ -1246,13 +1099,13 @@ async def match(update, context):
                 p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
             FROM users u
             JOIN profiles p ON u.id = p.user_id
-            WHERE u.id != {get_placeholder()}
+            WHERE u.id != %s
             AND u.active = 1
-            AND p.gender != {get_placeholder()}
+            AND p.gender != %s
             AND NOT EXISTS (
                 SELECT 1 FROM matches m
-                WHERE ((m.user_a = {get_placeholder()} AND m.user_b = u.id)
-                       OR (m.user_a = u.id AND m.user_b = {get_placeholder()}))
+                WHERE ((m.user_a = %s AND m.user_b = u.id)
+                       OR (m.user_a = u.id AND m.user_b = %s))
                 AND m.user_a_accepted = 1 AND m.user_b_accepted = 1
             )
             ORDER BY RANDOM()
@@ -1372,7 +1225,7 @@ async def match(update, context):
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
     
     # 發送AI分析提示按鈕
-    ai_prompt = generate_ai_prompt(match_result)
+    ai_prompt = generate_ai_prompt(match_result, me_profile, op)
     context.user_data["ai_prompt"] = ai_prompt
     
     ai_keyboard = [
@@ -1424,8 +1277,7 @@ async def debug_command(update, context):
 🛠️ Debug 資訊：
 Python 版本: {platform.python_version()}
 系統: {platform.system()} {platform.release()}
-數據庫路徑: {DB_PATH}
-使用 PostgreSQL: {USE_POSTGRES}
+數據庫: PostgreSQL (Railway)
 八字算法版本: 師傅級婚配系統（新評分引擎）
 評分模組: 能量救應、結構核心、人格風險、刑沖壓力、神煞加持、專業化解
 聯絡交換門檻: {MASTER_BAZI_CONFIG['SCORING_SYSTEM']['THRESHOLDS']['contact_allowed']}分
@@ -1551,7 +1403,7 @@ async def test_pair_command(update, context):
             await update.message.reply_text(message)
 
         # 提供AI分析提示
-        ai_prompt = generate_ai_prompt(match_result)
+        ai_prompt = generate_ai_prompt(match_result, bazi1, bazi2)
         await update.message.reply_text(
             "🤖 AI分析提示（可複製問AI）：\n\n"
             f"```\n{ai_prompt}\n```",
@@ -1722,7 +1574,7 @@ async def find_soulmate_purpose(update, context):
         
         with closing(get_conn()) as conn:
             cur = conn.cursor()
-            cur.execute(f"""
+            cur.execute("""
                 SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
                        year_pillar, month_pillar, day_pillar, hour_pillar,
                        zodiac, day_stem, day_stem_element,
@@ -1730,7 +1582,7 @@ async def find_soulmate_purpose(update, context):
                        day_stem_strength, strength_score, useful_elements, harmful_elements,
                        spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
                        cong_ge_type, shi_shen_structure, shen_sha_data
-                FROM profiles WHERE user_id = {get_placeholder()}
+                FROM profiles WHERE user_id = %s
             """, (internal_user_id,))
             me_p = cur.fetchone()
         
@@ -1902,11 +1754,11 @@ async def button_callback(update, context):
             user_b_accepted = 0
             match_id = None
 
-            cur.execute(f"""
+            cur.execute("""
                 SELECT id, user_a_accepted, user_b_accepted
                 FROM matches
-                WHERE (user_a = {get_placeholder()} AND user_b = {get_placeholder()})
-                   OR (user_a = {get_placeholder()} AND user_b = {get_placeholder()})
+                WHERE (user_a = %s AND user_b = %s)
+                   OR (user_a = %s AND user_b = %s)
             """, (user_a_id, user_b_id, user_b_id, user_a_id))
 
             match_row = cur.fetchone()
@@ -1921,28 +1773,21 @@ async def button_callback(update, context):
                     "current_match", {}).get(
                     "match_result", {})
 
-                if USE_POSTGRES:
-                    cur.execute(f"""
-                        INSERT INTO matches (user_a, user_b, score, match_details)
-                        VALUES (%s, %s, %s, %s)
-                        ON CONFLICT (user_a, user_b) DO NOTHING
-                        RETURNING id
-                    """, (user_a_id, user_b_id, score, json.dumps(match_result)))
-                    result = cur.fetchone()
-                    match_id = result[0] if result else None
-                else:
-                    cur.execute(f"""
-                        INSERT OR IGNORE INTO matches (user_a, user_b, score, match_details)
-                        VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
-                    """, (user_a_id, user_b_id, score, json.dumps(match_result)))
-                    match_id = cur.lastrowid
+                cur.execute("""
+                    INSERT INTO matches (user_a, user_b, score, match_details)
+                    VALUES (%s, %s, %s, %s)
+                    ON CONFLICT (user_a, user_b) DO NOTHING
+                    RETURNING id
+                """, (user_a_id, user_b_id, score, json.dumps(match_result)))
+                result = cur.fetchone()
+                match_id = result[0] if result else None
 
                 conn.commit()
 
                 if not match_id:
-                    cur.execute(f"""
+                    cur.execute("""
                         SELECT id FROM matches
-                        WHERE user_a = {get_placeholder()} AND user_b = {get_placeholder()}
+                        WHERE user_a = %s AND user_b = %s
                     """, (user_a_id, user_b_id))
                     match_row = cur.fetchone()
                     if match_row:
@@ -1953,25 +1798,23 @@ async def button_callback(update, context):
 
             if internal_user_id == user_a_id:
                 user_a_accepted = 1
-                cur.execute(f"""
+                cur.execute("""
                     UPDATE matches
                     SET user_a_accepted = 1
-                    WHERE id = {get_placeholder()}
+                    WHERE id = %s
                 """, (match_id,))
             else:
                 user_b_accepted = 1
-                cur.execute(f"""
+                cur.execute("""
                     UPDATE matches
                     SET user_b_accepted = 1
-                    WHERE id = {get_placeholder()}
+                    WHERE id = %s
                 """, (match_id,))
 
             conn.commit()
 
             if user_a_accepted == 1 and user_b_accepted == 1:
-                cur.execute(
-                    f"SELECT score FROM matches WHERE id = {
-                        get_placeholder()}", (match_id,))
+                cur.execute("SELECT score FROM matches WHERE id = %s", (match_id,))
                 score_row = cur.fetchone()
                 actual_score = score_row[0] if score_row else 70
 
@@ -2087,7 +1930,7 @@ async def button_callback(update, context):
                     "current_match", {}).get(
                     "match_result", {})
                 if match_result:
-                    ai_prompt = generate_ai_prompt(match_result)
+                    ai_prompt = generate_ai_prompt(match_result, a_profile, b_profile)
 
                     ai_tips = (
                         "🤖 AI分析提示：\n\n"
@@ -2117,6 +1960,7 @@ def main():
     logger.info("⏳ 等待舊實例清理...")
     time.sleep(1)
 
+    # 初始化PostgreSQL數據庫
     init_db()
 
     token = os.getenv("BOT_TOKEN", "").strip()
@@ -2140,7 +1984,7 @@ def main():
 
         app.add_error_handler(error_handler)
 
-        # 主註冊流程（更新為包含分鐘和經度詢問）
+        # 主註冊流程（包含分鐘和經度詢問）
         main_conv_handler = ConversationHandler(
             entry_points=[CommandHandler("start", start)],
             states={
@@ -2150,6 +1994,8 @@ def main():
                 ASK_DAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_day)],
                 ASK_HOUR_KNOWN: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_hour_known)],
                 ASK_HOUR: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_hour)],
+                ASK_MINUTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_minute)],
+                ASK_LONGITUDE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_longitude)],
                 ASK_GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_gender)],
             },
             fallbacks=[
@@ -2212,6 +2058,8 @@ if __name__ == "__main__":
 - new_calculator.py (八字計算核心)
 - bazi_soulmate.py (真命天子搜尋功能)
 - admin_service.py (管理員服務)
+- psycopg2 (PostgreSQL數據庫連接)
+
 被引用文件: 無
 """
 # ========文件信息結束 ========#
@@ -2219,10 +2067,10 @@ if __name__ == "__main__":
 # ========目錄開始 ========#
 """
 1.1 導入模組 - 導入所有必要的庫和模組
-1.2 配置與初始化 - 日誌配置、路徑檢查、基礎配置
-1.3 數據庫工具 - 數據庫連接、初始化、輔助函數
+1.2 配置與初始化 - 日誌配置、基礎配置
+1.3 數據庫工具 - PostgreSQL數據庫連接、初始化、輔助函數
 1.4 隱私條款模組 - 隱私條款相關函數
-1.5 Bot 註冊流程函數 - 所有註冊流程處理函數
+1.5 Bot 註冊流程函數 - 所有註冊流程處理函數（包含分鐘和經度輸入）
 1.6 命令處理函數 - 所有命令處理函數
 1.7 Find Soulmate 流程函數 - 真命天子搜尋流程
 1.8 按鈕回調處理函數 - 所有按鈕回調處理
@@ -2320,7 +2168,7 @@ if __name__ == "__main__":
    - 添加/admin_test和/admin_stats命令處理函數
    - 在主程序中註冊管理員命令處理器
 
-版本 1.9 (2024-02-01) - 本次修正
+版本 1.9 (2024-02-01)
 重要修改：
 1. 修復要求1：配對成功消息格式
    - 問題：配對成功消息格式不符合要求
@@ -2360,27 +2208,53 @@ if __name__ == "__main__":
      c. 更新功能選單提示
      d. 添加確認機制防止誤刪
 
-5. 修正ask_gender函數邏輯
-   - 問題：ask_gender函數可能混淆分鐘/經度輸入和性別輸入
-   - 位置：ask_gender()函數
-   - 修改：添加檢查邏輯，區分數字輸入（分鐘/經度）和性別輸入
-   - 後果：用戶可以正確輸入分鐘和經度而不會中斷流程
+版本 1.10 (2024-02-01) - 本次修正
+重要修改：
+1. 修復問題：輸入出生分鐘後，變輸入時間
+   - 問題：當用戶輸入分鐘後，系統錯誤地調用ask_hour函數而不是ask_minute
+   - 位置：ask_hour()函數中的分鐘處理邏輯
+   - 修改：
+     a. 在對話狀態中新增ASK_MINUTE和ASK_LONGITUDE狀態
+     b. 修改ask_hour()函數，在小時輸入後轉到ASK_MINUTE狀態
+     c. 新增ask_minute()函數專門處理分鐘輸入
+     d. 新增ask_longitude()函數專門處理經度輸入
+   - 後果：註冊流程現在正確處理：小時→分鐘→經度→性別
 
-6. 更新數據庫結構
-   - 在profiles表中添加birth_minute字段
-   - 確保數據庫初始化腳本包含新字段
-   - 更新所有相關的數據庫查詢
+2. 修改要求2：只用Railway的PostgreSQL做數據庫
+   - 問題：原系統同時支持SQLite和PostgreSQL，但您要求只用PostgreSQL
+   - 位置：整個數據庫連接部分
+   - 修改：
+     a. 移除所有SQLite相關代碼
+     b. 移除USE_POSTGRES變量和相關邏輯
+     c. 只保留PostgreSQL連接代碼
+     d. 使用psycopg2庫連接PostgreSQL
+     e. 修復Railway PostgreSQL URL格式（postgres:// → postgresql://）
+   - 後果：系統現在只使用Railway的PostgreSQL，簡化代碼
 
-7. 保持四方功能一致
+3. 檢查對齊標準做法
+   - 確保所有section header使用正確的數字格式（1.1, 1.2, 2.1等）
+   - 檢查所有函數註釋和文檔使用繁體中文
+   - 移除所有版本號標示
+   - 確保所有文件引用關係正確
+   - 檢查並修復所有生成AI提示的調用，傳入正確的參數
+
+4. 保持四方功能一致
    - 確保match/testpair/findsoulmate/profile結果格式一致
-   - 所有功能都顯示完整的個人資料信息
-   - 統一的時間格式（包含分鐘）
+   - 所有功能都顯示完整的個人資料信息（包含分鐘）
+   - 統一的時間格式顯示
 
-8. 其他改進
-   - 在debug命令中顯示管理員ID狀態
-   - 優化錯誤處理和用戶提示
-   - 保持向後兼容性
-   - 更新所有相關的section header
-   - 修正目錄和修正紀錄
+5. 修復AI提示生成調用
+   - 問題：generate_ai_prompt()調用缺少必要的bazi1和bazi2參數
+   - 位置：match()函數和test_pair_command()函數
+   - 修改：在所有調用generate_ai_prompt的地方傳入bazi1和bazi2參數
+
+6. 移除無用代碼和重複功能
+   - 移除所有SQLite相關的條件判斷
+   - 移除重複的數據庫連接邏輯
+   - 簡化數據庫初始化代碼
+
+7. 更新debug命令顯示信息
+   - 顯示當前使用PostgreSQL數據庫
+   - 移除SQLite相關信息
 """
 # ========修正紀錄結束 ========
