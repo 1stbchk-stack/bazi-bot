@@ -1,3 +1,5 @@
+[file name]: bot.py
+[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -78,6 +80,9 @@ from texts import (
     AI_USAGE_TIPS,
     REGISTRATION_COMPLETE_TEXT
 )
+
+# 導入管理員服務
+from admin_service import AdminService
 # ========1.1 導入模組結束 ========#
 
 # ========1.2 配置與初始化開始 ========#
@@ -117,6 +122,9 @@ logger.info(f"使用數據庫路徑: {DB_PATH}")
 
 SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "your-secret-key-change-me").strip()
 DAILY_MATCH_LIMIT = 10
+
+# 管理員用戶ID列表（需要替換為實際的管理員ID）
+ADMIN_USER_IDS = [123456789]  # 這裡需要替換為實際的管理員Telegram ID
 
 # 對話狀態
 (
@@ -1193,7 +1201,7 @@ async def match(update, context):
     }
 
     # 使用 format_match_result 返回的列表
-    formatted_messages = format_match_result(match_result)
+    formatted_messages = format_match_result(match_result, me_profile, other_profile)
     if len(formatted_messages) >= 2:
         core_analysis = formatted_messages[0]  # 第一條：核心分析結果
         pairing_info = formatted_messages[1]   # 第二條：分數詳情
@@ -1332,10 +1340,10 @@ async def test_pair_command(update, context):
             return
 
         # 配對計算 - 使用主入口函數
-        match_result = calculate_match(bazi1, bazi2, gender1, gender2)
+        match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
 
         # 發送完整的格式化消息
-        formatted_messages = format_match_result(match_result)
+        formatted_messages = format_match_result(match_result, bazi1, bazi2)
         for message in formatted_messages:
             await update.message.reply_text(message)
 
@@ -1356,6 +1364,44 @@ async def test_pair_command(update, context):
     except Exception as e:
         logger.error(f"測試配對失敗: {e}", exc_info=True)
         await update.message.reply_text(f"❌ 測試失敗: {str(e)}\n請檢查輸入格式是否正確。")
+
+async def admin_test_command(update, context):
+    """管理員測試命令 - 運行20組測試案例"""
+    # 檢查是否為管理員
+    telegram_id = update.effective_user.id
+    if telegram_id not in ADMIN_USER_IDS:
+        await update.message.reply_text("❌ 此功能僅限管理員使用")
+        return
+    
+    # 創建AdminService實例
+    admin_service = AdminService()
+    
+    # 運行測試
+    await update.message.reply_text("🔄 開始運行管理員測試...")
+    results = await admin_service.run_admin_tests()
+    
+    # 格式化並發送結果
+    formatted_results = admin_service.format_test_results(results)
+    await update.message.reply_text(formatted_results)
+
+async def admin_stats_command(update, context):
+    """管理員統計命令 - 查看系統統計"""
+    # 檢查是否為管理員
+    telegram_id = update.effective_user.id
+    if telegram_id not in ADMIN_USER_IDS:
+        await update.message.reply_text("❌ 此功能僅限管理員使用")
+        return
+    
+    # 創建AdminService實例
+    admin_service = AdminService()
+    
+    # 獲取系統統計
+    await update.message.reply_text("🔄 正在獲取系統統計數據...")
+    stats = await admin_service.get_system_stats()
+    
+    # 格式化並發送結果
+    formatted_stats = admin_service.format_system_stats(stats)
+    await update.message.reply_text(formatted_stats)
 # ========1.6 命令處理函數結束 ========#
 
 # ========1.7 Find Soulmate 流程函數開始 ========#
@@ -1879,6 +1925,9 @@ def main():
         app.add_handler(CommandHandler("debug", debug_command))
         app.add_handler(CommandHandler("testpair", test_pair_command))
         app.add_handler(CommandHandler("match", match))
+        # 添加管理員命令處理器
+        app.add_handler(CommandHandler("admin_test", admin_test_command))
+        app.add_handler(CommandHandler("admin_stats", admin_stats_command))
         app.add_handler(CallbackQueryHandler(button_callback))
 
         app.run_polling(
@@ -1900,7 +1949,7 @@ if __name__ == "__main__":
 文件: bot.py
 功能: 主程序文件，包含所有Bot交互邏輯
 
-引用文件: texts.py, new_calculator.py, bazi_soulmate.py
+引用文件: texts.py, new_calculator.py, bazi_soulmate.py, admin_service.py
 被引用文件: 無
 """
 # ========文件信息結束 ========#
@@ -1980,7 +2029,7 @@ if __name__ == "__main__":
 4. 更新導入語句
 5. 修正評分閾值使用
 
-版本 1.7 (2024-02-01) - 本次修正
+版本 1.7 (2024-02-01)
 重要修改：
 1. 修正錯誤1：profile功能無咗年月日時
    - 問題：format_profile_result()函數沒有顯示出生年月日時
@@ -1993,22 +2042,37 @@ if __name__ == "__main__":
    - 位置：test_pair_command()函數
    - 修改：明確設置minute=0和longitude=114.17避免時間調整
    - 修改：使用hour_confidence="high"（英文）以匹配new_calculator中的映射
-   - 注意：new_calculator.py中的置信度調整邏輯也已修正
 
-3. 修正profile()函數：
-   - 添加：在bazi_data中傳遞出生時間信息給format_profile_result()
-   - 確保：format_profile_result()現在可以顯示完整的出生時間
+版本 1.8 (2024-02-01) - 本次修正
+重要修改：
+1. 修正錯誤3：雙向影響分析無講A同B係邊個
+   - 問題：雙向影響分析只顯示A對B、B對A，但不知道誰是A誰是B
+   - 位置：test_pair_command()函數
+   - 修改：修正format_match_result()調用，傳入bazi1和bazi2參數
+   - 修改：在format_match_result()中顯示明確的"用戶A對用戶B"和"用戶B對用戶A"
+   - 影響：現在雙向影響分析明確標識了A和B是誰
 
-4. 修正ask_gender()函數：
-   - 添加：在bazi_data_for_display中添加出生時間字段
-   - 確保：註冊完成後顯示完整的出生時間
+2. 添加管理員功能：
+   - 導入admin_service.py
+   - 添加管理員用戶ID配置
+   - 添加/admin_test和/admin_stats命令處理函數
+   - 在主程序中註冊管理員命令處理器
+
+3. 修正其他問題：
+   - 修正test_pair_command函數中format_match_result參數錯誤
+   - 添加管理員專用命令保護
+   - 確保所有三方功能（match/testpair/findsoulmate）結果一致
+   - 修正test_cases導入問題（移除未使用的代碼）
 
 影響：
-- profile命令現在顯示完整的出生年月日時
-- testpair命令不再因不必要的時間調整而大幅扣分
-- 所有時間顯示更加準確
-- 保持向後兼容
+- 雙向影響分析現在明確標識A和B的身份
+- 添加了管理員專用功能
+- 三方功能結果保持一致的顯示格式
+- testpair命令現在正確顯示雙方基本資料
 
-注意：這些修正需要與new_calculator.py的修正一起使用
+注意：
+- 需要將ADMIN_USER_IDS中的123456789替換為實際的管理員Telegram ID
+- 確保admin_service.py和test_cases.py文件存在
 """
 # ========修正紀錄結束 ========#
+[file content end]

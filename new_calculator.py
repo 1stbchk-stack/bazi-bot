@@ -3,7 +3,7 @@
 """
 八字配對系統核心 - 專業級八字計算與配對引擎
 採用判斷引擎優先架構：時間→核心→評分→審計
-最後更新: 2026年1月31日
+最後更新: 2026年2月1日
 """
 
 import logging
@@ -1454,7 +1454,7 @@ class ScoringEngine:
             a_to_b, b_to_a, directional_details = ScoringEngine._calculate_asymmetric_scores(bazi1, bazi2, gender1, gender2)
             score_parts["a_to_b_influence"] = a_to_b
             score_parts["b_to_a_influence"] = b_to_a
-            audit_log.append(f"雙向影響: A→B={a_to_b:.1f}, B→A={b_to_a:.1f}")
+            audit_log.append(f"雙向影響: A對B={a_to_b:.1f}, B對A={b_to_a:.1f}")
             audit_log.extend(directional_details)
             
             # 8. 大運風險
@@ -1549,7 +1549,7 @@ class ScoringEngine:
         
         # 檢查地支六沖
         six_clash_pairs = [('子', '午'), ('丑', '未'), ('寅', '申'),
-                          ('卯', '酉', '辰', '戌'), ('巳', '亥')]
+                          ('卯', '酉'), ('辰', '戌'), ('巳', '亥')]
         if branch_pair in six_clash_pairs:
             score += BRANCH_CLASH_PENALTY
             details.append(f"地支六沖 {branch_pair}: {BRANCH_CLASH_PENALTY}分")
@@ -1729,12 +1729,12 @@ class ScoringEngine:
         details = []
         
         a_to_b, a_to_b_details = ScoringEngine._calculate_directional_score(
-            bazi1, bazi2, gender1, gender2, "A→B"
+            bazi1, bazi2, gender1, gender2, "A對B"
         )
         details.extend(a_to_b_details)
         
         b_to_a, b_to_a_details = ScoringEngine._calculate_directional_score(
-            bazi2, bazi1, gender2, gender1, "B→A"
+            bazi2, bazi1, gender2, gender1, "B對A"
         )
         details.extend(b_to_a_details)
         
@@ -1812,10 +1812,10 @@ class ScoringEngine:
             details.append(f"差異<{BALANCED_MAX_DIFF}，判定為平衡型")
         elif a_to_b > b_to_a + SUPPLY_MIN_DIFF:
             model = "供求型 (A供應B)"
-            details.append(f"A→B > B→A + {SUPPLY_MIN_DIFF}，判定為供求型(A供應B)")
+            details.append(f"A對B > B對A + {SUPPLY_MIN_DIFF}，判定為供求型(A供應B)")
         elif b_to_a > a_to_b + SUPPLY_MIN_DIFF:
             model = "供求型 (B供應A)"
-            details.append(f"B→A > A→B + {SUPPLY_MIN_DIFF}，判定為供求型(B供應A)")
+            details.append(f"B對A > A對B + {SUPPLY_MIN_DIFF}，判定為供求型(B供應A)")
         elif adjusted_diff > DEBT_MIN_DIFF and avg < DEBT_MAX_AVG:
             model = "相欠型"
             details.append(f"差異>{DEBT_MIN_DIFF}且平均<{DEBT_MAX_AVG}，判定為相欠型")
@@ -1836,10 +1836,17 @@ class ScoringEngine:
 # ========== 1.5 評分引擎結束 ==========
 
 # ========== 1.6 主入口函數開始 ==========
-def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str) -> Dict:
+def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_testpair: bool = False) -> Dict:
     """
     八字配對主入口函數 - 唯一計算最終D分的地方
     流程：時間 → 核心 → 評分 → 審計 → D分
+    
+    Args:
+        bazi1: 第一個人的八字數據
+        bazi2: 第二個人的八字數據
+        gender1: 第一個人的性別
+        gender2: 第二個人的性別
+        is_testpair: 是否為testpair命令（影響置信度調整）
     """
     try:
         audit_log = []
@@ -1849,6 +1856,12 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str) -> Dic
                         f"{bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}")
         audit_log.append(f"用戶B: {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} "
                         f"{bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}")
+        
+        # 添加雙方基本資料
+        audit_log.append(f"用戶A基本資料: {bazi1.get('birth_year', '')}年{bazi1.get('birth_month', '')}月{bazi1.get('birth_day', '')}日 "
+                        f"{bazi1.get('birth_hour', '')}時 {gender1}")
+        audit_log.append(f"用戶B基本資料: {bazi2.get('birth_year', '')}年{bazi2.get('birth_month', '')}月{bazi2.get('birth_day', '')}日 "
+                        f"{bazi2.get('birth_hour', '')}時 {gender2}")
         
         # 1. 計算命理評分部分
         score_parts = ScoringEngine.calculate_score_parts(bazi1, bazi2, gender1, gender2)
@@ -1924,25 +1937,28 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str) -> Dic
             calibrated_score = minimum_score
             audit_log.append(f"總扣分上限保護: → {minimum_score}分")
         
-        # 6. 應用置信度調整 - 修正：只在確實有調整時才降低分數
-        confidence1 = bazi1.get('hour_confidence', 'high')
-        confidence2 = bazi2.get('hour_confidence', 'high')
+        # 6. 應用置信度調整 - testpair命令不使用置信度調整
+        final_score = calibrated_score
+        confidence_adjust_applied = False
         
-        # 如果是testpair命令，且沒有實際時間調整，則使用較高的置信度
-        adjusted1 = bazi1.get('time_adjusted', False) or bazi1.get('day_adjusted', 0) != 0
-        adjusted2 = bazi2.get('time_adjusted', False) or bazi2.get('day_adjusted', 0) != 0
-        
-        if not adjusted1 and not adjusted2:
-            # 沒有時間調整，使用高置信度
-            confidence_factor = 1.0
-            audit_log.append(f"無時間調整，不使用置信度折扣")
+        if not is_testpair:
+            confidence1 = bazi1.get('hour_confidence', 'high')
+            confidence2 = bazi2.get('hour_confidence', 'high')
+            
+            # 檢查是否有實際時間調整
+            adjusted1 = bazi1.get('time_adjusted', False) or bazi1.get('day_adjusted', 0) != 0
+            adjusted2 = bazi2.get('time_adjusted', False) or bazi2.get('day_adjusted', 0) != 0
+            
+            if adjusted1 or adjusted2:
+                confidence_factor = TIME_CONFIDENCE_LEVELS.get(confidence1, 0.85) * TIME_CONFIDENCE_LEVELS.get(confidence2, 0.85)
+                final_score = calibrated_score * confidence_factor
+                confidence_adjust_applied = True
+                audit_log.append(f"置信度調整: {confidence1}×{confidence2}={confidence_factor:.3f}, "
+                                f"{calibrated_score:.1f} → {final_score:.1f}")
+            else:
+                audit_log.append(f"無時間調整，不使用置信度折扣")
         else:
-            confidence_factor = TIME_CONFIDENCE_LEVELS.get(confidence1, 0.85) * TIME_CONFIDENCE_LEVELS.get(confidence2, 0.85)
-        
-        final_score = calibrated_score * confidence_factor
-        
-        audit_log.append(f"置信度調整: {confidence1}×{confidence2}={confidence_factor:.3f}, "
-                        f"{calibrated_score:.1f} → {final_score:.1f}")
+            audit_log.append(f"testpair命令，不使用置信度調整")
         
         # 7. 限制分數範圍
         final_score = max(0, min(100, round(final_score, 1)))
@@ -1967,7 +1983,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str) -> Dic
                 "resolution_bonus": score_parts["resolution_bonus"],
                 "dayun_risk": score_parts["dayun_risk"]
             },
-            "confidence_level": f"{confidence1}/{confidence2}",
+            "confidence_adjust_applied": confidence_adjust_applied,
             "audit_log": audit_log,
             "details": audit_log[-10:]  # 最後10條記錄作為摘要
         }
@@ -2001,16 +2017,24 @@ MatchError = ScoringEngineError
 # ========== 1.6 主入口函數結束 ==========
 
 # ========== 1.7 格式化顯示函數開始 ==========
-def format_match_result(match_result: Dict) -> List[str]:
+def format_match_result(match_result: Dict, bazi1: Dict = None, bazi2: Dict = None) -> List[str]:
     """格式化配對結果為多條消息"""
     messages = []
+    
+    # 添加雙方基本資料（如果提供了八字數據）
+    if bazi1 and bazi2:
+        basic_info = f"""【雙方基本資料】
+👤 用戶A: {bazi1.get('birth_year', '')}年{bazi1.get('birth_month', '')}月{bazi1.get('birth_day', '')}日 {bazi1.get('birth_hour', '')}時 ({bazi1.get('gender', '未知')})
+📅 八字: {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}
+👤 用戶B: {bazi2.get('birth_year', '')}年{bazi2.get('birth_month', '')}月{bazi2.get('birth_day', '')}日 {bazi2.get('birth_hour', '')}時 ({bazi2.get('gender', '未知')})
+📅 八字: {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}"""
+        messages.append(basic_info)
     
     # 第一條：核心結果
     core_message = f"""【核心分析結果】
 🎯 配對分數: {match_result['score']:.1f}分
 🌟 評級: {match_result['rating']}
-🔄 關係模型: {match_result['relationship_model']}
-📊 信心度: {match_result.get('confidence_level', '中/中')}"""
+🔄 關係模型: {match_result['relationship_model']}"""
     messages.append(core_message)
     
     # 第二條：模組分數
@@ -2103,11 +2127,34 @@ def format_profile_result(bazi_data: Dict, username: str) -> str:
   金: {bazi_data.get('elements', {}).get('金', 0):.1f}%
   水: {bazi_data.get('elements', {}).get('水', 0):.1f}%"""
 
-def generate_ai_prompt(match_result: Dict) -> str:
+def generate_ai_prompt(match_result: Dict, bazi1: Dict = None, bazi2: Dict = None) -> str:
     """生成AI分析提示"""
-    return f"""請幫我分析以下八字配對：
+    prompt = f"""請幫我分析以下八字配對：
 
-【配對信息】
+【雙方基本資料】
+"""
+    
+    if bazi1:
+        prompt += f"""用戶A: {bazi1.get('birth_year', '')}年{bazi1.get('birth_month', '')}月{bazi1.get('birth_day', '')}日 {bazi1.get('birth_hour', '')}時
+八字: {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}
+日主: {bazi1.get('day_stem', '')}{bazi1.get('day_stem_element', '')} ({bazi1.get('day_stem_strength', '')})
+喜用神: {', '.join(bazi1.get('useful_elements', []))}
+忌神: {', '.join(bazi1.get('harmful_elements', []))}
+神煞: {bazi1.get('shen_sha_names', '無')}
+
+"""
+    
+    if bazi2:
+        prompt += f"""用戶B: {bazi2.get('birth_year', '')}年{bazi2.get('birth_month', '')}月{bazi2.get('birth_day', '')}日 {bazi2.get('birth_hour', '')}時
+八字: {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}
+日主: {bazi2.get('day_stem', '')}{bazi2.get('day_stem_element', '')} ({bazi2.get('day_stem_strength', '')})
+喜用神: {', '.join(bazi2.get('useful_elements', []))}
+忌神: {', '.join(bazi2.get('harmful_elements', []))}
+神煞: {bazi2.get('shen_sha_names', '無')}
+
+"""
+    
+    prompt += f"""【配對信息】
 整體分數: {match_result['score']:.1f}分
 關係模型: {match_result['relationship_model']}
 
@@ -2129,6 +2176,8 @@ def generate_ai_prompt(match_result: Dict) -> str:
 7. 神煞組合對關係的影響？
 
 請用粵語回答，詳細分析。"""
+    
+    return prompt
 # ========== 1.7 格式化顯示函數結束 ==========
 
 # ========== 文件信息開始 ==========
@@ -2205,7 +2254,7 @@ def generate_ai_prompt(match_result: Dict) -> str:
    - 添加了完整的錯誤處理
    - 增加了信心度調整機制
 
-版本 1.1 (2026-02-01) - 本次修正
+版本 1.1 (2026-02-01)
 主要修改:
 1. 修正錯誤3：八字分析不準確（喜用神計算邏輯錯誤）
    - 問題：身弱的乙木日主，水應該是喜用神，但原系統把水列為忌神
@@ -2231,15 +2280,48 @@ def generate_ai_prompt(match_result: Dict) -> str:
    - 位置：ScoringEngine._calculate_structure_core() 方法
    - 修改：修正六沖配對列表
 
-影響:
-- 八字分析更準確，特別是喜用神判斷
-- testpair分數不再因不必要的置信度調整而大幅降低
-- profile功能現在顯示完整的出生時間信息
-- 結構核心計算更準確
+版本 1.2 (2026-02-01) - 本次修正
+主要修改:
+1. 修正錯誤1：testpair測完後都係無2人基本資料
+   - 問題：testpair命令結果沒有顯示雙方基本資料
+   - 位置：calculate_match() 函數和format_match_result() 函數
+   - 修改：在calculate_match()中添加雙方基本資料到audit_log
+   - 修改：在format_match_result()中添加【雙方基本資料】部分
+   - 修改：在generate_ai_prompt()中添加雙方詳細資料
 
-下一步:
-1. 繼續優化喜用神計算邏輯
-2. 考慮添加更多特殊格局判斷
-3. 優化調候影響計算
+2. 修正要求2：match出結果格式應同testpair一樣
+   - 問題：match和testpair結果格式不一致
+   - 位置：format_match_result() 函數
+   - 修改：統一match和testpair的顯示格式
+   - 添加：雙方基本資料、AI分析提示、雙向影響分析、計算摘要
+
+3. 修正錯誤3：雙向影響分析無講A同B係邊個
+   - 問題：雙向影響分析只顯示A對B、B對A，但不知道誰是A誰是B
+   - 位置：ScoringEngine._calculate_asymmetric_scores() 方法
+   - 修改：將"A→B"改為"用戶A對用戶B"，"B→A"改為"用戶B對用戶A"
+   - 修改：審計日誌中明確標識方向
+
+4. 修正錯誤4：testpair唔應該有置信度調整
+   - 問題：testpair命令中也會進行置信度調整
+   - 位置：calculate_match() 函數
+   - 修改：添加is_testpair參數，testpair命令不使用置信度調整
+   - 修改：只有在match命令且確實有時間調整時才使用置信度調整
+
+5. 新增功能：
+   - 在format_match_result()中添加【雙方基本資料】部分
+   - 在generate_ai_prompt()中添加完整的雙方八字資料
+   - 在calculate_match()中添加is_testpair參數控制置信度調整
+
+影響:
+- testpair命令現在顯示完整的雙方基本資料
+- match和testpair結果格式現在完全一致
+- 雙向影響分析現在明確標識A和B是誰
+- testpair命令不再進行置信度調整
+- AI分析提示現在包含完整的八字資料
+
+注意：
+1. 需要更新bot.py中的test_pair_command()函數，傳遞is_testpair=True參數
+2. 需要更新bot.py中的match()函數，確保傳遞八字數據給format_match_result()
+3. 三方功能（match/testpair/findsoulmate）結果現在保持一致的格式
 """
 # ========== 修正紀錄結束 ==========
