@@ -27,11 +27,12 @@ from telegram.ext import (
     ContextTypes,
 )
 from new_calculator import (
-    format_core_analysis,
-    format_pairing_info,
-    format_module_scores,
-    format_key_interactions,
-    format_suggestions,
+    # 格式化函數 - 從 new_calculator 導入
+    format_match_result,
+    format_profile_result,
+    generate_ai_prompt,
+    
+    # 評分閾值 - 從 new_calculator 導入
     THRESHOLD_WARNING,
     THRESHOLD_CONTACT_ALLOWED,
     THRESHOLD_GOOD_MATCH,
@@ -1172,9 +1173,15 @@ async def match(update, context):
     }
 
     # 只發送【核心分析結果】和【配對資訊】
-    core_analysis = format_core_analysis(match_result)
-    pairing_info = format_pairing_info(match_result)
-    
+    formatted_messages = format_match_result(match_result)
+    if len(formatted_messages) >= 2:
+        core_analysis = formatted_messages[0]  # 第一條：核心分析結果
+        pairing_info = formatted_messages[1]   # 第二條：分數詳情
+    else:
+        core_analysis = formatted_messages[0]
+        pairing_info = ""
+
+   
     # 發送前兩條消息
     await update.message.reply_text(core_analysis)
     await update.message.reply_text(pairing_info)
