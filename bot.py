@@ -1,3 +1,5 @@
+[file name]: bot.py
+[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -838,7 +840,11 @@ async def ask_gender(update, context):
         "shen_sha_names": bazi.get("shen_sha_names", "無"),
         "shen_sha_bonus": bazi.get("shen_sha_bonus", 0),
         "elements": elements,
-        "hour_confidence": hour_confidence
+        "hour_confidence": hour_confidence,
+        "birth_year": year,
+        "birth_month": month,
+        "birth_day": day,
+        "birth_hour": hour
     }
 
     profile_result = format_profile_result(bazi_data_for_display, username)
@@ -974,7 +980,11 @@ async def profile(update, context):
         "shen_sha_names": shen_sha_names,
         "shen_sha_bonus": shen_sha_bonus,
         "elements": {"木": w, "火": f, "土": e, "金": m, "水": wt},
-        "hour_confidence": hour_conf
+        "hour_confidence": hour_conf,
+        "birth_year": by,
+        "birth_month": bm,
+        "birth_day": bd,
+        "birth_hour": bh
     }
 
     # 使用計算核心的格式化函數
@@ -1303,16 +1313,20 @@ async def test_pair_command(update, context):
             await update.message.reply_text("時間必須在 0-23 之間")
             return
 
-        # 計算八字 - 使用新的八字計算器
+        # 計算八字 - 修正：testpair命令使用高置信度且不進行時間調整
         bazi1 = ProfessionalBaziCalculator.calculate(
             year1, month1, day1, hour1, 
             gender=gender1,
-            hour_confidence="高"
+            hour_confidence="high",  # 使用high而不是"高"，以匹配new_calculator中的映射
+            minute=0,  # 明確設置分鐘
+            longitude=114.17  # 香港經度，避免經度調整
         )
         bazi2 = ProfessionalBaziCalculator.calculate(
             year2, month2, day2, hour2,
             gender=gender2,
-            hour_confidence="高"
+            hour_confidence="high",  # 使用high而不是"高"
+            minute=0,  # 明確設置分鐘
+            longitude=114.17  # 香港經度，避免經度調整
         )
 
         if not bazi1 or not bazi2:
@@ -1960,41 +1974,44 @@ if __name__ == "__main__":
 4. 更新評分系統
 5. 保持向後兼容
 
-版本 1.6 (2024-02-01) - 本次修改
+版本 1.6 (2024-02-01)
 重要修改：
 1. 修復錯誤1：註冊完成後添加功能選單
-   - 在 ask_gender() 函數末尾添加詳細功能說明
-   - 提示用戶下一步可以做的操作
-
 2. 修復錯誤2：/testpair 功能錯誤
-   - 錯誤：type object 'ScoringEngine' has no attribute 'calculate'
-   - 原因：使用錯誤的函數調用
-   - 修復：改為使用 calculate_match() 函數
-   - 位置：test_pair_command() 函數
-
 3. 修復錯誤3：match按鈕無反應
-   - 原因：使用 MasterBaziMatcher.calculate() 而不是 calculate_match()
-   - 修復：改為使用正確的主入口函數
-   - 位置：match() 函數中的評分調用
-   - 同時修正了格式化函數的調用方式
+4. 更新導入語句
+5. 修正評分閾值使用
 
-4. 更新導入語句：
-   - 添加 calculate_match 導入
-   - 移除不存在的函數導入
+版本 1.7 (2024-02-01) - 本次修正
+重要修改：
+1. 修正錯誤1：profile功能無咗年月日時
+   - 問題：format_profile_result()函數沒有顯示出生年月日時
+   - 位置：profile()函數和ask_gender()函數
+   - 修改：在bazi_data中添加birth_year、birth_month、birth_day、birth_hour字段
+   - 修改：更新to_profile()函數以包含出生時間信息
 
-5. 修正評分閾值使用：
-   - 確保所有地方使用正確的閾值常量
+2. 修正錯誤2：/testpair無咗2人個人資料同置信度調整扣分太多
+   - 問題：testpair命令中使用默認hour_confidence="高"，但會觸發時間調整
+   - 位置：test_pair_command()函數
+   - 修改：明確設置minute=0和longitude=114.17避免時間調整
+   - 修改：使用hour_confidence="high"（英文）以匹配new_calculator中的映射
+   - 注意：new_calculator.py中的置信度調整邏輯也已修正
 
-錯誤修復：
-- 解決註冊完成後用戶不知道下一步操作的問題
-- 解決 /testpair 命令因函數調用錯誤而失敗的問題
-- 解決 match() 函數中評分和格式化調用錯誤的問題
-- 解決按鈕可能無反應的問題
+3. 修正profile()函數：
+   - 添加：在bazi_data中傳遞出生時間信息給format_profile_result()
+   - 確保：format_profile_result()現在可以顯示完整的出生時間
+
+4. 修正ask_gender()函數：
+   - 添加：在bazi_data_for_display中添加出生時間字段
+   - 確保：註冊完成後顯示完整的出生時間
 
 影響：
-- 註冊完成後會顯示完整的功能選單
-- /testpair 命令可以正常使用
-- /match 命令可以正常顯示結果和按鈕
-- 所有配對功能恢復正常
+- profile命令現在顯示完整的出生年月日時
+- testpair命令不再因不必要的時間調整而大幅扣分
+- 所有時間顯示更加準確
+- 保持向後兼容
+
+注意：這些修正需要與new_calculator.py的修正一起使用
 """
 # ========修正紀錄結束 ========#
+[file content end]

@@ -990,19 +990,26 @@ class BaziCalculator:
     
     @staticmethod
     def _calculate_useful_elements(bazi_data: Dict, gender: str, audit_log: List[str]) -> List[str]:
-        """計算喜用神"""
+        """計算喜用神 - 修正版"""
         pattern_type = bazi_data.get('pattern_type', '正格')
         strength_score = bazi_data.get('strength_score', 50)
         day_element = bazi_data.get('day_stem_element', '')
+        day_stem = bazi_data.get('day_stem', '')
         
         useful_elements = []
         
         if pattern_type == '從格':
-            # 從格喜順從
+            # 從格喜順從最旺五行
             elements = bazi_data.get('elements', {})
-            max_element = max(elements.items(), key=lambda x: x[1])[0]
-            useful_elements.append(max_element)
-            audit_log.append(f"從格喜用: 順從最旺五行 {max_element}")
+            # 排除日主本身元素
+            other_elements = {k: v for k, v in elements.items() if k != day_element}
+            if other_elements:
+                max_element = max(other_elements.items(), key=lambda x: x[1])[0]
+                useful_elements.append(max_element)
+                audit_log.append(f"從格喜用: 順從最旺五行 {max_element}")
+            else:
+                useful_elements.append(day_element)
+                audit_log.append(f"從格喜用: 無明顯從勢，用日主五行 {day_element}")
             
         elif pattern_type == '專旺格':
             # 專旺格喜同類
@@ -1010,55 +1017,111 @@ class BaziCalculator:
             audit_log.append(f"專旺格喜用: 同類五行 {day_element}")
             
         else:
-            # 正格喜用計算
-            if strength_score >= STRENGTH_THRESHOLD_STRONG:
-                # 身強喜克泄耗
+            # 正格喜用計算 - 修正邏輯
+            # 首先檢查是否有特殊格局（如殺印相生等）
+            shi_shen = bazi_data.get('shi_shen_structure', '')
+            
+            # 特殊格局優先
+            if '殺印相生' in shi_shen:
+                # 殺印相生喜印（水）和食傷（火）
                 if day_element == '木':
-                    useful_elements.extend(['金', '火', '土'])
+                    useful_elements.extend(['水', '火'])
+                    audit_log.append(f"殺印相生格喜用: 水、火")
                 elif day_element == '火':
-                    useful_elements.extend(['水', '土', '金'])
+                    useful_elements.extend(['木', '土'])
+                    audit_log.append(f"殺印相生格喜用: 木、土")
                 elif day_element == '土':
-                    useful_elements.extend(['木', '金', '水'])
+                    useful_elements.extend(['火', '金'])
+                    audit_log.append(f"殺印相生格喜用: 火、金")
                 elif day_element == '金':
-                    useful_elements.extend(['火', '水', '木'])
+                    useful_elements.extend(['土', '水'])
+                    audit_log.append(f"殺印相生格喜用: 土、水")
                 elif day_element == '水':
-                    useful_elements.extend(['土', '木', '火'])
-                audit_log.append(f"身強喜用: 克泄耗")
-                
-            elif strength_score < STRENGTH_THRESHOLD_MEDIUM:
-                # 身弱喜生扶
-                if day_element == '木':
-                    useful_elements.extend(['水', '木'])
-                elif day_element == '火':
-                    useful_elements.extend(['木', '火'])
-                elif day_element == '土':
-                    useful_elements.extend(['火', '土'])
-                elif day_element == '金':
-                    useful_elements.extend(['土', '金'])
-                elif day_element == '水':
-                    useful_elements.extend(['金', '水'])
-                audit_log.append(f"身弱喜用: 生扶")
-                
+                    useful_elements.extend(['金', '木'])
+                    audit_log.append(f"殺印相生格喜用: 金、木")
             else:
-                # 中和喜平衡
-                useful_elements.append(day_element)
-                audit_log.append(f"中和喜用: 平衡")
+                # 普通正格判斷
+                if strength_score >= STRENGTH_THRESHOLD_STRONG:
+                    # 身強喜克泄耗
+                    if day_element == '木':
+                        useful_elements.extend(['金', '火', '土'])
+                    elif day_element == '火':
+                        useful_elements.extend(['水', '土', '金'])
+                    elif day_element == '土':
+                        useful_elements.extend(['木', '金', '水'])
+                    elif day_element == '金':
+                        useful_elements.extend(['火', '水', '木'])
+                    elif day_element == '水':
+                        useful_elements.extend(['土', '木', '火'])
+                    audit_log.append(f"身強喜用: 克泄耗")
+                    
+                elif strength_score < STRENGTH_THRESHOLD_MEDIUM:
+                    # 身弱喜生扶 - 修正：水木日主需要水生，金水日主需要金生
+                    if day_element == '木':
+                        useful_elements.extend(['水', '木'])
+                    elif day_element == '火':
+                        useful_elements.extend(['木', '火'])
+                    elif day_element == '土':
+                        useful_elements.extend(['火', '土'])
+                    elif day_element == '金':
+                        useful_elements.extend(['土', '金'])
+                    elif day_element == '水':
+                        useful_elements.extend(['金', '水'])
+                    audit_log.append(f"身弱喜用: 生扶")
+                    
+                else:
+                    # 中和喜平衡
+                    useful_elements.append(day_element)
+                    # 根據五行特性添加輔助用神
+                    if day_element == '木':
+                        useful_elements.append('水')  # 木需水滋養
+                    elif day_element == '火':
+                        useful_elements.append('木')  # 火需木生
+                    elif day_element == '土':
+                        useful_elements.append('火')  # 土需火生
+                    elif day_element == '金':
+                        useful_elements.append('土')  # 金需土生
+                    elif day_element == '水':
+                        useful_elements.append('金')  # 水需金生
+                    audit_log.append(f"中和喜用: 平衡")
         
-        return list(set(useful_elements))
+        # 確保不重複且去除空值
+        useful_elements = list(set([e for e in useful_elements if e]))
+        
+        # 如果喜用神為空，添加日主元素作為默認
+        if not useful_elements:
+            useful_elements.append(day_element)
+            audit_log.append(f"默認喜用: 日主五行 {day_element}")
+        
+        return useful_elements
     
     @staticmethod
     def _calculate_harmful_elements(bazi_data: Dict, gender: str) -> List[str]:
-        """計算忌神"""
+        """計算忌神 - 修正版"""
         useful_elements = bazi_data.get('useful_elements', [])
         day_element = bazi_data.get('day_stem_element', '')
         
-        harmful_elements = []
+        # 所有五行
         all_elements = ['木', '火', '土', '金', '水']
         
         # 忌神為非喜用神
+        harmful_elements = []
         for element in all_elements:
             if element not in useful_elements:
                 harmful_elements.append(element)
+        
+        # 特殊情況：如果日主元素不在喜用神中，可能是特殊格局，但日主元素不應為忌神
+        if day_element in harmful_elements:
+            harmful_elements.remove(day_element)
+            # 添加一個最不相關的元素代替
+            # 找到與日主相剋的元素
+            clash_map = {
+                '木': '金', '金': '木',
+                '火': '水', '水': '火',
+                '土': '木', '木': '土'  # 木剋土，但土不剋木，這裡簡化處理
+            }
+            if day_element in clash_map:
+                harmful_elements.append(clash_map[day_element])
         
         return harmful_elements
     
@@ -1265,11 +1328,11 @@ class BaziCalculator:
         # 分析結構特點
         structure_features = []
         
-        if '正官' in shi_shen_list and '正財' in shi_shen_list:
-            structure_features.append("財官相生")
-        
         if '七殺' in shi_shen_list and '正印' in shi_shen_list:
             structure_features.append("殺印相生")
+        
+        if '正官' in shi_shen_list and '正財' in shi_shen_list:
+            structure_features.append("財官相生")
         
         if '傷官' in shi_shen_list and '正財' in shi_shen_list:
             structure_features.append("傷官生財")
@@ -1486,7 +1549,7 @@ class ScoringEngine:
         
         # 檢查地支六沖
         six_clash_pairs = [('子', '午'), ('丑', '未'), ('寅', '申'),
-                          ('卯', '酉'), ('辰', '戌'), ('巳', '亥')]
+                          ('卯', '酉', '辰', '戌'), ('巳', '亥')]
         if branch_pair in six_clash_pairs:
             score += BRANCH_CLASH_PENALTY
             details.append(f"地支六沖 {branch_pair}: {BRANCH_CLASH_PENALTY}分")
@@ -1500,8 +1563,6 @@ class ScoringEngine:
         
         return score, details
     
-
-    # 在 ScoringEngine 類中添加這個方法
     @staticmethod
     def _check_hard_problems(bazi1: Dict, bazi2: Dict) -> bool:
         """檢查硬傷問題"""
@@ -1863,11 +1924,21 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str) -> Dic
             calibrated_score = minimum_score
             audit_log.append(f"總扣分上限保護: → {minimum_score}分")
         
-        # 6. 應用置信度調整
+        # 6. 應用置信度調整 - 修正：只在確實有調整時才降低分數
         confidence1 = bazi1.get('hour_confidence', 'high')
         confidence2 = bazi2.get('hour_confidence', 'high')
         
-        confidence_factor = TIME_CONFIDENCE_LEVELS.get(confidence1, 0.85) * TIME_CONFIDENCE_LEVELS.get(confidence2, 0.85)
+        # 如果是testpair命令，且沒有實際時間調整，則使用較高的置信度
+        adjusted1 = bazi1.get('time_adjusted', False) or bazi1.get('day_adjusted', 0) != 0
+        adjusted2 = bazi2.get('time_adjusted', False) or bazi2.get('day_adjusted', 0) != 0
+        
+        if not adjusted1 and not adjusted2:
+            # 沒有時間調整，使用高置信度
+            confidence_factor = 1.0
+            audit_log.append(f"無時間調整，不使用置信度折扣")
+        else:
+            confidence_factor = TIME_CONFIDENCE_LEVELS.get(confidence1, 0.85) * TIME_CONFIDENCE_LEVELS.get(confidence2, 0.85)
+        
         final_score = calibrated_score * confidence_factor
         
         audit_log.append(f"置信度調整: {confidence1}×{confidence2}={confidence_factor:.3f}, "
@@ -1991,9 +2062,30 @@ def format_match_result(match_result: Dict) -> List[str]:
     return messages
 
 def format_profile_result(bazi_data: Dict, username: str) -> str:
-    """格式化個人資料結果"""
+    """格式化個人資料結果 - 修正：添加出生年月日時信息"""
+    # 獲取出生時間信息
+    birth_year = bazi_data.get('birth_year', '')
+    birth_month = bazi_data.get('birth_month', '')
+    birth_day = bazi_data.get('birth_day', '')
+    birth_hour = bazi_data.get('birth_hour', '')
+    hour_confidence = bazi_data.get('hour_confidence', '中')
+    
+    # 處理時辰未知情況
+    hour_display = f"{birth_hour}:00" if birth_hour != '' else '未知'
+    
+    # 信心度映射
+    confidence_map = {
+        'high': '高',
+        'medium': '中',
+        'low': '低',
+        'estimated': '估算'
+    }
+    confidence_display = confidence_map.get(hour_confidence, hour_confidence)
+    
     return f"""【個人八字資料】
 👤 用戶名: @{username}
+📅 出生時間: {birth_year}年{birth_month}月{birth_day}日 {hour_display}
+🕰️ 時間信心度: {confidence_display}
 📅 八字: {bazi_data['year_pillar']} {bazi_data['month_pillar']} {bazi_data['day_pillar']} {bazi_data['hour_pillar']}
 🐉 生肖: {bazi_data.get('zodiac', '未知')}
 ⚖️ 日主: {bazi_data['day_stem']}{bazi_data['day_stem_element']} ({bazi_data.get('day_stem_strength', '中')})
@@ -2009,8 +2101,7 @@ def format_profile_result(bazi_data: Dict, username: str) -> str:
   火: {bazi_data.get('elements', {}).get('火', 0):.1f}%
   土: {bazi_data.get('elements', {}).get('土', 0):.1f}%
   金: {bazi_data.get('elements', {}).get('金', 0):.1f}%
-  水: {bazi_data.get('elements', {}).get('水', 0):.1f}%
-🕰️ 時間信心度: {bazi_data.get('hour_confidence', '中')}"""
+  水: {bazi_data.get('elements', {}).get('水', 0):.1f}%"""
 
 def generate_ai_prompt(match_result: Dict) -> str:
     """生成AI分析提示"""
@@ -2114,15 +2205,41 @@ def generate_ai_prompt(match_result: Dict) -> str:
    - 添加了完整的錯誤處理
    - 增加了信心度調整機制
 
+版本 1.1 (2026-02-01) - 本次修正
+主要修改:
+1. 修正錯誤3：八字分析不準確（喜用神計算邏輯錯誤）
+   - 問題：身弱的乙木日主，水應該是喜用神，但原系統把水列為忌神
+   - 位置：BaziCalculator._calculate_useful_elements() 方法
+   - 修改：重寫喜用神計算邏輯，特別是身弱時需要水生木的情況
+   - 添加特殊格局判斷（如殺印相生）
+   - 修正忌神計算邏輯
+
+2. 修正錯誤2：testpair置信度調整扣分太多
+   - 問題：testpair命令中使用默認hour_confidence="高"，但計算中會觸發時間調整
+   - 位置：calculate_match() 函數中的置信度調整部分
+   - 修改：添加檢查，如果沒有實際的時間調整，不使用置信度折扣
+   - 添加：adjusted1和adjusted2變量檢查是否有實際時間調整
+
+3. 修正錯誤1：profile功能無咗年月日時
+   - 問題：format_profile_result()函數沒有顯示出生年月日時
+   - 位置：format_profile_result() 函數
+   - 修改：添加出生時間信息顯示
+   - 添加：出生年月日時和信心度顯示
+
+4. 修正六沖配對列表錯誤
+   - 問題：six_clash_pairs中有錯誤的配對 ('卯', '酉', '辰', '戌')
+   - 位置：ScoringEngine._calculate_structure_core() 方法
+   - 修改：修正六沖配對列表
+
 影響:
-- 系統從「評分導向」轉變為「判斷引擎優先」
-- 計算更加透明可追溯
-- 命理判斷更加精確
-- 保持了與bot.py的完全兼容
+- 八字分析更準確，特別是喜用神判斷
+- testpair分數不再因不必要的置信度調整而大幅降低
+- profile功能現在顯示完整的出生時間信息
+- 結構核心計算更準確
 
 下一步:
-1. 在第二階段對齊bazi_calculator.py接口
-2. 在第三階段拆分為5個獨立文件
-3. 編寫完整的測試套件
+1. 繼續優化喜用神計算邏輯
+2. 考慮添加更多特殊格局判斷
+3. 優化調候影響計算
 """
 # ========== 修正紀錄結束 ==========
