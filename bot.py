@@ -31,7 +31,12 @@ from new_calculator import (
     format_pairing_info,
     format_module_scores,
     format_key_interactions,
-    format_suggestions
+    format_suggestions,
+    THRESHOLD_WARNING,
+    THRESHOLD_CONTACT_ALLOWED,
+    THRESHOLD_GOOD_MATCH,
+    THRESHOLD_EXCELLENT_MATCH,
+    THRESHOLD_PERFECT_MATCH
 )
 
 
