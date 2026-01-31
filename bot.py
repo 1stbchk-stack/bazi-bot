@@ -1,5 +1,3 @@
-[file name]: bot.py
-[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -2075,4 +2073,3 @@ if __name__ == "__main__":
 - 確保admin_service.py和test_cases.py文件存在
 """
 # ========修正紀錄結束 ========#
-[file content end]

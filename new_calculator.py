@@ -1,5 +1,3 @@
-[file name]: new_calculator.py
-[file content begin]
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -2337,4 +2335,3 @@ def generate_ai_prompt(match_result: Dict, bazi1: Dict = None, bazi2: Dict = Non
 注意：這個修正需要配合bot.py的修正一起使用，以確保用戶A和用戶B的身份正確傳遞
 """
 # ========== 修正紀錄結束 ==========
-[file content end]
