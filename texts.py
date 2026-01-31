@@ -1,5 +1,3 @@
-[file name]: texts.py
-[file content begin]
 # ========1.1 文字常量文件開始 ========#
 # 本文件包含所有固定文字內容，包括隱私條款和算法說明
 
@@ -330,4 +328,3 @@ REGISTRATION_COMPLETE_TEXT = """
 注意：本次更新確保所有說明文字與實際系統功能完全一致
 """
 # ========修正紀錄結束 ========#
-[file content end]

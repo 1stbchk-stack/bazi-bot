@@ -37,7 +37,7 @@
 8. **文件結尾目錄後加修正紀錄**: 每次修改文件結尾目錄後加該次該文件修正內容及結合該文件之前累積修正紀錄,要說明有什麼錯,在哪錯,導致咩後果,如何改等內容
 9. 所有同一文件既code要在同一code board
 
-10\. 保持三方功能（match/testpair/findsoulmate）結果一致
+10\. 保持四方功能（match/testpair/findsoulmate/profile）結果一致
 
 11\. 所有文件使用繁體中文
 
