@@ -61,15 +61,9 @@ from new_calculator import (
     # 配置常數
     MASTER_BAZI_CONFIG,
     
-    # 關係分析器
-    RelationshipAnalyzer,
-    
     # 時間處理器
     TimeProcessor,
     
-    # 審計日誌函數
-    audit_log_match,
-    audit_log_calculation
 )
 
 # 導入 Soulmate 功能（新分拆的檔案）
@@ -1102,8 +1096,9 @@ async def match(update, context):
     
             # 添加審計日誌（如果函數存在）
             try:
+                from new_calculator import audit_log_match
                 audit_log_match(score, module_scores, telegram_id)
-            except NameError:
+            except (NameError, ImportError):
                 logger.debug("審計日誌功能未啟用")
             
             matches.append({
