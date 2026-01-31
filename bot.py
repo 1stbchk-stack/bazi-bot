@@ -1,5 +1,3 @@
-[file name]: bot.py
-[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -2014,4 +2012,3 @@ if __name__ == "__main__":
 注意：這些修正需要與new_calculator.py的修正一起使用
 """
 # ========修正紀錄結束 ========#
-[file content end]
