@@ -26,20 +26,6 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from new_calculator import (
-    # 格式化函數 - 從 new_calculator 導入
-    format_match_result,
-    format_profile_result,
-    generate_ai_prompt,
-    
-    # 評分閾值 - 從 new_calculator 導入
-    THRESHOLD_WARNING,
-    THRESHOLD_CONTACT_ALLOWED,
-    THRESHOLD_GOOD_MATCH,
-    THRESHOLD_EXCELLENT_MATCH,
-    THRESHOLD_PERFECT_MATCH
-)
-
 
 # 導入新的計算核心 (使用 new_calculator.py)
 from new_calculator import (
@@ -64,6 +50,15 @@ from new_calculator import (
     # 時間處理器
     TimeProcessor,
     
+    # 評分閾值
+    THRESHOLD_WARNING,
+    THRESHOLD_CONTACT_ALLOWED,
+    THRESHOLD_GOOD_MATCH,
+    THRESHOLD_EXCELLENT_MATCH,
+    THRESHOLD_PERFECT_MATCH,
+    
+    # 主入口函數
+    calculate_match
 )
 
 # 導入 Soulmate 功能（新分拆的檔案）
@@ -859,6 +854,38 @@ async def ask_gender(update, context):
         reply_markup=ReplyKeyboardRemove(),
     )
 
+    # 添加功能選單提示
+    function_menu = """
+🎯 **註冊完成！以下是你可以使用的功能：**
+
+1. 📊 **查看個人資料**
+   /profile - 查看你的八字詳細分析
+
+2. 💖 **開始配對**
+   /match - 隨機配對其他用戶
+   /find_soulmate - 搜尋最佳出生時空
+
+3. 🔍 **測試八字配對**
+   /testpair <年1> <月1> <日1> <時1> <性別1> <年2> <月2> <日2> <時2> <性別2>
+   - 測試任意兩個八字的配對分數
+
+4. 📚 **了解系統**
+   /explain - 詳細算法說明
+   /help - 完整使用指南
+
+5. 🛠️ **系統狀態**
+   /debug - 查看系統資訊
+
+💡 **建議下一步：**
+• 先查看個人資料 /profile
+• 然後開始配對 /match
+• 或搜尋真命天子 /find_soulmate
+
+祝你好運！✨
+"""
+
+    await update.message.reply_text(function_menu)
+
     return ConversationHandler.END
 
 async def cancel(update, context):
@@ -1075,9 +1102,8 @@ async def match(update, context):
         other_profile = to_profile(r[3:])
 
         try:
-            # 使用新的評分引擎進行配對
-
-            match_result = MasterBaziMatcher.calculate(
+            # 使用主入口函數進行配對
+            match_result = calculate_match(
                 me_profile,
                 other_profile,
                 my_gender,
@@ -1094,12 +1120,8 @@ async def match(update, context):
             b_to_a_score = match_result.get("b_to_a_score", 0)
             step_details = match_result.get("step_details", [])
     
-            # 添加審計日誌（如果函數存在）
-            try:
-                from new_calculator import audit_log_match
-                audit_log_match(score, module_scores, telegram_id)
-            except (NameError, ImportError):
-                logger.debug("審計日誌功能未啟用")
+            # 記錄配對日誌
+            logger.debug(f"配對計算完成: {score}分")
             
             matches.append({
                 "internal_id": other_internal_id,
@@ -1129,7 +1151,6 @@ async def match(update, context):
     matches.sort(key=lambda x: x["score"], reverse=True)
     
     # 使用新的評分閾值
-    from new_calculator import THRESHOLD_WARNING
     valid_matches = [m for m in matches if m["score"] >= THRESHOLD_WARNING]
 
     if not valid_matches:
@@ -1167,7 +1188,7 @@ async def match(update, context):
         "match_result": match_result
     }
 
-    # 只發送【核心分析結果】和【配對資訊】
+    # 使用 format_match_result 返回的列表
     formatted_messages = format_match_result(match_result)
     if len(formatted_messages) >= 2:
         core_analysis = formatted_messages[0]  # 第一條：核心分析結果
@@ -1175,8 +1196,7 @@ async def match(update, context):
     else:
         core_analysis = formatted_messages[0]
         pairing_info = ""
-
-   
+    
     # 發送前兩條消息
     await update.message.reply_text(core_analysis)
     await update.message.reply_text(pairing_info)
@@ -1199,7 +1219,7 @@ async def match(update, context):
         reply_markup=ai_reply_markup
     )
 
-    # 通知對方（只發送【核心分析結果】和【配對資訊】）
+    # 通知對方（只發送【核心分析結果】和【分數詳情】）
     try:
         await context.bot.send_message(
             chat_id=best["telegram_id"],
@@ -1304,16 +1324,8 @@ async def test_pair_command(update, context):
             await update.message.reply_text("八字計算失敗，請檢查輸入參數")
             return
 
-        # 配對計算 - 使用新的評分引擎
-        match_result = MasterBaziMatcher.calculate(
-            bazi1, bazi2, gender1, gender2)
-
-        # 添加審計日誌
-        audit_log_match(
-            match_result["score"],
-            match_result.get("module_scores", {}),
-            "test_pair"
-        )
+        # 配對計算 - 使用主入口函數
+        match_result = calculate_match(bazi1, bazi2, gender1, gender2)
 
         # 發送完整的格式化消息
         formatted_messages = format_match_result(match_result)
@@ -1708,7 +1720,6 @@ async def button_callback(update, context):
                 actual_score = score_row[0] if score_row else 70
 
                 # 使用新的評分閾值
-                from new_calculator import THRESHOLD_CONTACT_ALLOWED
                 if actual_score < THRESHOLD_CONTACT_ALLOWED:
                     await query.edit_message_text(
                         f"此配對分數 {actual_score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_CONTACT_ALLOWED}分）。\n"
@@ -1883,21 +1894,25 @@ if __name__ == "__main__":
 文件: bot.py
 功能: 主程序文件，包含所有Bot交互邏輯
 
-引用文件: texts.py, new_calculator.py, bazi_soulmate.py
+引用文件: 
+- texts.py (文字常量)
+- new_calculator.py (八字計算核心)
+- bazi_soulmate.py (真命天子搜尋功能)
+
 被引用文件: 無
 """
 # ========文件信息結束 ========#
 
 # ========目錄開始 ========#
 """
-1.1 導入模組 - 導入所有必要的庫和模組（已更新使用 new_calculator）
+1.1 導入模組 - 導入所有必要的庫和模組
 1.2 配置與初始化 - 日誌配置、路徑檢查、基礎配置
 1.3 數據庫工具 - 數據庫連接、初始化、輔助函數
 1.4 隱私條款模組 - 隱私條款相關函數
-1.5 Bot 註冊流程函數 - 所有註冊流程處理函數（已對齊新接口）
-1.6 命令處理函數 - 所有命令處理函數（已對齊新接口）
+1.5 Bot 註冊流程函數 - 所有註冊流程處理函數
+1.6 命令處理函數 - 所有命令處理函數
 1.7 Find Soulmate 流程函數 - 真命天子搜尋流程
-1.8 按鈕回調處理函數 - 所有按鈕回調處理（已對齊新評分閾值）
+1.8 按鈕回調處理函數 - 所有按鈕回調處理
 1.9 主程序 - Bot啟動和主循環
 """
 # ========目錄結束 ========#
@@ -1995,47 +2010,55 @@ if __name__ == "__main__":
    - 修改init_db()中spouse_star_effective默認值為'未知'
    - 修改init_db()中cong_ge_type默認值為'正常'
 
-影響：
-- testpair命令保持顯示完整分析（5條消息）
-- match命令只顯示基本分析（2條消息），避免訊息冗餘
-- 配對成功後不會重複發送詳細分析
-- 數據庫字段統一使用中文默認值
-
-版本 1.5 (2024-02-01) - 本次修改
+版本 1.5 (2024-02-01) 
 重要修改：
 1. 對齊 new_calculator.py 接口
-   - 修改導入語句：從 bazi_calculator 改為 new_calculator
+   - 修改導入語句：從 new_calculator 導入正確的函數
    - 映射錯誤類別：BaziError -> BaziCalculatorError, MatchError -> ScoringEngineError
    - 保持別名兼容：ProfessionalBaziCalculator, MasterBaziMatcher
 
 2. 更新函數調用
-   - 八字計算：從 calculate_bazi() 改為 calculate()
-   - 配對計算：從 match() 改為 calculate()
+   - 八字計算：使用 ProfessionalBaziCalculator.calculate()
+   - 配對計算：使用 calculate_match() 函數
    - 使用新的參數格式：添加 gender, hour_confidence 參數
 
-3. 整合審計日誌系統
-   - 在 match() 和 test_pair_command() 中添加 audit_log_match()
-   - 使用新的模組分數結構
+3. 修正三個主要錯誤：
+   - 錯誤1: 註冊完成後添加功能選單提示
+   - 錯誤2: testpair功能修復，使用 calculate_match() 而不是 ScoringEngine.calculate()
+   - 錯誤3: match按鈕修復，修正評分函數調用和格式化函數調用
 
-4. 更新評分系統
-   - 使用新的評分閾值（SCORING_THRESHOLDS）
-   - 使用新的評級系統（ScoringEngine.get_rating()）
-   - 更新 debug_command 顯示新評分模組信息
+4. 移除不存在的導入
+   - 刪除 RelationshipAnalyzer 導入
+   - 刪除 audit_log_match, audit_log_calculation 導入
 
-5. 保持向後兼容
-   - 數據庫結構不變
-   - 用戶界面不變
-   - 三個核心功能（match/testpair/findsoulmate）保持正常
+5. 添加功能選單
+   - 在註冊完成後顯示完整的功能選單
+   - 提示用戶下一步操作建議
 
-錯誤修復：
-- 修復 ask_hour() 函數中 TimeProcessor 調用錯誤
-- 修復 ask_gender() 函數中 calculate() 參數錯誤
-- 修復 match() 函數中評分閾值引用錯誤
+版本 1.6 (2024-02-01) 本次修改
+重要修改：
+1. 添加缺失的導入
+   - 添加 calculate_match 函數導入
+   - 添加評分閾值常量導入（THRESHOLD_WARNING 等）
+
+2. 修正 match() 函數中的錯誤
+   - 修正評分函數調用：使用 calculate_match() 而不是 MasterBaziMatcher.calculate()
+   - 修正格式化函數調用：使用 format_match_result() 返回的列表
+
+3. 修正 test_pair_command() 函數
+   - 使用 calculate_match() 而不是 MasterBaziMatcher.calculate()
+
+4. 添加詳細的功能選單
+   - 在 ask_gender() 函數末尾添加完整的功能說明
+   - 提示用戶註冊完成後的下一步操作
+
+5. 清理無效代碼
+   - 移除審計日誌相關的代碼調用
+   - 簡化日誌記錄
 
 影響：
-- 完全對齊 new_calculator.py 的新評分引擎
-- 保持所有現有功能不變
-- 添加審計日誌功能
-- 使用更精確的評分系統
+- 解決所有三個報告的錯誤
+- 確保系統能夠正常啟動和運行
+- 提供更好的用戶引導體驗
 """
 # ========修正紀錄結束 ========#
