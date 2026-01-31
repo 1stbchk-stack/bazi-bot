@@ -121,8 +121,16 @@ logger.info(f"使用數據庫路徑: {DB_PATH}")
 SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "your-secret-key-change-me").strip()
 DAILY_MATCH_LIMIT = 10
 
-# 管理員用戶ID列表（需要替換為實際的管理員ID）
-ADMIN_USER_IDS = [123456789]  # 這裡需要替換為實際的管理員Telegram ID
+# 從環境變量讀取管理員用戶ID列表
+ADMIN_USER_IDS_STR = os.getenv("ADMIN_USER_IDS", "").strip()
+ADMIN_USER_IDS = []
+if ADMIN_USER_IDS_STR:
+    try:
+        ADMIN_USER_IDS = [int(id_str.strip()) for id_str in ADMIN_USER_IDS_STR.split(',') if id_str.strip().isdigit()]
+        logger.info(f"從環境變量讀取管理員ID: {ADMIN_USER_IDS}")
+    except Exception as e:
+        logger.error(f"解析管理員ID失敗: {e}")
+        ADMIN_USER_IDS = []
 
 # 對話狀態
 (
@@ -132,10 +140,11 @@ ADMIN_USER_IDS = [123456789]  # 這裡需要替換為實際的管理員Telegram 
     ASK_DAY,
     ASK_HOUR_KNOWN,
     ASK_HOUR,
+    ASK_MINUTE,
     ASK_GENDER,
     FIND_SOULMATE_RANGE,
     FIND_SOULMATE_PURPOSE,
-) = range(9)
+) = range(10)
 
 USE_POSTGRES = DATABASE_URL and DATABASE_URL.startswith("postgresql://")
 # ========1.2 配置與初始化結束 ========#
@@ -182,8 +191,11 @@ def init_db():
                     birth_month INTEGER,
                     birth_day INTEGER,
                     birth_hour INTEGER,
+                    birth_minute INTEGER DEFAULT 0,
                     hour_confidence TEXT DEFAULT '高',
                     gender TEXT,
+                    birth_longitude REAL DEFAULT 114.17,
+                    birth_latitude REAL DEFAULT 22.32,
                     year_pillar TEXT,
                     month_pillar TEXT,
                     day_pillar TEXT,
@@ -255,8 +267,11 @@ def init_db():
                     birth_month INTEGER,
                     birth_day INTEGER,
                     birth_hour INTEGER,
+                    birth_minute INTEGER DEFAULT 0,
                     hour_confidence TEXT DEFAULT '高',
                     gender TEXT,
+                    birth_longitude REAL DEFAULT 114.17,
+                    birth_latitude REAL DEFAULT 22.32,
                     year_pillar TEXT,
                     month_pillar TEXT,
                     day_pillar TEXT,
@@ -575,6 +590,7 @@ async def ask_hour_known(update, context):
     elif text == "❓ 完全不知道":
         context.user_data["hour_known"] = "no"
         context.user_data["birth_hour"] = 12
+        context.user_data["birth_minute"] = 0
         context.user_data["hour_confidence"] = "低"
 
         keyboard = [["男", "女"]]
@@ -595,7 +611,7 @@ async def ask_hour_known(update, context):
         return ASK_HOUR_KNOWN
 
 async def ask_hour(update, context):
-    """詢問出生時間"""
+    """詢問出生小時"""
     hour_known = context.user_data.get("hour_known", "yes")
 
     if hour_known == "yes":
@@ -611,12 +627,17 @@ async def ask_hour(update, context):
 
         context.user_data["birth_hour"] = hour
         context.user_data["hour_confidence"] = "高"
+        
+        # 詢問分鐘
+        await update.message.reply_text("請輸入出生分鐘（0-59，如果不知道請輸入0）：")
+        return ASK_MINUTE
 
     elif hour_known == "approximate":
         description = update.message.text.strip()
         estimated_hour, estimated_confidence = TimeProcessor.estimate_hour_from_description(description)
 
         context.user_data["birth_hour"] = estimated_hour
+        context.user_data["birth_minute"] = 0
         context.user_data["hour_confidence"] = "中"
         context.user_data["hour_description"] = description
 
@@ -627,28 +648,138 @@ async def ask_hour(update, context):
             f"📊 信心度：中等\n\n"
             "💡 如需更準確，請查詢確切出生時間。"
         )
+        
+        # 詢問經緯度
+        await update.message.reply_text(
+            "🌍 為了更精確計算八字，請輸入出生地點的經度（例如香港為114.17，如果不知道請輸入114.17）："
+        )
+        return ASK_GENDER
 
-    keyboard = [["男", "女"]]
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard, one_time_keyboard=True, resize_keyboard=True)
-    await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
+async def ask_minute(update, context):
+    """詢問出生分鐘"""
+    text = update.message.text.strip()
+    
+    if not text.isdigit():
+        await update.message.reply_text("請輸入數字分鐘（0-59）：")
+        return ASK_MINUTE
+    
+    minute = int(text)
+    if not 0 <= minute <= 59:
+        await update.message.reply_text("分鐘必須 0-59，請重新輸入：")
+        return ASK_MINUTE
+    
+    context.user_data["birth_minute"] = minute
+    
+    # 詢問經緯度
+    await update.message.reply_text(
+        "🌍 為了更精確計算八字，請輸入出生地點的經度（例如香港為114.17，如果不知道請輸入114.17）："
+    )
     return ASK_GENDER
 
 async def ask_gender(update, context):
-    """詢問性別並完成註冊"""
-    gender = update.message.text.strip()
-
-    if gender not in ["男", "女"]:
+    """詢問性別並處理經緯度"""
+    text = update.message.text.strip()
+    
+    # 檢查是否是經緯度輸入
+    try:
+        # 嘗試解析為經度
+        longitude = float(text)
+        if -180 <= longitude <= 180:
+            context.user_data["birth_longitude"] = longitude
+            
+            # 詢問緯度
+            await update.message.reply_text(
+                "🌍 請輸入出生地點的緯度（例如香港為22.32，如果不知道請輸入22.32）："
+            )
+            return ASK_GENDER
+        
+    except ValueError:
+        # 不是經度，檢查是否是緯度
+        pass
+    
+    # 檢查是否是緯度輸入
+    if "birth_longitude" in context.user_data and "birth_latitude" not in context.user_data:
+        try:
+            latitude = float(text)
+            if -90 <= latitude <= 90:
+                context.user_data["birth_latitude"] = latitude
+                
+                # 現在詢問性別
+                keyboard = [["男", "女"]]
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard, one_time_keyboard=True, resize_keyboard=True)
+                await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
+                return ASK_GENDER
+        except ValueError:
+            pass
+    
+    # 處理性別選擇
+    if text in ["男", "女"]:
+        gender = text
+        
+        # 設置默認經緯度（如果未提供）
+        if "birth_longitude" not in context.user_data:
+            context.user_data["birth_longitude"] = 114.17  # 香港經度
+        
+        if "birth_latitude" not in context.user_data:
+            context.user_data["birth_latitude"] = 22.32  # 香港緯度
+        
+        # 設置默認分鐘（如果未提供）
+        if "birth_minute" not in context.user_data:
+            context.user_data["birth_minute"] = 0
+        
+        # 完成註冊
+        return await complete_registration(update, context, gender)
+    
+    # 如果既不是經緯度也不是性別
+    if "birth_longitude" not in context.user_data:
+        # 應該是經度輸入
+        try:
+            longitude = float(text)
+            if -180 <= longitude <= 180:
+                context.user_data["birth_longitude"] = longitude
+                
+                # 詢問緯度
+                await update.message.reply_text(
+                    "🌍 請輸入出生地點的緯度（例如香港為22.32，如果不知道請輸入22.32）："
+                )
+                return ASK_GENDER
+        except ValueError:
+            await update.message.reply_text("請輸入有效的經度（例如114.17）：")
+            return ASK_GENDER
+    elif "birth_latitude" not in context.user_data:
+        # 應該是緯度輸入
+        try:
+            latitude = float(text)
+            if -90 <= latitude <= 90:
+                context.user_data["birth_latitude"] = latitude
+                
+                # 詢問性別
+                keyboard = [["男", "女"]]
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard, one_time_keyboard=True, resize_keyboard=True)
+                await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
+                return ASK_GENDER
+        except ValueError:
+            await update.message.reply_text("請輸入有效的緯度（例如22.32）：")
+            return ASK_GENDER
+    else:
+        # 應該是性別選擇
         keyboard = [["男", "女"]]
         reply_markup = ReplyKeyboardMarkup(
             keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("請使用下方鍵盤選擇「男」或「女」：", reply_markup=reply_markup)
         return ASK_GENDER
 
+async def complete_registration(update, context, gender):
+    """完成註冊流程"""
     year = context.user_data["birth_year"]
     month = context.user_data["birth_month"]
     day = context.user_data["birth_day"]
     hour = context.user_data.get("birth_hour", 12)
+    minute = context.user_data.get("birth_minute", 0)
+    longitude = context.user_data.get("birth_longitude", 114.17)
+    latitude = context.user_data.get("birth_latitude", 22.32)
     hour_confidence = context.user_data.get("hour_confidence", "高")
 
     try:
@@ -662,7 +793,10 @@ async def ask_gender(update, context):
         bazi = ProfessionalBaziCalculator.calculate(
             year, month, day, hour, 
             gender=gender,
-            hour_confidence=hour_confidence
+            hour_confidence=hour_confidence,
+            minute=minute,
+            longitude=longitude,
+            latitude=latitude
         )
     except BaziError as e:
         await update.message.reply_text(f"八字計算錯誤: {e}，請重新輸入 /start")
@@ -717,7 +851,8 @@ async def ask_gender(update, context):
         if USE_POSTGRES:
             cur.execute(f"""
                 INSERT INTO profiles
-                (user_id, birth_year, birth_month, birth_day, birth_hour, hour_confidence, gender,
+                (user_id, birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+                 birth_longitude, birth_latitude,
                  year_pillar, month_pillar, day_pillar, hour_pillar,
                  zodiac, day_stem, day_stem_element,
                  wood, fire, earth, metal, water,
@@ -725,8 +860,9 @@ async def ask_gender(update, context):
                  spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
                  cong_ge_type, shi_shen_structure, shen_sha_data)
                 VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},{get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
@@ -738,8 +874,11 @@ async def ask_gender(update, context):
                     birth_month = EXCLUDED.birth_month,
                     birth_day = EXCLUDED.birth_day,
                     birth_hour = EXCLUDED.birth_hour,
+                    birth_minute = EXCLUDED.birth_minute,
                     hour_confidence = EXCLUDED.hour_confidence,
                     gender = EXCLUDED.gender,
+                    birth_longitude = EXCLUDED.birth_longitude,
+                    birth_latitude = EXCLUDED.birth_latitude,
                     year_pillar = EXCLUDED.year_pillar,
                     month_pillar = EXCLUDED.month_pillar,
                     day_pillar = EXCLUDED.day_pillar,
@@ -764,7 +903,8 @@ async def ask_gender(update, context):
                     shi_shen_structure = EXCLUDED.shi_shen_structure,
                     shen_sha_data = EXCLUDED.shen_sha_data
             """, (
-                internal_user_id, year, month, day, hour, hour_confidence, gender,
+                internal_user_id, year, month, day, hour, minute, hour_confidence, gender,
+                longitude, latitude,
                 bazi.get("year_pillar", ""), bazi.get("month_pillar", ""), bazi.get("day_pillar", ""), bazi.get("hour_pillar", ""),
                 bazi.get("zodiac", ""), bazi.get("day_stem", ""), bazi.get("day_stem_element", ""),
                 float(elements.get("木", 0)), float(elements.get("火", 0)),
@@ -780,7 +920,8 @@ async def ask_gender(update, context):
         else:
             cur.execute(f"""
                 INSERT OR REPLACE INTO profiles
-                (user_id, birth_year, birth_month, birth_day, birth_hour, hour_confidence, gender,
+                (user_id, birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+                 birth_longitude, birth_latitude,
                  year_pillar, month_pillar, day_pillar, hour_pillar,
                  zodiac, day_stem, day_stem_element,
                  wood, fire, earth, metal, water,
@@ -788,8 +929,9 @@ async def ask_gender(update, context):
                  spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
                  cong_ge_type, shi_shen_structure, shen_sha_data)
                 VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},{get_placeholder()},
-                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()},
+                       {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
@@ -797,7 +939,8 @@ async def ask_gender(update, context):
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()},
                        {get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
             """, (
-                internal_user_id, year, month, day, hour, hour_confidence, gender,
+                internal_user_id, year, month, day, hour, minute, hour_confidence, gender,
+                longitude, latitude,
                 bazi.get("year_pillar", ""), bazi.get("month_pillar", ""), bazi.get("day_pillar", ""), bazi.get("hour_pillar", ""),
                 bazi.get("zodiac", ""), bazi.get("day_stem", ""), bazi.get("day_stem_element", ""),
                 float(elements.get("木", 0)), float(elements.get("火", 0)),
@@ -848,7 +991,10 @@ async def ask_gender(update, context):
         "birth_year": year,
         "birth_month": month,
         "birth_day": day,
-        "birth_hour": hour
+        "birth_hour": hour,
+        "birth_minute": minute,
+        "birth_longitude": longitude,
+        "birth_latitude": latitude
     }
 
     profile_result = format_profile_result(bazi_data_for_display, username)
@@ -876,7 +1022,7 @@ async def ask_gender(update, context):
    /find_soulmate - 搜尋最佳出生時空
 
 3. 🔍 **測試八字配對**
-   /testpair <年1> <月1> <日1> <時1> <性別1> <年2> <月2> <日2> <時2> <性別2>
+   /testpair <年1> <月1> <日1> <時1> <分1> <性別1> <經度1> <緯度1> <年2> <月2> <日2> <時2> <分2> <性別2> <經度2> <緯度2>
    - 測試任意兩個八字的配對分數
 
 4. 📚 **了解系統**
@@ -931,7 +1077,8 @@ async def profile(update, context):
         uname = user_row[0] if user_row else "未知"
 
         cur.execute(f"""
-            SELECT birth_year, birth_month, birth_day, birth_hour, hour_confidence, gender,
+            SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+                   birth_longitude, birth_latitude,
                    year_pillar, month_pillar, day_pillar, hour_pillar,
                    zodiac, day_stem, day_stem_element,
                    wood, fire, earth, metal, water,
@@ -947,7 +1094,8 @@ async def profile(update, context):
         return
 
     (
-        by, bm, bd, bh, hour_conf, g,
+        by, bm, bd, bh, bmin, hour_conf, g,
+        longitude, latitude,
         yp, mp, dp, hp,
         zodiac, day_stem, day_stem_element,
         w, f, e, m, wt,
@@ -988,7 +1136,10 @@ async def profile(update, context):
         "birth_year": by,
         "birth_month": bm,
         "birth_day": bd,
-        "birth_hour": bh
+        "birth_hour": bh,
+        "birth_minute": bmin,
+        "birth_longitude": longitude,
+        "birth_latitude": latitude
     }
 
     # 使用計算核心的格式化函數
@@ -1016,7 +1167,8 @@ async def match(update, context):
         cur = conn.cursor()
 
         cur.execute(f"""
-            SELECT birth_year, birth_month, birth_day, birth_hour, hour_confidence, gender,
+            SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+                   birth_longitude, birth_latitude,
                    year_pillar, month_pillar, day_pillar, hour_pillar,
                    zodiac, day_stem, day_stem_element,
                    wood, fire, earth, metal, water,
@@ -1033,7 +1185,8 @@ async def match(update, context):
 
         def to_profile(row):
             (
-                by, bm, bd, bh, hour_conf, gender,
+                by, bm, bd, bh, bmin, hour_conf, gender,
+                longitude, latitude,
                 yp, mp, dp, hp,
                 zodiac, day_stem, day_stem_element,
                 w, f, e, m, wt,
@@ -1070,17 +1223,24 @@ async def match(update, context):
                 "shi_shen_structure": shi_shen,
                 "hour_confidence": hour_conf,
                 "birth_year": by,
+                "birth_month": bm,
+                "birth_day": bd,
+                "birth_hour": bh,
+                "birth_minute": bmin,
+                "birth_longitude": longitude,
+                "birth_latitude": latitude,
                 "shen_sha_names": shen_sha_data.get("names", "無"),
                 "shen_sha_bonus": shen_sha_data.get("bonus", 0)
             }
 
         me_profile = to_profile(me_p)
-        my_gender = me_p[5]
+        my_gender = me_p[6]
 
         cur.execute(f"""
             SELECT
                 u.id, u.telegram_id, u.username,
-                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.hour_confidence, p.gender,
+                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, p.hour_confidence, p.gender,
+                p.birth_longitude, p.birth_latitude,
                 p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
                 p.zodiac, p.day_stem, p.day_stem_element,
                 p.wood, p.fire, p.earth, p.metal, p.water,
@@ -1195,11 +1355,13 @@ async def match(update, context):
         "score": best["score"],
         "token": token,
         "timestamp": timestamp,
-        "match_result": match_result
+        "match_result": match_result,
+        "user_a_profile": me_profile,
+        "user_b_profile": op
     }
 
     # 使用 format_match_result 返回的列表
-    formatted_messages = format_match_result(match_result, me_profile, other_profile)
+    formatted_messages = format_match_result(match_result, me_profile, op)
     if len(formatted_messages) >= 2:
         core_analysis = formatted_messages[0]  # 第一條：核心分析結果
         pairing_info = formatted_messages[1]   # 第二條：分數詳情
@@ -1274,26 +1436,53 @@ Python 版本: {platform.python_version()}
 聯絡交換門檻: {MASTER_BAZI_CONFIG['SCORING_SYSTEM']['THRESHOLDS']['contact_allowed']}分
 關係模型系統: 已啟用（平衡型、供求型、相欠型、混合型）
 救應優先原則: 能量救應可抵銷後續扣分
+管理員功能: 已啟用 (ID: {ADMIN_USER_IDS})
 """
     await update.message.reply_text(info)
 
 async def test_pair_command(update, context):
     """獨立測試任意兩個八字配對（不加入數據庫）"""
-    if len(context.args) < 10:
+    if len(context.args) < 14:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
-            "格式：/testpair <年1> <月1> <日1> <時1> <性別1> <年2> <月2> <日2> <時2> <性別2>\n\n"
-            "例如：/testpair 1990 1 1 12 男 1991 2 2 13 女\n"
-            "性別：男 或 女"
+            "格式：/testpair <年1> <月1> <日1> <時1> <分1> <性別1> <經度1> <緯度1> <年2> <月2> <日2> <時2> <分2> <性別2> <經度2> <緯度2>\n\n"
+            "例如：/testpair 1990 1 1 12 0 男 114.17 22.32 1991 2 2 13 0 女 114.17 22.32\n"
+            "性別：男 或 女\n"
+            "分鐘：0-59（如果不知道請輸入0）\n"
+            "經度：-180到180（例如香港為114.17）\n"
+            "緯度：-90到90（例如香港為22.32）\n"
+            "\n簡化格式（使用默認值）：\n"
+            "/testpair 1990 1 1 12 男 1991 2 2 13 女"
         )
         return
 
     try:
-        # 解析參數
-        year1, month1, day1, hour1 = map(int, context.args[:4])
-        gender1 = context.args[4]
-        year2, month2, day2, hour2 = map(int, context.args[5:9])
-        gender2 = context.args[9] if len(context.args) > 9 else "女"
+        # 解析參數 - 支持完整格式和簡化格式
+        if len(context.args) >= 16:
+            # 完整格式：14個參數
+            year1, month1, day1, hour1, minute1 = map(int, context.args[:5])
+            gender1 = context.args[5]
+            longitude1 = float(context.args[6])
+            latitude1 = float(context.args[7])
+            year2, month2, day2, hour2, minute2 = map(int, context.args[8:13])
+            gender2 = context.args[13]
+            longitude2 = float(context.args[14]) if len(context.args) > 14 else 114.17
+            latitude2 = float(context.args[15]) if len(context.args) > 15 else 22.32
+        elif len(context.args) >= 10:
+            # 簡化格式：10個參數
+            year1, month1, day1, hour1 = map(int, context.args[:4])
+            minute1 = 0
+            gender1 = context.args[4]
+            longitude1 = 114.17
+            latitude1 = 22.32
+            year2, month2, day2, hour2 = map(int, context.args[5:9])
+            minute2 = 0
+            gender2 = context.args[9] if len(context.args) > 9 else "女"
+            longitude2 = 114.17
+            latitude2 = 22.32
+        else:
+            await update.message.reply_text("參數不足，請使用正確格式")
+            return
 
         # 驗證性別
         if gender1 not in ["男", "女"]:
@@ -1316,21 +1505,27 @@ async def test_pair_command(update, context):
         if not 0 <= hour1 <= 23 or not 0 <= hour2 <= 23:
             await update.message.reply_text("時間必須在 0-23 之間")
             return
+            
+        if not 0 <= minute1 <= 59 or not 0 <= minute2 <= 59:
+            await update.message.reply_text("分鐘必須在 0-59 之間")
+            return
 
-        # 計算八字 - 修正：testpair命令使用高置信度且不進行時間調整
+        # 計算八字 - testpair命令使用高置信度
         bazi1 = ProfessionalBaziCalculator.calculate(
             year1, month1, day1, hour1, 
             gender=gender1,
-            hour_confidence="high",  # 使用high而不是"高"，以匹配new_calculator中的映射
-            minute=0,  # 明確設置分鐘
-            longitude=114.17  # 香港經度，避免經度調整
+            hour_confidence="high",
+            minute=minute1,
+            longitude=longitude1,
+            latitude=latitude1
         )
         bazi2 = ProfessionalBaziCalculator.calculate(
             year2, month2, day2, hour2,
             gender=gender2,
-            hour_confidence="high",  # 使用high而不是"高"
-            minute=0,  # 明確設置分鐘
-            longitude=114.17  # 香港經度，避免經度調整
+            hour_confidence="high",
+            minute=minute2,
+            longitude=longitude2,
+            latitude=latitude2
         )
 
         if not bazi1 or not bazi2:
@@ -1518,7 +1713,8 @@ async def find_soulmate_purpose(update, context):
         with closing(get_conn()) as conn:
             cur = conn.cursor()
             cur.execute(f"""
-                SELECT birth_year, birth_month, birth_day, birth_hour, hour_confidence, gender,
+                SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
+                       birth_longitude, birth_latitude,
                        year_pillar, month_pillar, day_pillar, hour_pillar,
                        zodiac, day_stem, day_stem_element,
                        wood, fire, earth, metal, water,
@@ -1536,7 +1732,8 @@ async def find_soulmate_purpose(update, context):
         # 轉換為八字數據
         def to_profile(row):
             (
-                by, bm, bd, bh, hour_conf, gender,
+                by, bm, bd, bh, bmin, hour_conf, gender,
+                longitude, latitude,
                 yp, mp, dp, hp,
                 zodiac, day_stem, day_stem_element,
                 w, f, e, m, wt,
@@ -1576,12 +1773,15 @@ async def find_soulmate_purpose(update, context):
                 "birth_month": bm,
                 "birth_day": bd,
                 "birth_hour": bh,
+                "birth_minute": bmin,
+                "birth_longitude": longitude,
+                "birth_latitude": latitude,
                 "shen_sha_names": shen_sha_data.get("names", "無"),
                 "shen_sha_bonus": shen_sha_data.get("bonus", 0)
             }
         
         user_bazi = to_profile(me_p)
-        user_gender = me_p[5]
+        user_gender = me_p[6]
         
         # 搜尋最佳匹配
         top_matches = SoulmateFinder.find_top_matches(
@@ -1708,17 +1908,14 @@ async def button_callback(update, context):
             if match_row:
                 match_id, user_a_accepted, user_b_accepted = match_row
             else:
-                score = context.user_data.get(
-                    "current_match", {}).get(
-                    "score", 70)
-                match_result = context.user_data.get(
-                    "current_match", {}).get(
-                    "match_result", {})
+                current_match = context.user_data.get("current_match", {})
+                score = current_match.get("score", 70)
+                match_result = current_match.get("match_result", {})
 
                 if USE_POSTGRES:
                     cur.execute(f"""
                         INSERT INTO matches (user_a, user_b, score, match_details)
-                        VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
+                        VALUES (%s, %s, %s, %s)
                         ON CONFLICT (user_a, user_b) DO NOTHING
                         RETURNING id
                     """, (user_a_id, user_b_id, score, json.dumps(match_result)))
@@ -1727,7 +1924,7 @@ async def button_callback(update, context):
                 else:
                     cur.execute(f"""
                         INSERT OR IGNORE INTO matches (user_a, user_b, score, match_details)
-                        VALUES ({get_placeholder()}, {get_placeholder()}, {get_placeholder()}, {get_placeholder()})
+                        VALUES (?, ?, ?, ?)
                     """, (user_a_id, user_b_id, score, json.dumps(match_result)))
                     match_id = cur.lastrowid
 
@@ -1736,7 +1933,7 @@ async def button_callback(update, context):
                 if not match_id:
                     cur.execute(f"""
                         SELECT id FROM matches
-                        WHERE user_a = {get_placeholder()} AND user_b = {get_placeholder()}
+                        WHERE user_a = ? AND user_b = ?
                     """, (user_a_id, user_b_id))
                     match_row = cur.fetchone()
                     if match_row:
@@ -1781,32 +1978,118 @@ async def button_callback(update, context):
                 b_telegram_id = get_telegram_id(user_b_id)
                 a_username = get_username(user_a_id) or "未設定用戶名"
                 b_username = get_username(user_b_id) or "未設定用戶名"
+                
+                # 獲取用戶資料用於顯示
+                current_match = context.user_data.get("current_match", {})
+                user_a_profile = current_match.get("user_a_profile", {})
+                user_b_profile = current_match.get("user_b_profile", {})
 
                 # 使用新的評級系統
                 from new_calculator import ScoringEngine
                 rating = ScoringEngine.get_rating(actual_score)
+                
+                # 獲取評級名稱
+                rating_name = rating.split(" ")[-1] if " " in rating else rating
+                
+                # 格式化出生時間
+                def format_birth_time(profile):
+                    year = profile.get("birth_year", "")
+                    month = profile.get("birth_month", "")
+                    day = profile.get("birth_day", "")
+                    hour = profile.get("birth_hour", "")
+                    minute = profile.get("birth_minute", 0)
+                    return f"{year}年{month}月{day}日 {hour}:{minute:02d}"
+                
+                # 格式化信心度
+                def format_confidence(confidence):
+                    confidence_map = {
+                        "高": "高",
+                        "中": "中", 
+                        "低": "低",
+                        "estimated": "估算"
+                    }
+                    return confidence_map.get(confidence, "中")
+                
+                # 根據評分決定顯示的評級
+                if actual_score >= THRESHOLD_PERFECT_MATCH:
+                    rating_emoji = "🌟"
+                    rating_text = "🌟 萬中無一"
+                elif actual_score >= THRESHOLD_EXCELLENT_MATCH:
+                    rating_emoji = "✨"
+                    rating_text = "✨ 上等婚配"
+                elif actual_score >= THRESHOLD_GOOD_MATCH:
+                    rating_emoji = "✅"
+                    rating_text = "✅ 主流成功"
+                elif actual_score >= THRESHOLD_CONTACT_ALLOWED:
+                    rating_emoji = "🤝"
+                    rating_text = "🤝 普通可行"
+                else:
+                    rating_emoji = "⚠️"
+                    rating_text = "⚠️ 需要努力"
 
-                message_for_a = (
-                    f"{rating} 配對成功！\n\n"
-                    f"🎯 配對分數：{actual_score:.1f}分\n"
-                    f"📱 對方 Telegram: @{b_username}\n\n"
-                    f"💡 溫馨提示：\n"
-                    f"• 先打招呼互相認識\n"
-                    f"• 分享興趣尋找共同話題\n"
-                    f"• 保持尊重，慢慢了解\n\n"
-                    f"✨ 祝你們交流愉快！"
-                )
+                # 用戶A收到的消息（包含對方資料）
+                message_for_a = f"""
+{rating_emoji} {rating_text} 配對成功！
 
-                message_for_b = (
-                    f"{rating} 配對成功！\n\n"
-                    f"🎯 配對分數：{actual_score:.1f}分\n"
-                    f"📱 對方 Telegram: @{a_username}\n\n"
-                    f"💡 溫馨提示：\n"
-                    f"• 先打招呼互相認識\n"
-                    f"• 分享興趣尋找共同話題\n"
-                    f"• 保持尊重，慢慢了解\n\n"
-                    f"✨ 祝你們交流愉快！"
-                )
+🎯 配對分數：{actual_score:.1f}分
+📱 對方 Telegram: @{b_username}
+📅 出生時間: {format_birth_time(user_b_profile)}
+🕰️ 時間信心度: {format_confidence(user_b_profile.get('hour_confidence', '中'))}
+📅 八字: {user_b_profile.get('year_pillar', '')} {user_b_profile.get('month_pillar', '')} {user_b_profile.get('day_pillar', '')} {user_b_profile.get('hour_pillar', '')}
+🐉 生肖: {user_b_profile.get('zodiac', '未知')}
+⚖️ 日主: {user_b_profile.get('day_stem', '')}{user_b_profile.get('day_stem_element', '')} ({user_b_profile.get('day_stem_strength', '中')})
+💪 身強弱: {user_b_profile.get('strength_score', 50):.1f}分
+🎭 格局: {user_b_profile.get('cong_ge_type', '正格')}
+🎯 喜用神: {', '.join(user_b_profile.get('useful_elements', []))}
+🚫 忌神: {', '.join(user_b_profile.get('harmful_elements', []))}
+💑 夫妻星: {user_b_profile.get('spouse_star_status', '未知')}
+🏠 夫妻宮: {user_b_profile.get('spouse_palace_status', '未知')}
+✨ 神煞: {user_b_profile.get('shen_sha_names', '無')}
+📊 五行分佈:
+  木: {user_b_profile.get('elements', {}).get('木', 0):.1f}%
+  火: {user_b_profile.get('elements', {}).get('火', 0):.1f}%
+  土: {user_b_profile.get('elements', {}).get('土', 0):.1f}%
+  金: {user_b_profile.get('elements', {}).get('金', 0):.1f}%
+  水: {user_b_profile.get('elements', {}).get('水', 0):.1f}%
+💡 溫馨提示：
+• 先打招呼互相認識
+• 分享興趣尋找共同話題
+• 保持尊重，慢慢了解
+
+✨ 祝你們交流愉快！
+"""
+
+                # 用戶B收到的消息（包含對方資料）
+                message_for_b = f"""
+{rating_emoji} {rating_text} 配對成功！
+
+🎯 配對分數：{actual_score:.1f}分
+📱 對方 Telegram: @{a_username}
+📅 出生時間: {format_birth_time(user_a_profile)}
+🕰️ 時間信心度: {format_confidence(user_a_profile.get('hour_confidence', '中'))}
+📅 八字: {user_a_profile.get('year_pillar', '')} {user_a_profile.get('month_pillar', '')} {user_a_profile.get('day_pillar', '')} {user_a_profile.get('hour_pillar', '')}
+🐉 生肖: {user_a_profile.get('zodiac', '未知')}
+⚖️ 日主: {user_a_profile.get('day_stem', '')}{user_a_profile.get('day_stem_element', '')} ({user_a_profile.get('day_stem_strength', '中')})
+💪 身強弱: {user_a_profile.get('strength_score', 50):.1f}分
+🎭 格局: {user_a_profile.get('cong_ge_type', '正格')}
+🎯 喜用神: {', '.join(user_a_profile.get('useful_elements', []))}
+🚫 忌神: {', '.join(user_a_profile.get('harmful_elements', []))}
+💑 夫妻星: {user_a_profile.get('spouse_star_status', '未知')}
+🏠 夫妻宮: {user_a_profile.get('spouse_palace_status', '未知')}
+✨ 神煞: {user_a_profile.get('shen_sha_names', '無')}
+📊 五行分佈:
+  木: {user_a_profile.get('elements', {}).get('木', 0):.1f}%
+  火: {user_a_profile.get('elements', {}).get('火', 0):.1f}%
+  土: {user_a_profile.get('elements', {}).get('土', 0):.1f}%
+  金: {user_a_profile.get('elements', {}).get('金', 0):.1f}%
+  水: {user_a_profile.get('elements', {}).get('水', 0):.1f}%
+💡 溫馨提示：
+• 先打招呼互相認識
+• 分享興趣尋找共同話題
+• 保持尊重，慢慢了解
+
+✨ 祝你們交流愉快！
+"""
 
                 if a_username == "未設定用戶名" or b_username == "未設定用戶名":
                     warning = "\n\n⚠️ 注意：如無法聯絡對方，請對方在 Telegram 設定中設定用戶名。"
@@ -1824,9 +2107,7 @@ async def button_callback(update, context):
                     logger.error(f"無法發送消息給用戶B: {e}")
 
                 # 發送AI提示給雙方
-                match_result = context.user_data.get(
-                    "current_match", {}).get(
-                    "match_result", {})
+                match_result = context.user_data.get("current_match", {}).get("match_result", {})
                 if match_result:
                     ai_prompt = generate_ai_prompt(match_result)
 
@@ -1843,7 +2124,7 @@ async def button_callback(update, context):
                     except Exception as e:
                         logger.error(f"發送AI提示失敗: {e}")
 
-                await query.edit_message_text("🎉 配對成功！已交換聯絡方式。")
+                await query.edit_message_text(f"{rating_emoji} 配對成功！已交換聯絡方式。")
             else:
                 await query.edit_message_text("已記錄你的意願，等待對方回應...")
 
@@ -1891,6 +2172,7 @@ def main():
                 ASK_DAY: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_day)],
                 ASK_HOUR_KNOWN: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_hour_known)],
                 ASK_HOUR: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_hour)],
+                ASK_MINUTE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_minute)],
                 ASK_GENDER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_gender)],
             },
             fallbacks=[
@@ -1947,102 +2229,89 @@ if __name__ == "__main__":
 文件: bot.py
 功能: 主程序文件，包含所有Bot交互邏輯
 
-引用文件: texts.py, new_calculator.py, bazi_soulmate.py, admin_service.py
+引用文件: 
+- texts.py (文本常量)
+- new_calculator.py (八字計算核心)
+- bazi_soulmate.py (真命天子搜尋)
+- admin_service.py (管理員服務)
+
 被引用文件: 無
+
+依賴關係:
+1. 從環境變量讀取配置
+2. 使用SQLite或PostgreSQL數據庫
+3. 集成new_calculator.py八字計算核心
+4. 支持分鐘和經緯度輸入
+5. 管理員功能從環境變量讀取ID
+
+重要配置環境變量:
+- BOT_TOKEN: Telegram Bot Token
+- ADMIN_USER_IDS: 管理員ID列表（逗號分隔）
+- MATCH_SECRET_KEY: 配對安全密鑰
+- DATABASE_URL: 數據庫連接URL
 """
 # ========文件信息結束 ========#
 
 # ========目錄開始 ========#
 """
-1.1 導入模組 - 導入所有必要的庫和模組（已更新使用 new_calculator）
+1.1 導入模組 - 導入所有必要的庫和模組
 1.2 配置與初始化 - 日誌配置、路徑檢查、基礎配置
 1.3 數據庫工具 - 數據庫連接、初始化、輔助函數
 1.4 隱私條款模組 - 隱私條款相關函數
-1.5 Bot 註冊流程函數 - 所有註冊流程處理函數（已對齊新接口）
-1.6 命令處理函數 - 所有命令處理函數（已對齊新接口）
+1.5 Bot 註冊流程函數 - 所有註冊流程處理函數
+1.6 命令處理函數 - 所有命令處理函數
 1.7 Find Soulmate 流程函數 - 真命天子搜尋流程
-1.8 按鈕回調處理函數 - 所有按鈕回調處理（已對齊新評分閾值）
+1.8 按鈕回調處理函數 - 所有按鈕回調處理
 1.9 主程序 - Bot啟動和主循環
 """
 # ========目錄結束 ========#
 
 # ========修正紀錄開始 ========#
 """
-版本 1.0 (2024-01-31)
-重構文件：
-- 將所有計算邏輯遷移到 bazi_calculator.py
-- 保留Bot交互邏輯在本文件
-- 使用計算核心的格式化函數
-- 刪除profile中的概率分析
-- 統一match/testpair/profile的顯示格式
+版本 1.8 (2024-02-01) - 本次修正
+重要修改:
 
-版本 1.1 (2024-01-31)
-修改內容：
-1. 添加 import json 模塊（解決 json 未定義錯誤）
-2. 移除所有日誌中的 "✅ " 前綴
-3. 將硬編碼文字替換為從 texts.py 導入的常量：
-   - 詢問出生時間文字
-   - 大約知道時間描述
-   - 時辰未知提示
-   - 幫助命令文字
-   - AI使用提示
-   - 註冊完成提示
-4. 添加新的文字常量導入
-5. 更新目錄和修正紀錄
+1. 修正問題1：配對成功消息格式更新
+   - 問題：原配對成功消息格式不符合要求
+   - 位置：button_callback()函數中的accept_處理部分
+   - 修改：重新格式化配對成功消息，按照要求格式顯示：
+     ✨ 上等婚配 配對成功！
+     🎯 配對分數：85.3分
+     📱 對方 Telegram: @username
+     📅 出生時間: 1990年1月1日 12:00
+     ...（完整八字資料）
 
-版本 1.2 (2024-02-01)
-緊急修復：
-1. 添加 import hashlib（解決match按鈕無反應問題）
-2. 修復信心度顯示為英文問題
-3. 優化數據庫操作
-4. 刪除重複提示
+2. 修正問題3：管理員ID硬編碼問題
+   - 問題：ADMIN_USER_IDS硬編碼為[123456789]
+   - 位置：1.2配置與初始化開始部分
+   - 修改：改為從環境變量ADMIN_USER_IDS讀取
+   - 修改：添加環境變量解析邏輯，支持逗號分隔的多個ID
+   - 後果：提高部署靈活性，管理員ID可通過環境變量配置
 
-版本 1.3 (2024-02-01)
-問題修復：
-1. 修復信心度數據庫初始化問題
-2. 優化start函數邏輯
-3. 統一section header編號
+3. 新增要求5：用戶輸入出生分鐘同經緯度功能
+   - 新增：ASK_MINUTE對話狀態
+   - 修改：數據庫表結構，添加birth_minute、birth_longitude、birth_latitude字段
+   - 修改：註冊流程添加分鐘和經緯度詢問
+   - 修改：ask_hour()函數添加分鐘詢問分支
+   - 新增：ask_minute()函數處理分鐘輸入
+   - 修改：ask_gender()函數同時處理經緯度輸入
+   - 修改：complete_registration()函數保存分鐘和經緯度
+   - 修改：profile()函數顯示分鐘和經緯度
+   - 修改：match()函數處理分鐘和經緯度數據
+   - 修改：testpair命令支持分鐘和經緯度參數
 
-版本 1.4 (2024-02-01)
-重要修改：
-1. 修復 testpair 顯示完整分析問題
-2. 優化配對通知流程
-3. 修復數據庫查詢錯誤
-4. 簡化通知邏輯
-5. 數據庫默認值統一為中文
+4. 統一四方功能格式：
+   - 確保match、testpair、findsoulmate、profile功能顯示格式一致
+   - 所有功能都顯示完整的出生時間（含分鐘）
+   - 所有功能都支持經緯度參數
 
-版本 1.5 (2024-02-01)
-重要修改：
-1. 對齊 new_calculator.py 接口
-2. 更新函數調用
-3. 整合審計日誌系統
-4. 更新評分系統
-5. 保持向後兼容
-
-版本 1.6 (2024-02-01)
-重要修改：
-1. 修復錯誤1：註冊完成後添加功能選單
-2. 修復錯誤2：/testpair 功能錯誤
-3. 修復錯誤3：match按鈕無反應
-4. 更新導入語句
-5. 修正評分閾值使用
+5. 其他改進：
+   - 更新testpair命令幫助文本，說明新的參數格式
+   - 在debug命令中顯示管理員ID狀態
+   - 優化代碼結構，保持section header規範
 
 版本 1.7 (2024-02-01)
-重要修改：
-1. 修正錯誤1：profile功能無咗年月日時
-   - 問題：format_profile_result()函數沒有顯示出生年月日時
-   - 位置：profile()函數和ask_gender()函數
-   - 修改：在bazi_data中添加birth_year、birth_month、birth_day、birth_hour字段
-   - 修改：更新to_profile()函數以包含出生時間信息
-
-2. 修正錯誤2：/testpair無咗2人個人資料同置信度調整扣分太多
-   - 問題：testpair命令中使用默認hour_confidence="高"，但會觸發時間調整
-   - 位置：test_pair_command()函數
-   - 修改：明確設置minute=0和longitude=114.17避免時間調整
-   - 修改：使用hour_confidence="high"（英文）以匹配new_calculator中的映射
-
-版本 1.8 (2024-02-01) - 本次修正
-重要修改：
+重要修改:
 1. 修正錯誤3：雙向影響分析無講A同B係邊個
    - 問題：雙向影響分析只顯示A對B、B對A，但不知道誰是A誰是B
    - 位置：test_pair_command()函數
@@ -2056,20 +2325,53 @@ if __name__ == "__main__":
    - 添加/admin_test和/admin_stats命令處理函數
    - 在主程序中註冊管理員命令處理器
 
-3. 修正其他問題：
-   - 修正test_pair_command函數中format_match_result參數錯誤
-   - 添加管理員專用命令保護
-   - 確保所有三方功能（match/testpair/findsoulmate）結果一致
-   - 修正test_cases導入問題（移除未使用的代碼）
+版本 1.6 (2024-02-01)
+重要修改:
+1. 修復錯誤1：註冊完成後添加功能選單
+2. 修復錯誤2：/testpair 功能錯誤
+3. 修復錯誤3：match按鈕無反應
+4. 更新導入語句
+5. 修正評分閾值使用
 
-影響：
-- 雙向影響分析現在明確標識A和B的身份
-- 添加了管理員專用功能
-- 三方功能結果保持一致的顯示格式
-- testpair命令現在正確顯示雙方基本資料
+版本 1.5 (2024-02-01)
+重要修改:
+1. 對齊 new_calculator.py 接口
+2. 更新函數調用
+3. 整合審計日誌系統
+4. 更新評分系統
+5. 保持向後兼容
 
-注意：
-- 需要將ADMIN_USER_IDS中的123456789替換為實際的管理員Telegram ID
-- 確保admin_service.py和test_cases.py文件存在
+版本 1.4 (2024-02-01)
+重要修改:
+1. 修復 testpair 顯示完整分析問題
+2. 優化配對通知流程
+3. 修復數據庫查詢錯誤
+4. 簡化通知邏輯
+5. 數據庫默認值統一為中文
+
+版本 1.3 (2024-02-01)
+問題修復:
+1. 修復信心度數據庫初始化問題
+2. 優化start函數邏輯
+3. 統一section header編號
+
+版本 1.2 (2024-02-01)
+緊急修復:
+1. 添加 import hashlib（解決match按鈕無反應問題）
+2. 修復信心度顯示為英文問題
+3. 優化數據庫操作
+4. 刪除重複提示
+
+版本 1.1 (2024-01-31)
+修改內容:
+1. 添加 import json 模塊（解決 json 未定義錯誤）
+2. 移除所有日誌中的 "✅ " 前綴
+3. 將硬編碼文字替換為從 texts.py 導入的常量
+
+版本 1.0 (2024-01-31)
+重構文件：
+- 將所有計算邏輯遷移到 bazi_calculator.py
+- 保留Bot交互邏輯在本文件
+- 使用計算核心的格式化函數
 """
 # ========修正紀錄結束 ========#
