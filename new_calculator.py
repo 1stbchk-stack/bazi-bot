@@ -99,7 +99,7 @@ class Config:
     
     # 評分系統配置 - 修正為師傅級標準
     BASE_SCORE = 72                      # 起始基準分
-    REALITY_FLOOR = 68                   # 現實保底分
+    REALITY_FLOOR = 45                   # 現實保底分
     TERMINATION_SCORE = 45               # 終止評級分
     STRONG_WARNING_FLOOR = 55            # 強烈警告下限
     
@@ -187,11 +187,11 @@ class Config:
     }
     
     # 現實校準配置 - 修正為師傅級標準
-    NO_HARD_PROBLEM_FLOOR = 60           # 無硬傷保底分
-    DAY_CLASH_CAP = 55                   # 日支六沖上限（原75，修正為65）
+    NO_HARD_PROBLEM_FLOOR = 45           # 無硬傷保底分
+    DAY_CLASH_CAP = 50                   # 日支六沖上限（原75，修正為65）
     AGE_GAP_PENALTY_11_15 = -5           # 11-15歲年齡差距扣分（原-3，修正為-5）
     AGE_GAP_PENALTY_16_PLUS = -8         # 16歲以上年齡差距扣分（原-5，修正為-8）
-    FATAL_RISK_CAP = 40                  # 致命風險上限（原45，修正為40）
+    FATAL_RISK_CAP = 35                  # 致命風險上限（原45，修正為40）
     
     # 關係模型判定閾值
     BALANCED_MAX_DIFF = 10               # 平衡型最大差異
