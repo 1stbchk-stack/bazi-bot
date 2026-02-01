@@ -784,7 +784,7 @@ class BaziCalculator:
             
             day_obj = sxtwl.fromSolar(year, month, day)
             
-            jieqi_jd = day_obj.getJieQiJD()
+            jieqi_jd = day_obj.jq_jd
             birth_jd = day_obj.jq_jd + hour / 24.0
             minutes_since_jieqi = (birth_jd - jieqi_jd) * 1440
             days_since_jieqi = minutes_since_jieqi / 1440.0
