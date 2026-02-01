@@ -325,7 +325,7 @@ class AdminService:
             demo_results.append("🔧 **一鍵測試演示開始**")
             demo_results.append("=" * 40)
             demo_results.append("")
-            demo_results.append("1️⃣ **測試 /testpair 功能**")
+            demo_results.append("**測試 /testpair 功能**")
             
             bazi1 = BaziCalculator.calculate(**test_case['bazi_data1'])
             bazi2 = BaziCalculator.calculate(**test_case['bazi_data2'])
@@ -348,13 +348,13 @@ class AdminService:
                 demo_results.append(f"   • 配對分數: {score:.1f}分")
                 demo_results.append(f"   • 評級: {rating}")
                 demo_results.append(f"   • 關係模型: {model}")
-                demo_results.append("   ✅ testpair功能正常")
+                demo_results.append("   testpair功能正常")
             else:
-                demo_results.append("   ❌ 八字計算失敗")
+                demo_results.append("   八字計算失敗")
             
             # 2. 模擬 match 功能
             demo_results.append("")
-            demo_results.append("2️⃣ **模擬 /match 功能**")
+            demo_results.append("**模擬 /match 功能**")
             
             # 模擬配對邏輯
             gender1 = test_case['bazi_data1']['gender']
@@ -370,15 +370,15 @@ class AdminService:
             
             # 檢查是否達到聯絡標準
             if score >= THRESHOLD_CONTACT_ALLOWED:
-                demo_results.append(f"   • 聯絡允許: ✅ 達到{THRESHOLD_CONTACT_ALLOWED}分標準")
+                demo_results.append(f"   • 聯絡允許: 達到{THRESHOLD_CONTACT_ALLOWED}分標準")
             else:
-                demo_results.append(f"   • 聯絡允許: ❌ 未達{THRESHOLD_CONTACT_ALLOWED}分標準")
+                demo_results.append(f"   • 聯絡允許: 未達{THRESHOLD_CONTACT_ALLOWED}分標準")
             
-            demo_results.append("   ✅ match功能正常")
+            demo_results.append("   match功能正常")
             
             # 3. 模擬 profile 功能
             demo_results.append("")
-            demo_results.append("3️⃣ **模擬 /profile 功能**")
+            demo_results.append("**模擬 /profile 功能**")
             
             # 顯示個人資料信息
             if bazi1:
@@ -391,79 +391,79 @@ class AdminService:
                 # 健康分析（使用现有数据，不调用不存在的类）
                 demo_results.append("   • 健康分析: 功能正常（使用现有数据）")
                 
-                demo_results.append("   ✅ profile功能正常")
+                demo_results.append("   profile功能正常")
             
             # 4. 模擬 find_soulmate 功能
             demo_results.append("")
-            demo_results.append("4️⃣ **模擬 /find_soulmate 功能**")
+            demo_results.append("**模擬 /find_soulmate 功能**")
             
             # 簡化模擬
             demo_results.append("   • 年份範圍: 1990-1995")
             demo_results.append("   • 搜尋模式: 正緣")
             demo_results.append("   • 找到匹配: 5個")
             demo_results.append("   • 最高分數: 85.5分")
-            demo_results.append("   ✅ find_soulmate功能正常")
+            demo_results.append(" find_soulmate功能正常")
             
             # 5. 模擬 explain 功能
             demo_results.append("")
-            demo_results.append("5️⃣ **模擬 /explain 功能**")
+            demo_results.append("**模擬 /explain 功能**")
             demo_results.append("   • 算法版本: 師傅級婚配系統")
             demo_results.append("   • 核心模組: 6大評分系統")
             demo_results.append("   • 評分範圍: 0-100分")
-            demo_results.append("   ✅ explain功能正常")
+            demo_results.append("explain功能正常")
             
             # 6. 模擬 admin 功能
             demo_results.append("")
-            demo_results.append("6️⃣ **管理員功能檢查**")
-            demo_results.append("   • /admin_test: ✅ 可用")
-            demo_results.append("   • /admin_stats: ✅ 可用")
-            demo_results.append("   • /maintenance: ✅ 可用")
-            demo_results.append("   • /admin_service: ✅ 可用")
+            demo_results.append("**管理員功能檢查**")
+            demo_results.append("   • /admin_test: 可用")
+            demo_results.append("   • /admin_stats: 可用")
+            demo_results.append("   • /maintenance: 可用")
+            demo_results.append("   • /admin_service: 可用")
             
             # 7. 系統狀態檢查
             demo_results.append("")
-            demo_results.append("7️⃣ **系統狀態檢查**")
+            demo_results.append("**系統狀態檢查**")
             
             try:
                 with closing(get_db_connection()) as conn:
                     cur = conn.cursor()
                     cur.execute("SELECT 1")
-                    demo_results.append("   • 數據庫連接: ✅ 正常")
+                    demo_results.append("   • 數據庫連接:正常")
             except Exception:
-                demo_results.append("   • 數據庫連接: ❌ 異常")
+                demo_results.append("   • 數據庫連接: 異常")
             
-            demo_results.append("   • 八字計算引擎: ✅ 正常")
-            demo_results.append("   • 配對評分引擎: ✅ 正常")
-            demo_results.append("   • 核心功能: ✅ 正常")
+            demo_results.append("   • 八字計算引擎: 正常")
+            demo_results.append("   • 配對評分引擎: 正常")
+            demo_results.append("   • 核心功能: 正常")
             
             # 總結
             demo_results.append("")
-            demo_results.append("📊 **演示總結**")
+            demo_results.append("**演示總結**")
             demo_results.append("=" * 40)
             demo_results.append(f"• 測試八字組合: {test_case['description']}")
             demo_results.append(f"• 總體分數: {score:.1f}分 ({rating})")
             demo_results.append(f"• 關係模型: {model}")
-            demo_results.append(f"• 聯絡允許: {'✅ 允許' if score >= THRESHOLD_CONTACT_ALLOWED else '❌ 不允許'}")
+            demo_results.append(f"• 聯絡允許: {' 允許' if score >= THRESHOLD_CONTACT_ALLOWED else ' 不允許'}")
             
             if score >= THRESHOLD_EXCELLENT_MATCH:
-                demo_results.append("• 配對評價: 🌟 極佳婚配組合")
+                demo_results.append("• 配對評價: 極佳婚配組合")
             elif score >= THRESHOLD_GOOD_MATCH:
-                demo_results.append("• 配對評價: ✨ 良好婚配組合")
+                demo_results.append("• 配對評價: 良好婚配組合")
             elif score >= THRESHOLD_CONTACT_ALLOWED:
-                demo_results.append("• 配對評價: ✅ 可以嘗試交往")
+                demo_results.append("• 配對評價: 可以嘗試交往")
             elif score >= THRESHOLD_WARNING:
-                demo_results.append("• 配對評價: ⚠️ 需要謹慎考慮")
+                demo_results.append("• 配對評價: 需要謹慎考慮")
             else:
-                demo_results.append("• 配對評價: ❌ 不建議發展")
+                demo_results.append("• 配對評價: 不建議發展")
             
             demo_results.append("")
-            demo_results.append("✅ **所有核心功能測試完成**")
-            demo_results.append("💡 提示: 所有功能均正常運作，系統準備就緒")
+            demo_results.append("**所有核心功能測試完成**")
+            demo_results.append("提示: 所有功能均正常運作，系統準備就緒")
             
         except Exception as e:
             logger.error(f"一鍵測試演示失敗: {e}")
             demo_results.append("")
-            demo_results.append("❌ **演示失敗**")
+            demo_results.append("**演示失敗**")
             demo_results.append(f"錯誤信息: {str(e)}")
             demo_results.append("請檢查系統日誌獲取詳細錯誤信息")
         
@@ -621,21 +621,21 @@ class AdminService:
     # ========2.5 格式化功能開始 ========#
     def format_test_results(self, results: Dict[str, Any]) -> str:
         """格式化測試結果"""
-        text = f"""📊 管理員測試報告 (20組測試案例)
+        text = f""" 管理員測試報告 (20組測試案例)
 {"="*60}
 
 📈 總體統計:
   總測試數: {results['total']}
-  通過: {results['passed']} ✅
-  失敗: {results['failed']} ❌
-  錯誤: {results['errors']} ⚠️
+  通過: {results['passed']} 
+  失敗: {results['failed']} 
+  錯誤: {results['errors']} 
   成功率: {results['success_rate']:.1f}%
   
 📋 詳細結果:
 """
         
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
-            status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
+            status_emoji = '' if detail['status'] == 'PASS' else '' if detail['status'] == 'FAIL' else ''
             text += f"\n{status_emoji} {detail['description']}"
             text += f"\n   分數: {detail.get('score', 0):.1f}分"
             if detail.get('error'):
