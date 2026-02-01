@@ -361,7 +361,7 @@ class TimeProcessor:
         
         try:
             day_obj = sxtwl.fromSolar(year, month, day)
-            jd = day_obj.jq_jd + (hour + minute/60.0)/24.0
+            jd = day_obj.jd + (hour + minute/60.0)/24.0
             eot_adjust = TimeProcessor.calculate_eot(jd)
             audit_log.append(f"EOT調整: {eot_adjust:.2f}分鐘")
         except Exception as e:
@@ -785,7 +785,7 @@ class BaziCalculator:
             day_obj = sxtwl.fromSolar(year, month, day)
             
             jieqi_jd = day_obj.jq_jd
-            birth_jd = day_obj.jq_jd + hour / 24.0
+            birth_jd = day_obj.jd + hour / 24.0
             minutes_since_jieqi = (birth_jd - jieqi_jd) * 1440
             days_since_jieqi = minutes_since_jieqi / 1440.0
             
