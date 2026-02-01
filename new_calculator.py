@@ -392,7 +392,6 @@ class TimeProcessor:
         
         if abs(total_adjust) > 30:
             new_confidence = "medium" if confidence == "high" else "low"
-            audit_log.append(f"置信度調整: {confidence} → {new_confidence}")
         else:
             new_confidence = confidence
         
@@ -442,7 +441,6 @@ class TimeProcessor:
                 "estimated": "estimated"
             }
             new_confidence = confidence_map.get(confidence, "estimated")
-            audit_log.append(f"分鐘缺失處理: 使用{use_minute}分，置信度{confidence}→{new_confidence}")
             return use_minute, new_confidence
         return minute, confidence
     
