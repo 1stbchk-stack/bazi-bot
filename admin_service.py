@@ -651,9 +651,14 @@ class AdminService:
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
             status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
             text += f"\n{status_emoji} {detail['description']}"
+
+            # 使用正確的字段名 - 使用 expected_range 而不是 range
+            expected_range = detail.get('expected_range', (0, 0))
+            expected_str = f"{expected_range[0]}-{expected_range[1]}" if isinstance(expected_range, tuple) and len(expected_range) == 2 else "未知"
+        
             text += f"\n   A: {detail.get('birth1', '未知')}"
             text += f"\n   B: {detail.get('birth2', '未知')}"
-            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range', '未知')}分)"
+            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{expected_str}分)"
 
             if detail.get('error'):
                 text += f"\n   錯誤: {detail['error'][:50]}..."
