@@ -3,7 +3,6 @@
 """
 八字配對系統核心 - 專業級八字計算與配對引擎
 採用判斷引擎優先架構：時間→核心→評分→審計
-最後更新: 2026年2月1日
 """
 
 import logging
@@ -14,7 +13,7 @@ import sxtwl
 
 logger = logging.getLogger(__name__)
 
-# 🔖 SECTION: 錯誤處理類 [行: 50-100]
+# 🔖 1.1 錯誤處理類開始 [行: 50-100]
 class BaziCalculatorError(Exception):
     """八字計算錯誤"""
     pass
@@ -30,8 +29,9 @@ class TimeProcessingError(Exception):
 class ValidationError(Exception):
     """數據驗證錯誤"""
     pass
+# 🔖 1.1 錯誤處理類結束
 
-# 🔖 SECTION: 配置常量類 [行: 110-600]
+# 🔖 1.2 配置常量類開始 [行: 110-600]
 class Config:
     """配置常量集中管理類"""
     
@@ -207,7 +207,19 @@ class Config:
         'estimated': 0.80                # 系統估算
     }
     
-    # 評級標準 - 改為元組列表避免鍵重複
+    # 信心度文字映射
+    CONFIDENCE_TEXT_MAP = {
+        'high': '高',
+        'medium': '中', 
+        'low': '低',
+        'estimated': '估算',
+        '高': '高',
+        '中': '中',
+        '低': '低',
+        '估算': '估算'
+    }
+    
+    # 評級標準
     RATING_SCALE = [
         (THRESHOLD_PERFECT_MATCH, "🌟 萬中無一", "極品組合，互相成就"),
         (THRESHOLD_EXCELLENT_MATCH, "✨ 上等婚配", "明顯互補，幸福率高"),
@@ -234,7 +246,11 @@ class Config:
             if score >= threshold:
                 return description
         return "硬傷明顯，易生變"
-
+    
+    @classmethod
+    def format_confidence(cls, confidence: str) -> str:
+        """格式化信心度"""
+        return cls.CONFIDENCE_TEXT_MAP.get(confidence, confidence)
     
     # 八字大師配置
     @classmethod
@@ -282,8 +298,9 @@ class Config:
 
 # 創建配置實例方便使用
 C = Config
+# 🔖 1.2 配置常量類結束
 
-# 🔖 SECTION: 時間處理引擎 [行: 610-850]
+# 🔖 1.3 時間處理引擎開始 [行: 610-850]
 class TimeProcessor:
     """時間處理引擎 - 處理真太陽時、DST、EOT、日界"""
     
@@ -444,8 +461,9 @@ class TimeProcessor:
                 return hour, confidence
         
         return 12, 'low'
+# 🔖 1.3 時間處理引擎結束
 
-# 🔖 SECTION: 八字核心引擎 [行: 860-1700]
+# 🔖 1.4 八字核心引擎開始 [行: 860-1700]
 class BaziCalculator:
     """八字核心引擎 - 專業八字計算"""
     
@@ -1355,8 +1373,9 @@ class BaziCalculator:
         except Exception as e:
             logger.warning(f"大運計算失敗: {e}")
             return 0
+# 🔖 1.4 八字核心引擎結束
 
-# 🔖 SECTION: 評分引擎 [行: 1700-2400]
+# 🔖 1.5 評分引擎開始 [行: 1700-2400]
 class ScoringEngine:
     """評分引擎 - 負責命理評分，不計算最終D分"""
     
@@ -1895,8 +1914,9 @@ class ScoringEngine:
             "name": C.get_rating(score),
             "description": C.get_rating_description(score)
         }
+# 🔖 1.5 評分引擎結束
 
-# 🔖 SECTION: 主入口函數 [行: 2410-2550]
+# 🔖 1.6 主入口函數開始 [行: 2410-2550]
 def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_testpair: bool = False) -> Dict:
     """
     八字配對主入口函數 - 唯一計算最終D分的地方
@@ -2101,368 +2121,233 @@ ProfessionalBaziCalculator = BaziCalculator
 MasterBaziMatcher = ScoringEngine
 BaziError = BaziCalculatorError
 MatchError = ScoringEngineError
+# 🔖 1.6 主入口函數結束
 
-# 🔖 SECTION: 創新功能類 [行: 2560-2800]
-class HealthAnalyzer:
-    """八字健康分析器"""
+# 🔖 1.7 統一格式化工具類開始 [行: 2560-2800]
+class BaziFormatters:
+    """八字格式化工具類 - 統一個人資料和配對結果格式"""
     
     @staticmethod
-    def analyze_health(bazi_data: Dict) -> Dict[str, Any]:
-        """分析八字中的健康信息"""
-        elements = bazi_data.get('elements', {})
-        day_element = bazi_data.get('day_stem_element', '')
+    def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
+        """統一個人資料格式化"""
+        # 提取基本資料
+        birth_year = bazi_data.get('birth_year', '')
+        birth_month = bazi_data.get('birth_month', '')
+        birth_day = bazi_data.get('birth_day', '')
+        birth_hour = bazi_data.get('birth_hour', '')
         
-        # 五行平衡指數（0-100分）
-        element_balance = HealthAnalyzer._calculate_element_balance(elements)
+        # 信心度處理
+        hour_confidence = bazi_data.get('hour_confidence', '中')
+        confidence_text = C.format_confidence(hour_confidence)
         
-        # 壓力承受能力
-        pressure_tolerance = HealthAnalyzer._calculate_pressure_tolerance(bazi_data)
+        # 八字四柱
+        year_pillar = bazi_data.get('year_pillar', '')
+        month_pillar = bazi_data.get('month_pillar', '')
+        day_pillar = bazi_data.get('day_pillar', '')
+        hour_pillar = bazi_data.get('hour_pillar', '')
         
-        # 建議養生方向
-        health_advice = HealthAnalyzer._generate_health_advice(bazi_data)
+        # 生肖
+        zodiac = bazi_data.get('zodiac', '')
         
-        return {
-            "element_balance_score": element_balance,
-            "pressure_tolerance_score": pressure_tolerance,
-            "health_advice": health_advice,
-            "risk_elements": HealthAnalyzer._identify_risk_elements(bazi_data)
-        }
-    
-    @staticmethod
-    def _calculate_element_balance(elements: Dict[str, float]) -> float:
-        """計算五行平衡指數"""
-        values = list(elements.values())
-        if not values:
-            return 50.0
-        
-        # 計算標準差，標準差越小越平衡
-        mean = sum(values) / len(values)
-        variance = sum((x - mean) ** 2 for x in values) / len(values)
-        std_dev = math.sqrt(variance)
-        
-        # 將標準差轉換為分數（0-100分）
-        # 假設最大標準差為30
-        max_std_dev = 30.0
-        balance_score = max(0, min(100, 100 - (std_dev / max_std_dev * 100)))
-        
-        return round(balance_score, 1)
-    
-    @staticmethod
-    def _calculate_pressure_tolerance(bazi_data: Dict) -> float:
-        """計算壓力承受能力"""
+        # 日主信息
+        day_stem = bazi_data.get('day_stem', '')
+        day_stem_element = bazi_data.get('day_stem_element', '')
+        day_stem_strength = bazi_data.get('day_stem_strength', '中')
         strength_score = bazi_data.get('strength_score', 50)
-        pressure_score = bazi_data.get('pressure_score', 0)
         
-        # 身強則壓力承受能力強
-        base_score = strength_score * 0.7
+        # 格局類型
+        pattern_type = bazi_data.get('pattern_type', '正格')
         
-        # 壓力分數影響
-        pressure_impact = max(0, 30 - pressure_score * 0.5)
-        
-        return round(base_score + pressure_impact, 1)
-    
-    @staticmethod
-    def _generate_health_advice(bazi_data: Dict) -> List[str]:
-        """生成健康建議"""
-        day_element = bazi_data.get('day_stem_element', '')
-        strength = bazi_data.get('day_stem_strength', '中')
-        advice = []
-        
-        element_advice_map = {
-            '木': {
-                '強': ['注意肝火過旺', '避免熬夜傷肝', '多食清淡食物'],
-                '中': ['保持情緒穩定', '適當戶外活動', '注意眼睛保健'],
-                '弱': ['加強肝臟保養', '避免過度勞累', '多食綠色蔬菜']
-            },
-            '火': {
-                '強': ['注意心血管健康', '避免情緒激動', '多飲水降火'],
-                '中': ['保持心態平和', '適度運動強心', '注意夏季保健'],
-                '弱': ['加強心臟保養', '避免寒涼食物', '多食紅色食物']
-            },
-            '土': {
-                '強': ['注意脾胃負擔', '避免油膩飲食', '適度運動健脾胃'],
-                '中': ['保持飲食規律', '注意腸胃保健', '避免過度思慮'],
-                '弱': ['加強脾胃功能', '多食易消化食物', '注意腹部保暖']
-            },
-            '金': {
-                '強': ['注意呼吸系統', '避免乾燥環境', '多食潤肺食物'],
-                '中': ['保持空氣流通', '注意秋季保健', '適度運動強肺'],
-                '弱': ['加強肺部保養', '避免吸煙污染', '多食白色食物']
-            },
-            '水': {
-                '強': ['注意腎臟負擔', '避免過度飲水', '多食利水食物'],
-                '中': ['保持水分平衡', '注意冬季保健', '適度補腎'],
-                '弱': ['加強腎臟保養', '避免寒涼環境', '多食黑色食物']
-            }
-        }
-        
-        if day_element in element_advice_map:
-            advice.extend(element_advice_map[day_element].get(strength, []))
-        
-        return advice
-    
-    @staticmethod
-    def _identify_risk_elements(bazi_data: Dict) -> List[str]:
-        """識別健康風險五行"""
-        elements = bazi_data.get('elements', {})
-        harmful_elements = bazi_data.get('harmful_elements', [])
-        
-        risk_elements = []
-        
-        # 忌神過旺為風險
-        for element in harmful_elements:
-            if elements.get(element, 0) > 30:  # 忌神超過30%為過旺
-                risk_elements.append(element)
-        
-        return risk_elements
-
-class RelationshipTimeline:
-    """關係發展時間線分析"""
-    
-    @staticmethod
-    def generate_timeline(bazi1: Dict, bazi2: Dict, start_year: int = None) -> Dict[str, Any]:
-        """生成關係發展時間線"""
-        if start_year is None:
-            start_year = datetime.now().year
-        
-        timeline = []
-        
-        for year_offset in range(4):  # 預測未來4年
-            year = start_year + year_offset
-            phase_info = RelationshipTimeline._analyze_year_phase(bazi1, bazi2, year)
-            timeline.append({
-                "year": year,
-                "phase": phase_info["phase"],
-                "key_points": phase_info["key_points"],
-                "advice": phase_info["advice"]
-            })
-        
-        return {
-            "timeline": timeline,
-            "overall_trend": RelationshipTimeline._calculate_overall_trend(timeline)
-        }
-    
-    @staticmethod
-    def _analyze_year_phase(bazi1: Dict, bazi2: Dict, year: int) -> Dict[str, Any]:
-        """分析特定年份的關係階段"""
-        phase_map = {
-            0: {"phase": "相識期", "desc": "初步接觸，了解階段"},
-            1: {"phase": "熱戀期", "desc": "情感加深，互動頻繁"},
-            2: {"phase": "穩定期", "desc": "關係穩定，考驗增多"},
-            3: {"phase": "深化期", "desc": "深度連結，承諾加強"}
-        }
-        
-        year_offset = year - datetime.now().year
-        phase_index = min(year_offset, 3) if year_offset >= 0 else 0
-        
-        base_info = phase_map.get(phase_index, phase_map[0])
-        
-        # 根據八字互動生成具體建議
-        interaction_score = RelationshipTimeline._calculate_year_interaction(bazi1, bazi2, year)
-        
-        key_points = []
-        if interaction_score > 70:
-            key_points.append(f"{year}年互動順暢，關係發展有利")
-        elif interaction_score > 50:
-            key_points.append(f"{year}年平穩發展，需注意溝通")
-        else:
-            key_points.append(f"{year}年可能遇到挑戰，需加強理解")
-        
-        advice = [
-            "保持開放溝通",
-            "尊重彼此差異",
-            "共同規劃未來"
-        ]
-        
-        return {
-            "phase": base_info["phase"],
-            "description": base_info["desc"],
-            "interaction_score": interaction_score,
-            "key_points": key_points,
-            "advice": advice
-        }
-    
-    @staticmethod
-    def _calculate_year_interaction(bazi1: Dict, bazi2: Dict, year: int) -> float:
-        """計算特定年份的互動分數"""
-        # 簡化實現
-        try:
-            year_gz = sxtwl.fromSolar(year, 1, 1).getYearGZ()
-            year_stem = BaziCalculator._get_stem_name(year_gz.tg)
-            year_branch = BaziCalculator._get_branch_name(year_gz.dz)
-            
-            score = 70  # 基礎分
-            
-            # 年份天干地支與八字互動
-            # 這裡可以添加更複雜的互動邏輯
-            
-            return min(100, max(0, score))
-        except Exception as e:
-            logger.warning(f"年份互動計算失敗: {e}")
-            return 60.0
-    
-    @staticmethod
-    def _calculate_overall_trend(timeline: List[Dict]) -> str:
-        """計算整體趨勢"""
-        scores = [phase["interaction_score"] for phase in timeline]
-        avg_score = sum(scores) / len(scores) if scores else 0
-        
-        if avg_score > 75:
-            return "上升趨勢"
-        elif avg_score > 60:
-            return "平穩趨勢"
-        else:
-            return "波動趨勢"
-
-class BaziDNAMatcher:
-    """八字DNA配對系統"""
-    
-    @staticmethod
-    def generate_dna_code(bazi_data: Dict) -> str:
-        """將八字轉換為16位DNA碼"""
-        pillars = [
-            bazi_data.get('year_pillar', ''),
-            bazi_data.get('month_pillar', ''),
-            bazi_data.get('day_pillar', ''),
-            bazi_data.get('hour_pillar', '')
-        ]
-        
-        dna_code = ""
-        
-        for pillar in pillars:
-            if len(pillar) >= 2:
-                stem = pillar[0]
-                branch = pillar[1]
-                
-                # 將天干地支轉換為數字
-                stem_num = BaziDNAMatcher._stem_to_num(stem)
-                branch_num = BaziDNAMatcher._branch_to_num(branch)
-                
-                # 組合為兩位十六進制數
-                hex_value = stem_num * 16 + branch_num
-                dna_code += f"{hex_value:02X}"  # 兩位十六進制
-        
-        return dna_code[:16]  # 確保16位
-    
-    @staticmethod
-    def _stem_to_num(stem: str) -> int:
-        """天干轉數字（0-9）"""
-        stems = BaziCalculator.STEMS
-        return stems.index(stem) if stem in stems else 0
-    
-    @staticmethod
-    def _branch_to_num(branch: str) -> int:
-        """地支轉數字（0-11）"""
-        branches = BaziCalculator.BRANCHES
-        return branches.index(branch) if branch in branches else 0
-    
-    @staticmethod
-    def calculate_dna_similarity(dna1: str, dna2: str) -> float:
-        """計算DNA碼相似度（0-100%）"""
-        if len(dna1) != 16 or len(dna2) != 16:
-            return 0.0
-        
-        same_count = sum(1 for i in range(16) if dna1[i] == dna2[i])
-        return round(same_count / 16 * 100, 1)
-    
-    @staticmethod
-    def find_similar_dna_matches(user_dna: str, all_users: List[Dict], threshold: float = 60.0) -> List[Dict]:
-        """尋找相似DNA碼的用戶"""
-        similar_users = []
-        
-        for user in all_users:
-            user_dna_code = BaziDNAMatcher.generate_dna_code(user)
-            similarity = BaziDNAMatcher.calculate_dna_similarity(user_dna, user_dna_code)
-            
-            if similarity >= threshold:
-                similar_users.append({
-                    "user": user,
-                    "dna_code": user_dna_code,
-                    "similarity": similarity
-                })
-        
-        # 按相似度排序
-        similar_users.sort(key=lambda x: x["similarity"], reverse=True)
-        return similar_users
-
-class PairingAdviceGenerator:
-    """配對建議生成器"""
-    
-    @staticmethod
-    def generate_advice(bazi_data: Dict) -> List[str]:
-        """生成配對建議"""
-        advice = []
-        
-        # 根據日主五行給建議
-        day_element = bazi_data.get('day_stem_element', '')
-        strength = bazi_data.get('day_stem_strength', '中')
-        
-        element_advice = {
-            '木': {
-                '強': ['適合金、火、土旺的對象', '避免木過旺的對象', '尋求能克制或消耗的伴侶'],
-                '中': ['適合平衡五行的對象', '尋求互補的伴侶', '避免極端五行組合'],
-                '弱': ['適合水、木旺的對象', '尋求生扶的伴侶', '避免金、土過旺的對象']
-            },
-            '火': {
-                '強': ['適合水、土、金旺的對象', '避免火過旺的對象', '尋求能克制或消耗的伴侶'],
-                '中': ['適合平衡五行的對象', '尋求互補的伴侶', '避免極端五行組合'],
-                '弱': ['適合木、火旺的對象', '尋求生扶的伴侶', '避免水、金過旺的對象']
-            },
-            '土': {
-                '強': ['適合木、金、水旺的對象', '避免土過旺的對象', '尋求能克制或消耗的伴侶'],
-                '中': ['適合平衡五行的對象', '尋求互補的伴侶', '避免極端五行組合'],
-                '弱': ['適合火、土旺的對象', '尋求生扶的伴侶', '避免木、水過旺的對象']
-            },
-            '金': {
-                '強': ['適合火、水、木旺的對象', '避免金過旺的對象', '尋求能克制或消耗的伴侶'],
-                '中': ['適合平衡五行的對象', '尋求互補的伴侶', '避免極端五行組合'],
-                '弱': ['適合土、金旺的對象', '尋求生扶的伴侶', '避免火、木過旺的對象']
-            },
-            '水': {
-                '強': ['適合土、木、火旺的對象', '避免水過旺的對象', '尋求能克制或消耗的伴侶'],
-                '中': ['適合平衡五行的對象', '尋求互補的伴侶', '避免極端五行組合'],
-                '弱': ['適合金、水旺的對象', '尋求生扶的伴侶', '避免土、火過旺的對象']
-            }
-        }
-        
-        if day_element in element_advice:
-            advice.extend(element_advice[day_element].get(strength, []))
-        
-        # 根據喜用神給建議
+        # 喜用神和忌神
         useful_elements = bazi_data.get('useful_elements', [])
-        if useful_elements:
-            advice.append(f"最適合八字中{', '.join(useful_elements)}旺盛的對象")
-        
-        # 根據忌神給避開建議
         harmful_elements = bazi_data.get('harmful_elements', [])
-        if harmful_elements:
-            advice.append(f"避免八字中{', '.join(harmful_elements)}特別旺的人")
         
-        # 根據性別給建議
-        gender = bazi_data.get('gender', '')
-        if gender == '男':
-            advice.append("男性宜尋找能幫助自己事業發展的伴侶")
-        elif gender == '女':
-            advice.append("女性宜尋找能給予安全感和支持的伴侶")
+        # 夫妻星和夫妻宮
+        spouse_star_status = bazi_data.get('spouse_star_status', '未知')
+        spouse_palace_status = bazi_data.get('spouse_palace_status', '未知')
         
-        return advice
+        # 神煞
+        shen_sha_names = bazi_data.get('shen_sha_names', '無')
+        
+        # 五行分佈
+        elements = bazi_data.get('elements', {})
+        wood = elements.get('木', 0)
+        fire = elements.get('火', 0)
+        earth = elements.get('土', 0)
+        metal = elements.get('金', 0)
+        water = elements.get('水', 0)
+        
+        # 構建個人資料文本
+        personal_text = f"📊 {username} 的八字分析\n{'='*40}\n\n"
+        
+        # 第一行：出生時間和信心度
+        personal_text += f"{birth_year}年{birth_month}月{birth_day}日{birth_hour}時出生（時間信心度{confidence_text}），\n"
+        
+        # 第二行：八字四柱
+        personal_text += f"八字：{year_pillar} {month_pillar} {day_pillar} {hour_pillar}，\n"
+        
+        # 第三行：生肖和日主
+        personal_text += f"生肖{zodiac}，日主{day_stem}{day_stem_element}（{day_stem_strength}，{strength_score:.1f}分）。\n\n"
+        
+        # 第四行：格局
+        personal_text += f"格局：{pattern_type}\n"
+        
+        # 第五行：喜用神和忌神
+        personal_text += f"喜用神：{', '.join(useful_elements) if useful_elements else '無'}\n"
+        personal_text += f"忌神：{', '.join(harmful_elements) if harmful_elements else '無'}\n"
+        
+        # 第六行：夫妻星和夫妻宮
+        personal_text += f"夫妻星：{spouse_star_status}\n"
+        personal_text += f"夫妻宮：{spouse_palace_status}\n"
+        
+        # 第七行：神煞
+        personal_text += f"神煞：{shen_sha_names}\n"
+        
+        # 第八行：五行分佈
+        personal_text += f"五行分佈：木{wood:.1f}%、火{fire:.1f}%、土{earth:.1f}%、金{metal:.1f}%、水{water:.1f}%\n"
+        
+        return personal_text
     
     @staticmethod
-    def generate_warnings(bazi_data: Dict) -> List[str]:
-        """生成需要避開的特徵"""
-        warnings = []
+    def format_match_result(match_result: Dict, bazi1: Dict, bazi2: Dict, 
+                          user_a_name: str = "用戶A", user_b_name: str = "用戶B") -> str:
+        """統一配對結果格式化"""
+        score = match_result.get('score', 0)
+        rating = match_result.get('rating', '未知')
+        model = match_result.get('relationship_model', '')
         
-        harmful_elements = bazi_data.get('harmful_elements', [])
-        if harmful_elements:
-            warnings.append(f"• 八字中你的忌神({', '.join(harmful_elements)})特別旺的人")
+        # 模組分數
+        module_scores = match_result.get('module_scores', {})
         
-        warnings.extend([
-            "• 與你日支相沖（六沖）的人",
-            "• 八字壓力分數過高（>25分）的人",
-            "• 神煞中有多個負面神煞的人"
-        ])
+        # 雙向影響分數
+        a_to_b = match_result.get('a_to_b_score', 0)
+        b_to_a = match_result.get('b_to_a_score', 0)
         
-        return warnings
+        # 構建配對結果文本
+        result_text = f"🎯 核心分析結果\n{'='*40}\n\n"
+        
+        # 核心分數和評級
+        result_text += f"📊 配對分數：{score:.1f}分\n"
+        result_text += f"✨ 評級：{rating}\n"
+        result_text += f"🎭 關係模型：{model}\n\n"
+        
+        # 模組分數
+        result_text += "📈 模組分數：\n"
+        result_text += f"  💫 能量救應：{module_scores.get('energy_rescue', 0):.1f}分\n"
+        result_text += f"  🏗️ 結構核心：{module_scores.get('structure_core', 0):.1f}分\n"
+        result_text += f"  ⚠️ 人格風險：{module_scores.get('personality_risk', 0):.1f}分\n"
+        result_text += f"  💢 刑沖壓力：{module_scores.get('pressure_penalty', 0):.1f}分\n"
+        result_text += f"  ✨ 神煞加持：{module_scores.get('shen_sha_bonus', 0):.1f}分\n"
+        result_text += f"  🔧 專業化解：{module_scores.get('resolution_bonus', 0):.1f}分\n\n"
+        
+        # 雙方個人資訊
+        result_text += f"🤝 雙方個人資訊\n{'='*40}\n\n"
+        
+        # 用戶A個人資料
+        a_personal = BaziFormatters.format_personal_data(bazi1, user_a_name)
+        result_text += a_personal + "\n"
+        
+        result_text += f"{'-'*40}\n\n"
+        
+        # 用戶B個人資料
+        b_personal = BaziFormatters.format_personal_data(bazi2, user_b_name)
+        result_text += b_personal + "\n"
+        
+        # 雙向影響分析
+        result_text += f"📊 雙向影響分析\n{'='*40}\n\n"
+        result_text += f"{user_a_name} 對 {user_b_name} 的影響：{a_to_b:.1f}分\n"
+        result_text += f"{user_b_name} 對 {user_a_name} 的影響：{b_to_a:.1f}分\n\n"
+        
+        # 關係解讀
+        result_text += "💡 關係解讀："
+        if abs(a_to_b - b_to_a) < 10:
+            result_text += "• 雙方影響力相近，屬於平衡型關係\n• 互動平等，互相支持"
+        elif a_to_b > b_to_a + 15:
+            result_text += f"• {user_a_name}對{user_b_name}影響較強\n• {user_a_name}可能扮演供應者角色"
+        elif b_to_a > a_to_b + 15:
+            result_text += f"• {user_b_name}對{user_a_name}影響較強\n• {user_b_name}可能扮演供應者角色"
+        else:
+            result_text += "• 雙方有明顯的供需關係\n• 需要留意平衡點"
+        
+        result_text += "\n\n"
+        
+        # 優點與挑戰
+        result_text += f"🌟 優點與挑戰\n{'='*40}\n\n"
+        
+        # 優勢
+        result_text += "✅ 優勢：\n"
+        if score >= C.THRESHOLD_EXCELLENT_MATCH:
+            result_text += "• 五行能量高度互補\n• 結構穩定無硬傷\n• 有明顯的救應機制\n"
+        elif score >= C.THRESHOLD_GOOD_MATCH:
+            result_text += "• 核心需求能夠對接\n• 主要結構無大沖\n• 有化解機制\n"
+        elif score >= C.THRESHOLD_CONTACT_ALLOWED:
+            result_text += "• 基本能量可以互補\n• 需要努力經營關係\n"
+        else:
+            result_text += "• 優勢不明顯，需謹慎考慮\n"
+        
+        result_text += "\n⚠️ 挑戰：\n"
+        
+        # 挑戰
+        challenges = []
+        if module_scores.get('personality_risk', 0) < -10:
+            challenges.append("• 人格風險較高，可能性格衝突")
+        if module_scores.get('pressure_penalty', 0) < -15:
+            challenges.append("• 刑沖壓力較大，容易產生矛盾")
+        if module_scores.get('dayun_risk', 0) < -10:
+            challenges.append("• 未來大運有挑戰，需要提前準備")
+        
+        if challenges:
+            result_text += "\n".join(challenges) + "\n"
+        else:
+            result_text += "• 無明顯重大挑戰\n"
+        
+        result_text += "\n"
+        
+        # 建議與提醒
+        result_text += f"💡 建議與提醒\n{'='*40}\n\n"
+        result_text += "💭 建議：\n"
+        
+        if score >= C.THRESHOLD_EXCELLENT_MATCH:
+            result_text += "• 這是極佳的組合，可以深入發展\n• 保持良好溝通，互相支持\n• 珍惜這段緣分，互相成就\n"
+        elif score >= C.THRESHOLD_GOOD_MATCH:
+            result_text += "• 良好的婚配組合，現實成功率較高\n• 需要互相理解和包容\n• 定期溝通，解決小問題\n"
+        elif score >= C.THRESHOLD_CONTACT_ALLOWED:
+            result_text += "• 可以嘗試交往，但需謹慎經營\n• 注意溝通方式，避免衝突\n• 需要更多時間了解彼此\n"
+        elif score >= C.THRESHOLD_WARNING:
+            result_text += "• 關係存在明顯挑戰，需謹慎考慮\n• 建議深入了解後再做決定\n• 不宜匆忙進入長期關係\n"
+        else:
+            result_text += "• 不建議發展長期關係\n• 建議尋找更合適的配對\n• 避免投入過多情感和資源\n"
+        
+        return result_text
+    
+    @staticmethod
+    def generate_ai_prompt(match_result: Dict, bazi1: Dict, bazi2: Dict) -> str:
+        """AI分析提示格式化"""
+        # 先獲取完整的配對結果
+        match_text = BaziFormatters.format_match_result(match_result, bazi1, bazi2, "用戶A", "用戶B")
+        
+        # 添加AI分析問題
+        ai_prompt = match_text + f"\n🤖 AI分析提示（請分析以下7個問題）：\n\n"
+        
+        ai_prompt += """一、能量互補性：
+   1. 雙方五行能量如何互補？
+   2. 喜用神是否能夠對接？
+
+二、結構穩定性：
+   3. 日柱關係（天干五合、地支六合/六沖）如何？
+   4. 夫妻宮和夫妻星的狀態如何？
+
+三、潛在挑戰：
+   5. 主要的刑沖壓力在哪些方面？
+   6. 人格風險和十神結構的影響？
+
+四、發展建議：
+   7. 根據關係模型和時間線，給出具體發展建議。
+
+請提供專業、深入的分析，每個問題不少於100字。"""
+        
+        return ai_prompt
+# 🔖 1.7 統一格式化工具類結束
 
 # ========== 文件信息開始 ==========
 """
@@ -2476,127 +2361,32 @@ class PairingAdviceGenerator:
 被引用文件:
 - bot.py (主程序將導入此文件的函數和類)
 - admin_service.py (管理員服務將使用計算功能)
+- bazi_soulmate.py (真命天子搜尋功能)
 
 依賴關係:
 1. 時間處理引擎 (TimeProcessor) → 八字核心引擎 (BaziCalculator)
 2. 八字核心引擎 → 評分引擎 (ScoringEngine)
 3. 評分引擎 → 主入口函數 (calculate_match)
 4. 所有層級 → 審計日誌 (audit_log)
+5. 新增統一格式化工具類 (BaziFormatters)
 
 重要約定:
 1. 最終D分只在 calculate_match 函數中計算
 2. 評分引擎只返回命理分數部分，不計算最終分數
 3. 所有計算都包含審計日誌用於追溯
 4. 保持向後兼容接口
-5. 所有顯示格式化邏輯已移除，由bot.py處理
+5. 新增統一格式化工具類用於所有顯示格式化
 """
 # ========== 文件信息結束 ==========
 
 # ========== 目錄開始 ==========
 """
-🔖 SECTION: 錯誤處理類 [行: 50-100]
-🔖 SECTION: 配置常量類 [行: 110-600]
-🔖 SECTION: 時間處理引擎 [行: 610-850]
-🔖 SECTION: 八字核心引擎 [行: 860-1700]
-🔖 SECTION: 評分引擎 [行: 1700-2400]
-🔖 SECTION: 主入口函數 [行: 2410-2550]
-🔖 SECTION: 創新功能類 [行: 2560-2800]
+1.1 錯誤處理類開始 - 定義系統錯誤類
+1.2 配置常量類開始 - 集中管理所有配置常量
+1.3 時間處理引擎開始 - 處理真太陽時、DST、EOT、日界
+1.4 八字核心引擎開始 - 專業八字計算
+1.5 評分引擎開始 - 負責命理評分，不計算最終D分
+1.6 主入口函數開始 - 唯一計算最終D分的地方
+1.7 統一格式化工具類開始 - 統一個人資料和配對結果格式
 """
 # ========== 目錄結束 ==========
-
-# ========== 修正紀錄開始 ==========
-"""
-版本 1.4 (2026-02-01)
-主要修改:
-1. 完全重構配置系統：
-   - 新增 Config 類集中管理所有常量
-   - 移除分散的常量定義，提高可維護性
-   - 添加書籤註釋便於導航
-
-2. 修正評分邏輯為師傅級標準：
-   - 日支六沖重扣：-18分（原-12）
-   - 日支六害重扣：-20分（原-8）
-   - 新增日支特別扣分：日支六沖-25分，日支六害-28分
-   - 人格風險加強扣分：各模式扣分增加
-   - 年齡差距扣分加強：11-15歲扣-5分，16+歲扣-8分
-
-3. 添加能量救應互為忌神打折：
-   - 互為忌神時，能量救應打折至35%
-   - 提高測試案例準確率至90%以上
-
-4. 新增大運同步不同步扣分：
-   - 計算大運同步率
-   - 不同步時按比例扣分
-   - 添加一票否決機制
-
-5. 新增創新功能類：
-   - HealthAnalyzer：八字健康指數分析
-   - RelationshipTimeline：關係發展時間線
-   - BaziDNAMatcher：八字DNA配對系統
-   - PairingAdviceGenerator：配對建議生成器
-
-6. 移除所有格式化函數：
-   - 所有顯示邏輯移至bot.py中的FormatUtils
-   - 專注計算核心，職責分離清晰
-
-7. 添加輔助函數供外部調用：
-   - _check_hard_problems
-   - _check_day_branch_clash
-
-版本 1.5 (2026-02-01) - 本次修正
-主要修改：
-1. 修正Config評級系統錯誤：
-   - 問題：原Config.get_rating_scale()方法在類定義時執行，但常量尚未定義
-   - 解決：改為使用RATING_SCALE元組列表，避免類定義時執行問題
-   - 添加get_rating()和get_rating_description()方法
-
-2. 修正ScoringEngine缺失基礎工具方法問題：
-   - 問題：_calculate_pressure_penalty_corrected()方法中調用了未定義的is_clash()和is_harm()方法
-   - 解決：在ScoringEngine類開頭添加基礎工具方法區段
-   - 包含：is_clash(), is_harm(), is_clash_or_harm(), _check_hard_problems(), _check_day_branch_clash()
-
-3. 修正刑沖壓力計算方法：
-   - 問題：原方法使用配對列表檢查六沖六害，邏輯複雜且有潛在錯誤
-   - 解決：改為直接使用ScoringEngine.is_clash()和is_harm()方法
-   - 簡化代碼，提高可讀性和維護性
-
-4. 移除重複代碼：
-   - 刪除文件末尾的重複函數定義（原第2565-2595行）
-   - 避免方法重複定義和潛在的覆蓋問題
-
-5. 修正評級邏輯：
-   - 問題：55分以下全部歸為「❌ 強烈不建議」，而實際應該有「🔴 不建議」和「終止線」
-   - 解決：使用元組列表評級標準，明確每個分數區間的評級
-   - 評級標準：93/85/75/68/60/55/45/0分對應評級
-
-6. 添加配對建議生成器：
-   - 新增PairingAdviceGenerator類
-   - 根據日主五行、喜用神、忌神、性別生成配對建議
-   - 完善個人資料功能，提供實用配對建議
-
-影響：
-- 修正評級系統錯誤，確保分數評級正確
-- 補齊缺失的基礎工具方法，消除運行時錯誤
-- 簡化刑沖壓力計算邏輯，提高代碼質量
-- 提供完整的配對建議功能
-- 所有Admin test案例預計準確率提升至90%以上
-
-版本 1.3 (2026-02-01)
-主要修改:
-1. 修正雙向影響分析標識問題
-2. 統一關係模型描述
-
-版本 1.2 (2026-02-01)
-主要修改:
-1. 修正testpair置信度調整問題
-2. 修正個人資料顯示格式
-
-版本 1.1 (2026-02-01)
-主要修改:
-1. 修正喜用神計算邏輯錯誤
-2. 添加特殊格局判斷
-
-版本 1.0 (2026-01-31)
-創建文件: 整合原有計算邏輯，按照Grok建議重構為判斷引擎優先架構
-"""
-# ========== 修正紀錄結束 ==========
