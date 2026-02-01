@@ -98,27 +98,27 @@ class Config:
     TOMB_BRANCHES = {'木': '未', '火': '戌', '土': '戌', '金': '丑', '水': '辰'}
     
     # 評分系統配置 - 修正為師傅級標準
-    BASE_SCORE = 72                      # 起始基準分
+    BASE_SCORE = 65                      # 起始基準分
     REALITY_FLOOR = 45                   # 現實保底分
-    TERMINATION_SCORE = 45               # 終止評級分
+    TERMINATION_SCORE = 35               # 終止評級分
     STRONG_WARNING_FLOOR = 55            # 強烈警告下限
     
     # 評分閾值 - 修正為師傅級標準
-    THRESHOLD_TERMINATION = 45           # 終止線（原45）
-    THRESHOLD_STRONG_WARNING = 55        # 強烈警告線（原55）
-    THRESHOLD_WARNING = 60               # 警告線（原60）
-    THRESHOLD_CONTACT_ALLOWED = 68       # 可交換聯絡方式（原68）
-    THRESHOLD_GOOD_MATCH = 75            # 良好婚配（原75）
-    THRESHOLD_EXCELLENT_MATCH = 85       # 上等婚配（原85）
-    THRESHOLD_PERFECT_MATCH = 93         # 極品婚配（原93）
+    THRESHOLD_TERMINATION = 35           # 終止線（原45）
+    THRESHOLD_STRONG_WARNING = 45        # 強烈警告線（原55）
+    THRESHOLD_WARNING = 50               # 警告線（原60）
+    THRESHOLD_CONTACT_ALLOWED = 55       # 可交換聯絡方式（原68）
+    THRESHOLD_GOOD_MATCH = 65            # 良好婚配（原75）
+    THRESHOLD_EXCELLENT_MATCH = 75       # 上等婚配（原85）
+    THRESHOLD_PERFECT_MATCH = 85         # 極品婚配（原93）
     
     # 模組分數上限
-    ENERGY_RESCUE_CAP = 35               # 能量救應上限
+    ENERGY_RESCUE_CAP = 25               # 能量救應上限
     PERSONALITY_RISK_CAP = -25           # 人格風險上限
     PRESSURE_PENALTY_CAP = -30           # 刑沖壓力上限（原-20，修正為-30）
-    SHEN_SHA_BONUS_CAP = 12              # 神煞加持上限
+    SHEN_SHA_BONUS_CAP = 8              # 神煞加持上限
     SHEN_SHA_FLOOR = 7                   # 神煞保底分
-    RESOLUTION_BONUS_CAP = 15            # 專業化解上限
+    RESOLUTION_BONUS_CAP = 10            # 專業化解上限
     TOTAL_PENALTY_CAP = -50              # 總扣分上限
     
     # 能量救應配置
@@ -134,10 +134,10 @@ class Config:
     BRANCH_COMBINATION_SIX_HARMONY = 5   # 六合
     
     # 刑沖壓力配置 - 修正為師傅級標準
-    BRANCH_CLASH_PENALTY = -18           # 六沖扣分（原-12，修正為-18）
-    BRANCH_HARM_PENALTY = -20            # 六害扣分（原-8，修正為-20）
-    DAY_CLASH_PENALTY = -25              # 日支六沖特別扣分（新增）
-    DAY_HARM_PENALTY = -28               # 日支六害特別扣分（新增）
+    BRANCH_CLASH_PENALTY = -25           # 六沖扣分（原-12，修正為-18）
+    BRANCH_HARM_PENALTY = -28            # 六害扣分（原-8，修正為-20）
+    DAY_CLASH_PENALTY = -30              # 日支六沖特別扣分（新增）
+    DAY_HARM_PENALTY = -35               # 日支六害特別扣分（新增）
     
     PALACE_STABLE_BONUS = 4              # 穩定無沖
     PALACE_SLIGHT_BONUS = 1              # 輕微受壓
@@ -188,7 +188,7 @@ class Config:
     
     # 現實校準配置 - 修正為師傅級標準
     NO_HARD_PROBLEM_FLOOR = 45           # 無硬傷保底分
-    DAY_CLASH_CAP = 50                   # 日支六沖上限（原75，修正為65）
+    DAY_CLASH_CAP = 45                   # 日支六沖上限（原75，修正為65）
     AGE_GAP_PENALTY_11_15 = -5           # 11-15歲年齡差距扣分（原-3，修正為-5）
     AGE_GAP_PENALTY_16_PLUS = -8         # 16歲以上年齡差距扣分（原-5，修正為-8）
     FATAL_RISK_CAP = 35                  # 致命風險上限（原45，修正為40）
@@ -1999,7 +1999,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             has_severe_problems = (
                 score_parts["personality_risk"] < -15 or
                 score_parts["pressure_penalty"] < -20 or
-                score_parts["dayun_risk"] < -15
+                score_parts["dayun_risk"] < -20
             )
     
             if has_severe_problems:
@@ -2025,8 +2025,8 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         # 日支六沖上限
         has_day_clash = ScoringEngine._check_day_branch_clash(bazi1, bazi2)
         if has_day_clash:
-            calibrated_score = min(calibrated_score, C.DAY_CLASH_CAP)
-            audit_log.append(f"日支六沖上限: → {C.DAY_CLASH_CAP}分")
+            calibrated_score = min(calibrated_score, C.DAY_CLASH_CAP-5)
+            audit_log.append(f"日支六沖上限: → {C.DAY_CLASH_CAP-5}分")
         
         # 年齡差距調整 - 師傅級加強扣分
         age_diff = abs(bazi1.get('birth_year', 0) - bazi2.get('birth_year', 0))
