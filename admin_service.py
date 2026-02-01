@@ -637,7 +637,14 @@ class AdminService:
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
             status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
             text += f"\n{status_emoji} {detail['description']}"
-            text += f"\n   分數: {detail.get('score', 0):.1f}分"
+
+            # 新增呢兩行顯示出生時間
+            text += f"\n   A: {detail.get('birth1')}"
+            text += f"\n   B: {detail.get('birth2')}"
+    
+            # 修改分數呢行，加埋 Range 入去
+            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range')}分)"
+
             if detail.get('error'):
                 text += f"\n   錯誤: {detail['error'][:50]}..."
         
