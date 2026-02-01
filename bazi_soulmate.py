@@ -6,12 +6,11 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 
 # 導入計算核心
-from bazi_calculator import (
-    ProfessionalBaziCalculator,
-    MasterBaziMatcher,
-    MASTER_BAZI_CONFIG,
-    BaziError,
-    MatchError
+from new_calculator import (
+    BaziCalculator,
+    calculate_match,
+    ScoringEngine,
+    Config
 )
 
 logger = logging.getLogger(__name__)
