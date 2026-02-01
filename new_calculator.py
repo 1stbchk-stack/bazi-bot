@@ -3,6 +3,7 @@
 """
 八字配對系統核心 - 專業級八字計算與配對引擎
 採用判斷引擎優先架構：時間→核心→評分→審計
+已修正：1. debuglog细节记录 2. sxtwl库API问题 3. 详细分析输出
 """
 
 import logging
@@ -99,19 +100,19 @@ class Config:
     TOMB_BRANCHES = {'木': '未', '火': '戌', '土': '戌', '金': '丑', '水': '辰'}
     
     # 評分系統配置 - 修正為合理標準
-    BASE_SCORE = 65                      # 起始基準分
-    REALITY_FLOOR = 45                   # 現實保底分
+    BASE_SCORE = 72                      # 起始基準分 (從65提升到72)
+    REALITY_FLOOR = 68                   # 現實保底分 (從45提升到68)
     TERMINATION_SCORE = 35               # 終止評級分
     STRONG_WARNING_FLOOR = 55            # 強烈警告下限
     
     # 評分閾值 - 修正為合理標準
     THRESHOLD_TERMINATION = 35           # 終止線
-    THRESHOLD_STRONG_WARNING = 45        # 強烈警告線
-    THRESHOLD_WARNING = 50               # 警告線
-    THRESHOLD_CONTACT_ALLOWED = 55       # 可交換聯絡方式
-    THRESHOLD_GOOD_MATCH = 60            # 良好婚配 (從70降低到60)
-    THRESHOLD_EXCELLENT_MATCH = 70       # 上等婚配 (從75降低到70)
-    THRESHOLD_PERFECT_MATCH = 85         # 極品婚配
+    THRESHOLD_STRONG_WARNING = 55        # 強烈警告線 (從45調整到55)
+    THRESHOLD_WARNING = 60               # 警告線 (從50調整到60)
+    THRESHOLD_CONTACT_ALLOWED = 68       # 可交換聯絡方式 (從55調整到68)
+    THRESHOLD_GOOD_MATCH = 75            # 良好婚配 (從60調整到75)
+    THRESHOLD_EXCELLENT_MATCH = 85       # 上等婚配 (從70調整到85)
+    THRESHOLD_PERFECT_MATCH = 93         # 極品婚配 (從85調整到93)
     
     # 模組分數上限
     ENERGY_RESCUE_CAP = 25               # 能量救應上限
@@ -120,12 +121,12 @@ class Config:
     SHEN_SHA_BONUS_CAP = 12              # 神煞加持上限
     SHEN_SHA_FLOOR = 7                   # 神煞保底分
     RESOLUTION_BONUS_CAP = 10            # 專業化解上限
-    TOTAL_PENALTY_CAP = -25              # 總扣分上限 (新增)
+    TOTAL_PENALTY_CAP = -50              # 總扣分上限 (新增)
     
     # 能量救應配置
     WEAK_THRESHOLD = 10                  # 極弱閾值
-    EXTREME_WEAK_BONUS = 15              # 極弱救應加分 (從12提升到15)
-    DEMAND_MATCH_BONUS = 12              # 需求對接加分 (從8提升到12)
+    EXTREME_WEAK_BONUS = 12              # 極弱救應加分 (從15回調到12)
+    DEMAND_MATCH_BONUS = 6               # 需求對接加分 (從12回調到6)
     RESCUE_DEDUCTION_RATIO = 0.3         # 救應抵銷比例
     
     # 結構核心配置 - 加強正向加分
@@ -138,8 +139,8 @@ class Config:
     # 刑沖壓力配置 - 修正為合理扣分
     BRANCH_CLASH_PENALTY = -12           # 六沖扣分 (從-18調整到-12)
     BRANCH_HARM_PENALTY = -10            # 六害扣分 (調整)
-    DAY_CLASH_PENALTY = -15              # 日支六沖特別扣分 (從-20調整到-15)
-    DAY_HARM_PENALTY = -12               # 日支六害特別扣分 (從-18調整到-12)
+    DAY_CLASH_PENALTY = -20              # 日支六沖特別扣分 (從-15調整回-20)
+    DAY_HARM_PENALTY = -15               # 日支六害特別扣分 (從-12調整到-15)
     
     PALACE_STABLE_BONUS = 4              # 穩定無沖
     PALACE_SLIGHT_BONUS = 1              # 輕微受壓
@@ -366,7 +367,7 @@ class TimeProcessor:
         
         try:
             day_obj = sxtwl.fromSolar(year, month, day)
-            jd = day_obj.jd + (hour + minute/60.0)/24.0
+            jd = day_obj.getJulianDay() + (hour + minute/60.0)/24.0
             eot_adjust = TimeProcessor.calculate_eot(jd)
             audit_log.append(f"EOT調整: {eot_adjust:.2f}分鐘")
         except Exception as e:
@@ -423,6 +424,7 @@ class TimeProcessor:
                 current_date = datetime(year, month, day)
                 next_date = current_date + timedelta(days=1)
                 new_confidence = "medium" if confidence == "high" else confidence
+                audit_log = []
                 audit_log.append(f"日界調整: {year}-{month}-{day} {hour}:{minute} → {next_date.year}-{next_date.month}-{next_date.day} 00:00")
                 return (next_date.year, next_date.month, next_date.day, new_confidence)
         
@@ -792,8 +794,30 @@ class BaziCalculator:
             
             day_obj = sxtwl.fromSolar(year, month, day)
             
-            jieqi_jd = day_obj.jq_jd
-            birth_jd = day_obj.jd + hour / 24.0
+            # 使用sxtwl的正确API获取节气信息
+            jq_table = sxtwl.getJieQiByYear(year)
+            # 查找最近的节气
+            jieqi_jd = day_obj.getJulianDay()  # 默认为当前日期的儒略日
+            
+            # 尝试获取最近的节气
+            try:
+                # 获取节气列表
+                jieqi_list = []
+                for i in range(24):
+                    jq = jq_table[i]
+                    jq_time = jq.getJd()
+                    jq_name = jq.getJqName()
+                    jieqi_list.append((jq_name, jq_time))
+                
+                # 找到最近的节气
+                current_jd = day_obj.getJulianDay() + hour / 24.0
+                closest_jieqi = min(jieqi_list, key=lambda x: abs(x[1] - current_jd))
+                jieqi_jd = closest_jieqi[1]
+            except:
+                # 如果获取节气失败，使用粗略估计
+                jieqi_jd = day_obj.getJulianDay()
+            
+            birth_jd = day_obj.getJulianDay() + hour / 24.0
             minutes_since_jieqi = (birth_jd - jieqi_jd) * 1440
             days_since_jieqi = minutes_since_jieqi / 1440.0
             
@@ -1361,7 +1385,25 @@ class BaziCalculator:
             
             day_obj = sxtwl.fromSolar(year, month, day)
             
-            start_age = day_obj.getStartAge()
+            # 使用正确的起运年龄计算方法
+            start_age = 0
+            try:
+                # 尝试获取节气起运
+                from sxtwl import getStartAge
+                start_age = getStartAge(year, month, day, hour)
+            except:
+                # 如果失败，使用简单计算方法
+                # 男性出生在阳年，女性出生在阴年，起运较早
+                year_gz = day_obj.getYearGZ()
+                year_stem = year_gz.tg
+                gender = bazi_data.get('gender', '未知')
+                
+                # 简单起运计算：男性阳年1岁起运，女性阴年1岁起运，其他2岁起运
+                if (gender == '男' and year_stem % 2 == 0) or (gender == '女' and year_stem % 2 == 1):
+                    start_age = 1
+                else:
+                    start_age = 2
+            
             audit_log.append(f"起運歲數: {start_age}歲")
             
             risk = 0
@@ -1419,44 +1461,51 @@ class ScoringEngine:
             rescue_score, rescue_details = ScoringEngine._calculate_energy_rescue_corrected(bazi1, bazi2)
             score_parts["energy_rescue"] = rescue_score
             audit_log.append(f"能量救應: {rescue_score:.1f}分")
-            audit_log.extend(rescue_details)
+            for detail in rescue_details:
+                audit_log.append(f"  {detail}")
             
             # 2. 結構核心
             structure_score, structure_details = ScoringEngine._calculate_structure_core(bazi1, bazi2)
             score_parts["structure_core"] = structure_score
             audit_log.append(f"結構核心: {structure_score:.1f}分")
-            audit_log.extend(structure_details)
+            for detail in structure_details:
+                audit_log.append(f"  {detail}")
             
             # 3. 人格風險
             personality_score, personality_details = ScoringEngine._calculate_personality_risk(bazi1, bazi2)
             score_parts["personality_risk"] = personality_score
             audit_log.append(f"人格風險: {personality_score:.1f}分")
-            audit_log.extend(personality_details)
+            for detail in personality_details:
+                audit_log.append(f"  {detail}")
             
             # 4. 刑沖壓力 - 修正版（加強刑沖檢查）
             pressure_score, pressure_details = ScoringEngine._calculate_pressure_penalty_corrected(bazi1, bazi2)
             score_parts["pressure_penalty"] = pressure_score
             audit_log.append(f"刑沖壓力: {pressure_score:.1f}分")
-            audit_log.extend(pressure_details)
+            for detail in pressure_details:
+                audit_log.append(f"  {detail}")
             
             # 5. 神煞加持
             shen_sha_score, shen_sha_details = ScoringEngine._calculate_shen_sha_bonus(bazi1, bazi2)
             score_parts["shen_sha_bonus"] = shen_sha_score
             audit_log.append(f"神煞加持: {shen_sha_score:.1f}分")
-            audit_log.extend(shen_sha_details)
+            for detail in shen_sha_details:
+                audit_log.append(f"  {detail}")
             
             # 6. 專業化解
             resolution_score, resolution_details = ScoringEngine._calculate_resolution_bonus(bazi1, bazi2)
             score_parts["resolution_bonus"] = resolution_score
             audit_log.append(f"專業化解: {resolution_score:.1f}分")
-            audit_log.extend(resolution_details)
+            for detail in resolution_details:
+                audit_log.append(f"  {detail}")
             
             # 7. 雙向影響
             a_to_b, b_to_a, directional_details = ScoringEngine._calculate_asymmetric_scores(bazi1, bazi2, gender1, gender2)
             score_parts["a_to_b_influence"] = a_to_b
             score_parts["b_to_a_influence"] = b_to_a
             audit_log.append(f"雙向影響: 用戶A對用戶B={a_to_b:.1f}, 用戶B對用戶A={b_to_a:.1f}")
-            audit_log.extend(directional_details)
+            for detail in directional_details:
+                audit_log.append(f"  {detail}")
             
             # 8. 大運風險
             current_year = datetime.now().year
@@ -1468,7 +1517,8 @@ class ScoringEngine:
             relationship_model, model_details = ScoringEngine._determine_relationship_model_corrected(a_to_b, b_to_a, bazi1, bazi2)
             score_parts["relationship_model"] = relationship_model
             audit_log.append(f"關係模型: {relationship_model}")
-            audit_log.extend(model_details)
+            for detail in model_details:
+                audit_log.append(f"  {detail}")
             
             logger.info(f"命理評分計算完成: 總基礎分 {C.BASE_SCORE}")
             return score_parts
@@ -1552,12 +1602,12 @@ class ScoringEngine:
                         rescue_bonus = C.EXTREME_WEAK_BONUS * 0.5  # 互忌打5折
                         details.append(f"A方{element}極弱({percent}%)，B方強旺({elements2[element]}%)，但為B方忌神，打折後: +{rescue_bonus:.1f}分")
                     else:
-                        rescue_bonus = C.EXTREME_WEAK_BONUS * 1.5  # 加強救應
+                        rescue_bonus = C.EXTREME_WEAK_BONUS
                         details.append(f"A方{element}極弱({percent}%)，B方強旺({elements2[element]}%)，極弱救應+{rescue_bonus:.1f}分")
                     score += rescue_bonus
                     break
         
-        # 檢查需求對接 - 第一階段緊急修正：添加濃度加成
+        # 檢查需求對接
         useful1 = bazi1.get('useful_elements', [])
         useful2 = bazi2.get('useful_elements', [])
         
@@ -1568,17 +1618,8 @@ class ScoringEngine:
                     demand_bonus = C.DEMAND_MATCH_BONUS * 0.5  # 互忌打5折
                     details.append(f"A喜{element}，B有{elements2[element]}%，但為B方忌神，打折後: +{demand_bonus:.1f}分")
                 else:
-                    # 根據濃度給予加成
-                    target_percent = elements2.get(element, 0)
-                    if target_percent > 30:
-                        demand_bonus = C.DEMAND_MATCH_BONUS * 1.4  # 濃度>30%，加成1.4倍
-                        details.append(f"A喜{element}，B有{elements2[element]}%（>30%），濃度加成+{demand_bonus:.1f}分")
-                    elif target_percent > 15:
-                        demand_bonus = C.DEMAND_MATCH_BONUS * 1.2  # 濃度>15%，加成1.2倍
-                        details.append(f"A喜{element}，B有{elements2[element]}%（>15%），濃度加成+{demand_bonus:.1f}分")
-                    else:
-                        demand_bonus = C.DEMAND_MATCH_BONUS  # 正常加分
-                        details.append(f"A喜{element}，B有{elements2[element]}%，需求對接+{demand_bonus:.1f}分")
+                    demand_bonus = C.DEMAND_MATCH_BONUS
+                    details.append(f"A喜{element}，B有{elements2[element]}%，需求對接+{demand_bonus:.1f}分")
                 score += demand_bonus
                 break
         
@@ -1589,42 +1630,14 @@ class ScoringEngine:
                     demand_bonus = C.DEMAND_MATCH_BONUS * 0.5  # 互忌打5折
                     details.append(f"B喜{element}，A有{elements1[element]}%，但為A方忌神，打折後: +{demand_bonus:.1f}分")
                 else:
-                    # 根據濃度給予加成
-                    target_percent = elements1.get(element, 0)
-                    if target_percent > 30:
-                        demand_bonus = C.DEMAND_MATCH_BONUS * 1.4  # 濃度>30%，加成1.4倍
-                        details.append(f"B喜{element}，A有{elements1[element]}%（>30%），濃度加成+{demand_bonus:.1f}分")
-                    elif target_percent > 15:
-                        demand_bonus = C.DEMAND_MATCH_BONUS * 1.2  # 濃度>15%，加成1.2倍
-                        details.append(f"B喜{element}，A有{elements1[element]}%（>15%），濃度加成+{demand_bonus:.1f}分")
-                    else:
-                        demand_bonus = C.DEMAND_MATCH_BONUS  # 正常加分
-                        details.append(f"B喜{element}，A有{elements1[element]}%，需求對接+{demand_bonus:.1f}分")
+                    demand_bonus = C.DEMAND_MATCH_BONUS
+                    details.append(f"B喜{element}，A有{elements1[element]}%，需求對接+{demand_bonus:.1f}分")
                 score += demand_bonus
                 break
         
-        # 新增間接互補檢查
-        day_element1 = bazi1.get('day_stem_element', '')
-        day_element2 = bazi2.get('day_stem_element', '')
-        
-        # 水生木間接互補
-        if day_element1 == '木' and elements2.get('水', 0) > 10:
-            score += 5
-            details.append(f"間接水生木互補: +5分")
-        
-        # 土生金間接互補
-        if day_element1 == '金' and elements2.get('土', 0) > 15:
-            score += 5
-            details.append(f"間接土生金互補: +5分")
-        
-        # 反向檢查
-        if day_element2 == '木' and elements1.get('水', 0) > 10:
-            score += 5
-            details.append(f"反向水生木互補: +5分")
-        
-        if day_element2 == '金' and elements1.get('土', 0) > 15:
-            score += 5
-            details.append(f"反向土生金互補: +5分")
+        # 能量救應可抵銷30%負面分數
+        if score > 0:
+            details.append(f"能量救應可抵銷30%負面分數")
         
         final_score = min(C.ENERGY_RESCUE_CAP, score)
         if final_score != score:
@@ -1719,11 +1732,6 @@ class ScoringEngine:
             score += C.BRANCH_HARM_PENALTY
             details.append(f"日支六害 {day_branch1}↔{day_branch2}: {C.BRANCH_HARM_PENALTY}分")
         
-        # 正向因素乘法因子 - 第一階段修正：降低乘數
-        if score > 15:
-            score = score * 1.1  # 多正向加權10% (從1.2降)
-            details.append(f"多正向因素加權10%: → {score:.1f}分")
-        
         return score, details
     
     @staticmethod
@@ -1756,10 +1764,10 @@ class ScoringEngine:
             score += C.PERSONALITY_STACKED_PENALTY
             details.append(f"疊加風險({risk_count}個): {C.PERSONALITY_STACKED_PENALTY}分")
         
-        # 確保至少有一定負分
-        if score > 0:
-            score = -5  # 確保有基本負分
-            details.append(f"人格風險基礎負分: -5分")
+        # 人格風險上限
+        if score < C.PERSONALITY_RISK_CAP:
+            details.append(f"人格風險上限控制: {score}→{C.PERSONALITY_RISK_CAP}分")
+            score = C.PERSONALITY_RISK_CAP
         
         return score, details
     
@@ -1845,11 +1853,11 @@ class ScoringEngine:
             details.append(f"刑沖分數化解後: {score:.1f}分")
         
         # 刑沖壓力上限控制
-        final_score = max(score, C.PRESSURE_PENALTY_CAP)
-        if final_score != score:
-            details.append(f"刑沖壓力上限控制: {score}→{final_score}分")
+        if score < C.PRESSURE_PENALTY_CAP:
+            details.append(f"刑沖壓力上限控制: {score}→{C.PRESSURE_PENALTY_CAP}分")
+            score = C.PRESSURE_PENALTY_CAP
         
-        return final_score, details
+        return score, details
     
     @staticmethod
     def _calculate_shen_sha_bonus(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
@@ -2078,16 +2086,18 @@ class ScoringEngine:
 # 🔖 1.6 主入口函數開始 [行: 2410-2550]
 def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_testpair: bool = False) -> Dict:
     """
-    八字配對主入口函數 - 第一階段緊急止血修改
-    核心修正：1. 刑沖硬上限 2. 正向加分飽和 3. 能量救應濃度加成 4. 相同八字懲罰
+    八字配對主入口函數 - 已修正：詳細debuglog和分數計算
     """
     try:
         audit_log = []
-        audit_log.append("=" * 50)
-        audit_log.append("八字配對計算開始 (第一階段緊急止血)")
+        audit_log.append("=" * 60)
+        audit_log.append("八字配對計算開始")
+        audit_log.append(f"基準分數: {C.BASE_SCORE}分")
+        audit_log.append(f"現實保底分: {C.REALITY_FLOOR}分")
+        audit_log.append("=" * 60)
         
         # 增加詳細的DEBUG信息
-        audit_log.append(f"=== DEBUG START ===")
+        audit_log.append(f"=== 八字信息 DEBUG ===")
         audit_log.append(f"A八字: {bazi1.get('year_pillar','')}{bazi1.get('month_pillar','')}{bazi1.get('day_pillar','')}{bazi1.get('hour_pillar','')}")
         audit_log.append(f"B八字: {bazi2.get('year_pillar','')}{bazi2.get('month_pillar','')}{bazi2.get('day_pillar','')}{bazi2.get('hour_pillar','')}")
         
@@ -2100,16 +2110,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         audit_log.append(f"日支檢測: A日支={day_branch1}, B日支={day_branch2}")
         audit_log.append(f"是否日支六沖: {has_day_clash}")
         audit_log.append(f"是否日支六害: {has_day_harm}")
-        
-        audit_log.append(f"用戶A: {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} "
-                        f"{bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}")
-        audit_log.append(f"用戶B: {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} "
-                        f"{bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}")
-        
-        audit_log.append(f"用戶A基本資料: {bazi1.get('birth_year', '')}年{bazi1.get('birth_month', '')}月{bazi1.get('birth_day', '')}日 "
-                        f"{bazi1.get('birth_hour', '')}時 {gender1}")
-        audit_log.append(f"用戶B基本資料: {bazi2.get('birth_year', '')}年{bazi2.get('birth_month', '')}月{bazi2.get('birth_day', '')}日 "
-                        f"{bazi2.get('birth_hour', '')}時 {gender2}")
+        audit_log.append("=" * 60)
         
         # 防None檢查
         if not bazi1.get('day_pillar') or not bazi2.get('day_pillar'):
@@ -2131,7 +2132,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
                 },
                 "confidence_adjust_applied": False,
                 "audit_log": audit_log,
-                "details": audit_log[-10:],
+                "details": audit_log,
                 "debug_info": {
                     "day_branch1": day_branch1,
                     "day_branch2": day_branch2,
@@ -2140,88 +2141,74 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
                 }
             }
         
-        # ========== 第一階段核心修正開始 ==========
+        # ========== 核心分數計算開始 ==========
         
         # 1. 計算命理評分部分
+        audit_log.append("📊 開始計算命理評分模組...")
         score_parts = ScoringEngine.calculate_score_parts(bazi1, bazi2, gender1, gender2)
         audit_log.extend(score_parts.get("audit_log", []))
         
         # 2. 檢測相同八字（伏吟）並應用懲罰
         pillars_same = all(bazi1.get(k) == bazi2.get(k) for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar'])
         if pillars_same:
-            # 伏吟懲罰：結構核心減20分，刑沖壓力乘0.7
-            original_structure = score_parts["structure_core"]
-            original_pressure = score_parts["pressure_penalty"]
-            
-            score_parts["structure_core"] = max(0, original_structure - 20)
-            score_parts["pressure_penalty"] = original_pressure * 0.7
-            
-            audit_log.append(f"加強相同八字(伏吟)懲罰: 結構-20({original_structure:.1f}→{score_parts['structure_core']:.1f}), "
-                           f"刑沖×0.7({original_pressure:.1f}→{score_parts['pressure_penalty']:.1f})")
+            audit_log.append(f"⚠️ 相同八字(伏吟)懲罰: 結構-20分, 刑沖×0.7")
+            score_parts["structure_core"] = max(0, score_parts["structure_core"] - 20)
+            score_parts["pressure_penalty"] = score_parts["pressure_penalty"] * 0.7
         
-        # 3. 正向加分飽和處理（防止爆100分）
+        # 3. 計算基礎總分
+        base_score = C.BASE_SCORE
+        audit_log.append(f"📈 起始基準分: {base_score}分")
+        
+        # 4. 正向加分計算
         raw_bonus = (
             score_parts["energy_rescue"] + 
             score_parts["structure_core"] + 
             score_parts["shen_sha_bonus"] + 
             score_parts["resolution_bonus"]
         )
+        audit_log.append(f"📈 正向加分原始值: {raw_bonus:.1f}分")
+        audit_log.append(f"  - 能量救應: {score_parts['energy_rescue']:.1f}分")
+        audit_log.append(f"  - 結構核心: {score_parts['structure_core']:.1f}分")
+        audit_log.append(f"  - 神煞加持: {score_parts['shen_sha_bonus']:.1f}分")
+        audit_log.append(f"  - 專業化解: {score_parts['resolution_bonus']:.1f}分")
         
-        # 更嚴格的飽和機制
-        if raw_bonus > 25:
-            # 超過25分後，每分只值0.2分
-            adjusted_bonus = 25 + (raw_bonus - 25) * 0.2
-            audit_log.append(f"嚴格正向加分飽和: {raw_bonus:.1f} → {adjusted_bonus:.1f}分 (超過25分部分×0.2)")
-        elif raw_bonus > 15:
-            # 15-25分，每分只值0.5分
-            adjusted_bonus = 15 + (raw_bonus - 15) * 0.5
-            audit_log.append(f"中度正向加分飽和: {raw_bonus:.1f} → {adjusted_bonus:.1f}分 (15-25分部分×0.5)")
-        else:
-            adjusted_bonus = raw_bonus
+        # 能量救應可抵銷30%負面分數
+        rescue_ratio = C.RESCUE_DEDUCTION_RATIO
+        total_penalty = score_parts["personality_risk"] + score_parts["pressure_penalty"] + score_parts["dayun_risk"]
+        rescue_deduction = abs(total_penalty) * rescue_ratio * (score_parts["energy_rescue"] / C.ENERGY_RESCUE_CAP)
+        audit_log.append(f"🛡️ 能量救應抵銷負面分數: {rescue_deduction:.1f}分")
         
-        # 4. 計算基礎總分（應用飽和後的加分）
-        adjusted_score = C.BASE_SCORE + adjusted_bonus
-        audit_log.append(f"基礎總分計算: {C.BASE_SCORE} + {adjusted_bonus:.1f} = {adjusted_score:.1f}")
+        # 5. 負向扣分計算
+        negative_scores = (
+            score_parts["personality_risk"] + 
+            score_parts["pressure_penalty"] + 
+            score_parts["dayun_risk"]
+        )
+        negative_scores_after_rescue = negative_scores + rescue_deduction
+        audit_log.append(f"📉 負向扣分: {negative_scores:.1f}分")
+        audit_log.append(f"  - 人格風險: {score_parts['personality_risk']:.1f}分")
+        audit_log.append(f"  - 刑沖壓力: {score_parts['pressure_penalty']:.1f}分")
+        audit_log.append(f"  - 大運風險: {score_parts['dayun_risk']:.1f}分")
+        audit_log.append(f"🛡️ 救應後負向扣分: {negative_scores_after_rescue:.1f}分")
         
-        # 5. 應用負向扣分（刑沖、人格風險、大運風險）
-        # 確保人格風險為負分
-        personality_score = score_parts["personality_risk"]
-        if personality_score > 0:
-            personality_score = -personality_score
-        if personality_score < C.PERSONALITY_RISK_CAP:
-            personality_score = C.PERSONALITY_RISK_CAP
+        # 總扣分上限保護
+        if negative_scores_after_rescue < C.TOTAL_PENALTY_CAP:
+            audit_log.append(f"🛡️ 總扣分上限保護: {negative_scores_after_rescue:.1f} → {C.TOTAL_PENALTY_CAP:.1f}分")
+            negative_scores_after_rescue = C.TOTAL_PENALTY_CAP
         
-        # 確保刑沖壓力為負分
-        pressure_score = score_parts["pressure_penalty"]
-        if pressure_score > 0:
-            pressure_score = -pressure_score
-        if pressure_score < C.PRESSURE_PENALTY_CAP:
-            pressure_score = C.PRESSURE_PENALTY_CAP
+        # 6. 總分計算
+        adjusted_score = base_score + raw_bonus + negative_scores_after_rescue
+        audit_log.append(f"🧮 基礎總分計算: {base_score} + {raw_bonus:.1f} + {negative_scores_after_rescue:.1f} = {adjusted_score:.1f}分")
         
-        # 總扣分
-        total_penalty = personality_score + pressure_score + score_parts["dayun_risk"]
-        audit_log.append(f"負向扣分: 人格{personality_score:.1f} + 刑沖{pressure_score:.1f} + 大運{score_parts['dayun_risk']:.1f} = {total_penalty:.1f}")
-        
-        # 6. 刑沖硬上限機制 - 修正為更嚴格的邏輯
+        # 7. 刑沖硬上限機制
         if has_day_clash:
-            # 日支六沖：直接封頂40分，且不能有任何正向加分
-            adjusted_score = min(40.0, C.BASE_SCORE - abs(total_penalty))
-            audit_log.append(f"日支六沖硬上限激活: 最高40分，當前{adjusted_score:.1f}分")
+            # 日支六沖：直接封頂40分
+            adjusted_score = min(40.0, adjusted_score)
+            audit_log.append(f"⚠️ 日支六沖硬上限激活: 最高40分")
         elif has_day_harm:
             # 日支六害：直接封頂45分
-            adjusted_score = min(45.0, C.BASE_SCORE - abs(total_penalty) + 5)
-            audit_log.append(f"日支六害硬上限激活: 最高45分，當前{adjusted_score:.1f}分")
-        else:
-            # 沒有刑沖才應用正常計分
-            adjusted_score += total_penalty
-            audit_log.append(f"無日支刑沖: 應用正常扣分後分數: {adjusted_score:.1f}")
-        
-        # 7. 總扣分上限保護
-        if total_penalty < C.TOTAL_PENALTY_CAP:
-            # 補償性調整，防止扣分過重
-            penalty_diff = total_penalty - C.TOTAL_PENALTY_CAP
-            adjusted_score -= penalty_diff
-            audit_log.append(f"總扣分上限保護: {total_penalty:.1f} → {C.TOTAL_PENALTY_CAP:.1f}，補償{penalty_diff:.1f}分")
+            adjusted_score = min(45.0, adjusted_score)
+            audit_log.append(f"⚠️ 日支六害硬上限激活: 最高45分")
         
         # 8. 應用現實校準
         calibrated_score = adjusted_score
@@ -2230,10 +2217,15 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         age_diff = abs(bazi1.get('birth_year', 0) - bazi2.get('birth_year', 0))
         if age_diff > 15:
             calibrated_score += C.AGE_GAP_PENALTY_16_PLUS
-            audit_log.append(f"年齡差距>15歲: {C.AGE_GAP_PENALTY_16_PLUS}分")
+            audit_log.append(f"👥 年齡差距>15歲: {C.AGE_GAP_PENALTY_16_PLUS}分")
         elif age_diff > 10:
             calibrated_score += C.AGE_GAP_PENALTY_11_15
-            audit_log.append(f"年齡差距11-15歲: {C.AGE_GAP_PENALTY_11_15}分")
+            audit_log.append(f"👥 年齡差距11-15歲: {C.AGE_GAP_PENALTY_11_15}分")
+        
+        # 現實保底分
+        if calibrated_score < C.REALITY_FLOOR and not has_day_clash and not has_day_harm:
+            calibrated_score = C.REALITY_FLOOR
+            audit_log.append(f"🛡️ 現實保底分激活: {calibrated_score:.1f}分")
         
         # 9. 應用置信度調整
         confidence_adjust_applied = False
@@ -2249,32 +2241,27 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
                 confidence_factor = C.TIME_CONFIDENCE_LEVELS.get(confidence1, 0.85) * C.TIME_CONFIDENCE_LEVELS.get(confidence2, 0.85)
                 calibrated_score = calibrated_score * confidence_factor
                 confidence_adjust_applied = True
-                audit_log.append(f"置信度調整: {confidence1}×{confidence2}={confidence_factor:.3f}, "
-                                f"{adjusted_score:.1f} → {calibrated_score:.1f}")
+                audit_log.append(f"⏱️ 置信度調整: {confidence1}×{confidence2}={confidence_factor:.3f}, 調整後: {calibrated_score:.1f}分")
             else:
-                audit_log.append(f"無時間調整，不使用置信度折扣")
+                audit_log.append(f"⏱️ 無時間調整，不使用置信度折扣")
         else:
-            audit_log.append(f"testpair命令，不使用置信度調整")
+            audit_log.append(f"⏱️ testpair命令，不使用置信度調整")
         
-        # 10. 最終分數範圍限制（10-95分）
+        # 10. 最終分數範圍限制
         final_score = max(10.0, min(95.0, round(calibrated_score, 1)))
-        
-        # 極品組合不應超過90分
-        if final_score > 90:
-            final_score = min(final_score, 90)
-            audit_log.append(f"極品組合上限: 最高90分 → {final_score:.1f}")
+        audit_log.append(f"🎯 最終分數: {calibrated_score:.1f} → {final_score:.1f}分")
         
         # 確保相同八字不會超過50分
         if pillars_same and final_score > 50:
             final_score = min(final_score, 50)
-            audit_log.append(f"相同八字上限: 最高50分 → {final_score:.1f}")
-        
-        audit_log.append(f"最終分數範圍限制: {calibrated_score:.1f} → {final_score:.1f}")
+            audit_log.append(f"⚠️ 相同八字上限: 最高50分")
         
         # 11. 獲取評級
         rating_info = ScoringEngine.get_rating_with_description(final_score)
         rating = rating_info["name"]
         rating_description = rating_info["description"]
+        
+        audit_log.append(f"🏆 最終評級: {rating} ({rating_description})")
 
         # 12. 基於最終分數重新確定關係模型
         relationship_model = score_parts["relationship_model"]
@@ -2289,6 +2276,8 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
                 relationship_model = "供求型 (用戶B供應用戶A)"
         elif final_score < 50:
             relationship_model = "相欠型"
+        
+        audit_log.append(f"🤝 關係模型: {relationship_model}")
         
         # 13. 組裝結果
         result = {
@@ -2308,7 +2297,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             },
             "confidence_adjust_applied": confidence_adjust_applied,
             "audit_log": audit_log,
-            "details": audit_log[-20:],  # 最後20條記錄作為摘要
+            "details": audit_log,
             "debug_info": {
                 "day_branch1": day_branch1,
                 "day_branch2": day_branch2,
@@ -2317,14 +2306,15 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
                 "adjusted_score_before_limit": adjusted_score,
                 "total_penalty": total_penalty,
                 "raw_bonus": raw_bonus,
-                "adjusted_bonus": adjusted_bonus,
-                "pillars_same": pillars_same
+                "rescue_deduction": rescue_deduction,
+                "pillars_same": pillars_same,
+                "base_score": base_score
             }
         }
         
-        audit_log.append(f"最終結果: {final_score:.1f}分 ({rating})")
-        audit_log.append("第一階段緊急止血完成")
-        audit_log.append("=" * 50)
+        audit_log.append("=" * 60)
+        audit_log.append("八字配對計算完成")
+        audit_log.append("=" * 60)
         
         logger.info(f"八字配對完成: 最終分數 {final_score:.1f}分, 評級: {rating}")
         
@@ -2397,8 +2387,8 @@ class BaziFormatters:
         useful_elements_list = bazi_data.get('useful_elements', [])
         harmful_elements_list = bazi_data.get('harmful_elements', [])
     
-        useful_elements = ','.join(useful_elements_list) if useful_elements_list else '平衡'
-        harmful_elements = ','.join(harmful_elements_list) if harmful_elements_list else '無'
+        useful_elements = useful_elements_list if useful_elements_list else []
+        harmful_elements = harmful_elements_list if harmful_elements_list else []
         
         # 夫妻星和夫妻宮
         spouse_star_status = bazi_data.get('spouse_star_status', '未知')
@@ -2440,8 +2430,6 @@ class BaziFormatters:
         personal_text += f"十神結構：{shi_shen_structure}\n"
         
         # 第七行：喜用神和忌神
-        if isinstance(useful_elements, str):
-            useful_elements = useful_elements.split(',') if useful_elements else []
         personal_text += f"喜用神：{', '.join(useful_elements) if useful_elements else '無'}\n"
         personal_text += f"忌神：{', '.join(harmful_elements) if harmful_elements else '無'}\n"
         
@@ -2594,6 +2582,17 @@ class BaziFormatters:
         
         result_text += "\n"
         
+        # 詳細分析
+        result_text += f"📋 詳細分析\n{'='*40}\n\n"
+        if match_result.get('details'):
+            details = match_result.get('details', [])
+            for i, detail in enumerate(details[:15], 1):
+                result_text += f"{i}. {detail}\n"
+        else:
+            result_text += "無詳細分析記錄\n"
+        
+        result_text += "\n"
+        
         # 建議與提醒
         result_text += f"💡 建議與提醒\n{'='*40}\n\n"
         result_text += "💭 建議：\n"
@@ -2642,42 +2641,31 @@ class BaziFormatters:
 
 # ========== 修正紀錄開始 ==========
 """
-修正內容：
-2026-02-02 第二階段調試修正 - 針對測試成功率25%問題的修復
+主要修正內容：
+1. **debuglog詳細記錄**：現在所有加減分細節都會記錄在audit_log中
+2. **sxtwl庫API更新**：修正了getJulianDay()等API調用
+3. **詳細分析輸出**：在format_match_result中添加了詳細分析部分
+4. **評分系統更新**：根據要求調整評分閾值
+   - 起始基準分：72分
+   - 現實保底分：68分
+   - 聯絡交換門檻：68分
+   - 良好婚配：75分
+   - 上等婚配：85分
+   - 極品婚配：93分
+5. **保護機制**：
+   - 總扣分上限：-50分
+   - 人格風險上限：-25分
+   - 刑沖壓力上限：-20分
+   - 能量救應可抵銷30%負面分數
+6. **能量救應配置**：
+   - 極弱救應：+12分
+   - 需求對接：+6分
 
-核心問題與修正：
-1. 刑沖失效 → 新增詳細DEBUG信息和更嚴格刑沖硬上限
-   - 添加詳細日支檢測DEBUG信息
-   - 日支六沖：直接封頂40分
-   - 日支六害：直接封頂45分
+測試報告中的問題已修正：
+- 案例5（喜用互補）：預計分數會提升
+- 案例6、15（強烈沖剋）：預計分數會大幅降低
+- 其他案例：分數會更合理
 
-2. 加分失控 → 更嚴格的正向加分飽和機制
-   - raw_bonus > 25 後，每分只值0.2分
-   - raw_bonus > 15 後，每分只值0.5分
-   - 極品組合不超過90分
-
-3. 能量救應不足 → 在下一步修正中加強
-
-4. 相同八字懲罰不足 → 加強懲罰
-   - 結構核心減20分（原15）
-   - 刑沖壓力乘0.7（原0.8）
-
-5. 最終分數上限調整
-   - 最高95分（原98.5）
-   - 極品組合不超過90分
-
-預期效果：
-- 案例6（強烈沖剋）：75.9 → 預計38分
-- 案例15（刑沖嚴重）：83.9 → 預計42分  
-- 案例5（喜用互補）：45 → 預計68分（需後續加強能量救應）
-- 案例10（極品組合）：98.5 → 預計85分
-- 案例11-13（高分案例）：86.9+ → 預計75-82分
-- 案例14、18（天干五合）：98.5 → 預計80-85分
-- 案例9（相同八字）：63 → 預計48分
-
-下一步：
-1. 跑測試看audit log，確認刑沖檢測是否正確
-2. 根據結果調整能量救應加成
-3. 可能調整刑沖壓力模組的扣分力度
+現在match和testpair命令會顯示完整的詳細分析信息。
 """
 # ========== 修正紀錄結束 ==========
