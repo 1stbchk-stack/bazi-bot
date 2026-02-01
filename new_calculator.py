@@ -1985,19 +1985,43 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         adjusted_score += score_parts["dayun_risk"]
         
         audit_log.append(f"調整後總分: {adjusted_score:.1f}")
-        
+
         # 5. 應用現實校準
         calibrated_score = adjusted_score
-        
+
         # 檢查硬傷問題
         has_fatal_risk = ScoringEngine._check_hard_problems(bazi1, bazi2)
         if has_fatal_risk:
             calibrated_score = min(calibrated_score, C.FATAL_RISK_CAP)
             audit_log.append(f"致命風險上限: → {C.FATAL_RISK_CAP}分")
         else:
-            calibrated_score = max(calibrated_score, C.NO_HARD_PROBLEM_FLOOR)
-            audit_log.append(f"無硬傷保底: → {C.NO_HARD_PROBLEM_FLOOR}分")
+            # 無致命硬傷，但檢查是否有嚴重問題
+            has_severe_problems = (
+                score_parts["personality_risk"] < -15 or
+                score_parts["pressure_penalty"] < -20 or
+                score_parts["dayun_risk"] < -15
+            )
+    
+            if has_severe_problems:
+                # 有嚴重問題，不給保底
+                audit_log.append(f"有嚴重問題，保留實際分數: {calibrated_score:.1f}分")
+            else:
+                # 無嚴重問題，檢查是否有正面因素
+                has_positive_factors = any([
+                    score_parts["energy_rescue"] > 8,
+                    score_parts["structure_core"] > 3,
+                    score_parts["shen_sha_bonus"] > 4,
+                    score_parts["resolution_bonus"] > 6
+                ])
         
+                if has_positive_factors and calibrated_score < C.NO_HARD_PROBLEM_FLOOR:
+                    # 有正面因素且分數低，給予保底
+                    calibrated_score = C.NO_HARD_PROBLEM_FLOOR
+                    audit_log.append(f"有正面因素保底: → {C.NO_HARD_PROBLEM_FLOOR}分")
+                else:
+                    # 無正面因素或分數已夠高，保留原分
+                    audit_log.append(f"分數正常: {calibrated_score:.1f}分")
+
         # 日支六沖上限
         has_day_clash = ScoringEngine._check_day_branch_clash(bazi1, bazi2)
         if has_day_clash:
