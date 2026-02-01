@@ -288,77 +288,54 @@ class SoulmateFinder:
         scored_matches.sort(key=lambda x: x['score'], reverse=True)
         return scored_matches[:limit]
 
-def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> List[str]:
-    """格式化Find Soulmate結果"""
+def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> str:
+    """格式化Find Soulmate結果（單一消息格式）"""
     if not matches:
-        return ["🔍 在指定範圍內未找到合適的出生時空。"]
+        return "❌ 在指定範圍內未找到合適的匹配時空。"
     
-    messages = []
-    
-    # 第一條消息：概述
     purpose_text = "尋找正緣" if purpose == "正緣" else "事業合夥"
-    messages.append(f"""
-🔮 【真命天子搜尋結果】
+    
+    text = f"""🔮 真命天子搜尋結果
+{'='*40}
 
-搜尋範圍: {start_year}-{end_year}年
-搜尋目的: {purpose_text}
-找到匹配: {len(matches)}個
+📅 搜尋範圍：{start_year}年 - {end_year}年
+🎯 搜尋目的：{purpose_text}
+📊 找到匹配：{len(matches)}個時空
 
-🎯 最高分數: {matches[0]['score']:.1f}分
-💡 建議優先考慮前3名匹配度最高的時空。
-""")
+🏆 最佳匹配："""
     
-    # 第二條消息：Top 3詳細
-    top3_text = "🏆 【Top 3 最佳匹配】\n"
-    for i, match in enumerate(matches[:3], 1):
-        bazi = match['bazi']
-        score = match['score']
-        
-        # 生成簡短評價
-        if score >= 80:
-            rating = "🌟 極佳"
-        elif score >= 70:
-            rating = "✨ 良好"
-        elif score >= 60:
-            rating = "✅ 中等"
-        else:
-            rating = "🤝 普通"
-        
-        top3_text += f"""
-{i}. {match['date']} {match['hour']} ({rating})
-    • 分數: {score:.1f}分
-    • 八字: {match['pillars']}
-    • 生肖: {bazi.get('zodiac', '未知')}，日主: {bazi.get('day_stem', '未知')}
-    • 從格: {bazi.get('cong_ge_type', '正常')}
-    • 神煞: {bazi.get('shen_sha_names', '無')}
-"""
+    if matches:
+        best = matches[0]
+        text += f"\n• 分數：{best.get('score', 0):.1f}分"
+        text += f"\n• 日期：{best.get('date', '')}"
+        text += f"\n• 時辰：{best.get('hour', '')}"
+        text += f"\n• 八字：{best.get('pillars', '')}"
     
-    messages.append(top3_text.strip())
-    
-    # 如果有更多結果，顯示簡要列表
-    if len(matches) > 3:
-        other_text = "📋 【其他匹配結果】\n"
-        for i, match in enumerate(matches[3:7], 4):  # 顯示4-7名
-            other_text += f"{i}. {match['date']} - {match['score']:.1f}分\n"
-        
-        if len(matches) > 7:
-            other_text += f"... 等{len(matches)}個結果"
-        
-        messages.append(other_text.strip())
-    
-    # 最後一條消息：使用建議
-    messages.append(f"""
-💡 【使用建議】
+    text += f"""
 
-1. 複製最佳匹配的八字信息
-2. 使用 /testpair 命令進行詳細分析
-3. 與實際情況結合考慮
-4. 八字僅供參考，實際相處更重要
-
-✨ 祝您找到理想的緣分！
-""")
+📋 詳細匹配列表（前5名）
+{'='*40}"""
     
-    return messages
+    for i, match in enumerate(matches[:5], 1):
+        score = match.get('score', 0)
+        date = match.get('date', '')
+        hour = match.get('hour', '')
+        
+        text += f"""
+{i:2d}. {date} {hour}
+     分數：{score:.1f}分"""
+    
+    text += f"""
+
+💡 使用建議
+{'='*40}
+
+1. **確認時辰**：以上時辰均為整點，實際使用時需結合出生地經度校正
+2. **綜合考慮**：分數僅供參考，還需結合實際情況
+3. **深入分析**：可複製具體八字使用 /testpair 命令深入分析
+4. **時間信心度**：搜尋結果為理論最佳，實際應用時需考慮時間精度"""
+    
+    return text
 # ========1.6 Find Soulmate 功能結束 ========#
 
 # ========文件信息開始 ========#
@@ -370,10 +347,10 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 被引用文件: bot.py (主程序)
 
 主要修改：
-1. 修復導入問題：使用BaziCalculator而不是ProfessionalBaziCalculator
-2. 修復常量引用問題：使用ScoringEngine的常量
-3. 使用主入口函數calculate_match進行配對計算
-4. 保持與new_calculator.py的兼容性
+1. 保持原有功能不變
+2. 修復format_find_soulmate_result函數返回類型為單一字符串
+3. 沒有使用個人資料格式化，只返回簡要信息
+4. 與bot.py中的格式化函數兼容
 """
 # ========文件信息結束 ========#
 
@@ -386,17 +363,14 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 # ========修正紀錄開始 ========#
 """
 修正內容：
-1. 修復導入問題：使用BaziCalculator而不是ProfessionalBaziCalculator（別名問題）
-2. 修復常量引用問題：直接從ScoringEngine獲取常量
-3. 使用主入口函數calculate_match：保持計算一致性
-4. 修復預篩選函數中的常量引用問題
+1. 修復format_find_soulmate_result函數返回類型為單一字符串（原返回List[str]）
+2. 調整格式化輸出為單一消息格式
+3. 確保與bot.py中的調用兼容
 
-導致問題：原代碼使用ProfessionalBaziCalculator（bot.py中的別名）
-如何修復：直接使用new_calculator.py中的BaziCalculator
-後果：解決導入依賴問題，保持功能正常
+導致問題：原函數返回列表，但bot.py期待單一字符串
+如何修復：修改返回類型為單一字符串，合併所有部分
+後果：真命天子搜尋結果以單一消息發送，與其他功能一致
 
-導致問題：原代碼使用MasterBaziMatcher.BRANCH_SIX_CLASHES（未定義）
-如何修復：從ScoringEngine獲取常量或使用calculate_match函數
-後果：解決常量引用問題，保持功能正常
+檢查結果：此文件沒有使用個人資料格式化，不需要修改BaziFormatters相關內容
 """
 # ========修正紀錄結束 ========#

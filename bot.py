@@ -50,12 +50,6 @@ from new_calculator import (
     # 時間處理器
     TimeProcessor,
     
-    # 創新功能類
-    HealthAnalyzer,
-    RelationshipTimeline,
-    BaziDNAMatcher,
-    PairingAdviceGenerator,
-    
     # 統一格式化工具類
     BaziFormatters
 )
