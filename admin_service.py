@@ -11,9 +11,15 @@ import psycopg2
 from new_calculator import (
     BaziCalculator,
     calculate_match,
-    Config,
-    THRESHOLD_CONTACT_ALLOWED
+    ScoringEngine,
+    Config
 )
+
+# 从 Config 类获取常量
+THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_CONTACT_ALLOWED
+THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
+THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
+THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
 
 logger = logging.getLogger(__name__)
 # ========1.1 導入模組結束 ========#
