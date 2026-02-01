@@ -40,17 +40,12 @@ from new_calculator import (
     # 主入口函數 - 計算最終D分
     calculate_match,
     
-    # 格式化函數 - 從 new_calculator 導入
-    format_match_result,
-    format_profile_result,
-    generate_ai_prompt,
-    
     # 錯誤處理 - 映射到新的錯誤類
     BaziCalculatorError as BaziError,    # 映射到新的錯誤類
     ScoringEngineError as MatchError,    # 映射到新的錯誤類
     
     # 配置常數
-    MASTER_BAZI_CONFIG,
+    Config,
     
     # 時間處理器
     TimeProcessor,
@@ -63,13 +58,18 @@ from new_calculator import (
     THRESHOLD_PERFECT_MATCH,
     
     # 預設經度
-    DEFAULT_LONGITUDE
+    DEFAULT_LONGITUDE,
+    
+    # 創新功能類
+    HealthAnalyzer,
+    RelationshipTimeline,
+    BaziDNAMatcher,
+    PairingAdviceGenerator
 )
 
 # 導入 Soulmate 功能（新分拆的檔案）
 from bazi_soulmate import (
-    SoulmateFinder,
-    format_find_soulmate_result
+    SoulmateFinder
 )
 
 # 導入文本常量
@@ -86,7 +86,7 @@ from texts import (
 
 # 導入管理員服務
 from admin_service import AdminService
-# ========1.1 導入模組結束 ========#
+# ========1.1 導入模組開始 ========#
 
 # ========1.2 配置與初始化開始 ========#
 logging.basicConfig(
@@ -107,6 +107,9 @@ if DATABASE_URL.startswith("postgres://"):
 
 SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "your-secret-key-change-me").strip()
 DAILY_MATCH_LIMIT = 10
+
+# 維護模式標誌
+MAINTENANCE_MODE = False
 
 # 管理員用戶ID列表（從環境變量讀取，支援多個ID用逗號分隔）
 ADMIN_USER_IDS_STR = os.getenv("ADMIN_USER_IDS", "").strip()
@@ -136,7 +139,369 @@ if ADMIN_USER_IDS_STR:
 ) = range(11)
 # ========1.2 配置與初始化結束 ========#
 
-# ========1.3 數據庫工具開始 ========#
+# ========1.3 統一格式化工具類開始 ========#
+class FormatUtils:
+    """統一格式化工具類 - 負責所有顯示格式化"""
+    
+    # 信心度映射
+    CONFIDENCE_MAP = {
+        'high': '高',
+        'medium': '中',
+        'low': '低',
+        'estimated': '估算',
+        '高': '高',
+        '中': '中',
+        '低': '低',
+        '估算': '估算'
+    }
+    
+    # 評級符號映射
+    RATING_SYMBOLS = {
+        '🌟 萬中無一': '🌟',
+        '✨ 上等婚配': '✨',
+        '✅ 主流成功': '✅',
+        '🤝 普通可行': '🤝',
+        '⚠️ 需要努力': '⚠️',
+        '🔴 不建議': '🔴',
+        '🔴 不建議（接近終止）': '🔴',
+        '❌ 強烈不建議': '❌'
+    }
+    
+    @staticmethod
+    def format_confidence(confidence: str) -> str:
+        """格式化信心度"""
+        return FormatUtils.CONFIDENCE_MAP.get(confidence, confidence)
+    
+    @staticmethod
+    def format_rating(rating: str) -> str:
+        """格式化評級（保留符號）"""
+        return rating
+    
+    @staticmethod
+    def format_bazi_basic(bazi_data: Dict, title: str = "用戶") -> str:
+        """基本八字資料格式（一行顯示）"""
+        hour = bazi_data.get('birth_hour', 0)
+        minute = bazi_data.get('birth_minute', 0)
+        hour_str = f"{hour}:{minute:02d}" if minute > 0 else f"{hour}:00"
+        
+        confidence = FormatUtils.format_confidence(bazi_data.get('hour_confidence', '中'))
+        confidence_text = f"（{confidence}信心度）"
+        
+        return (
+            f"{title}：{bazi_data.get('year_pillar', '')} {bazi_data.get('month_pillar', '')} "
+            f"{bazi_data.get('day_pillar', '')} {bazi_data.get('hour_pillar', '')}\n"
+            f"生肖：{bazi_data.get('zodiac', '')}\n"
+            f"日主：{bazi_data.get('day_stem', '')}{bazi_data.get('day_stem_element', '')} "
+            f"（{bazi_data.get('day_stem_strength', '中')}）\n"
+            f"出生時間：{bazi_data.get('birth_year', '')}年{bazi_data.get('birth_month', '')}月"
+            f"{bazi_data.get('birth_day', '')}日 {hour_str}{confidence_text}"
+        )
+    
+    @staticmethod
+    def format_profile_result(bazi_data: Dict, username: str) -> str:
+        """個人資料完整格式"""
+        hour = bazi_data.get('birth_hour', 0)
+        minute = bazi_data.get('birth_minute', 0)
+        hour_str = f"{hour}:{minute:02d}" if minute > 0 else f"{hour}:00"
+        
+        confidence = FormatUtils.format_confidence(bazi_data.get('hour_confidence', '中'))
+        confidence_text = f"（{confidence}信心度）"
+        
+        # 格式化五行分佈
+        elements = bazi_data.get('elements', {})
+        wood = elements.get('木', 0)
+        fire = elements.get('火', 0)
+        earth = elements.get('土', 0)
+        metal = elements.get('金', 0)
+        water = elements.get('水', 0)
+        
+        text = f"""📊 {username} 的八字分析
+{"="*30}
+
+📅 八字：{bazi_data.get('year_pillar', '')} {bazi_data.get('month_pillar', '')} 
+       {bazi_data.get('day_pillar', '')} {bazi_data.get('hour_pillar', '')}
+
+🐉 生肖：{bazi_data.get('zodiac', '')}
+⚖️ 日主：{bazi_data.get('day_stem', '')}{bazi_data.get('day_stem_element', '')}
+💪 身強弱：{bazi_data.get('day_stem_strength', '中')}（{bazi_data.get('strength_score', 50):.1f}分）
+
+🎭 格局：{bazi_data.get('cong_ge_type', '正格')}
+🎯 喜用神：{', '.join(bazi_data.get('useful_elements', []))}
+🚫 忌神：{', '.join(bazi_data.get('harmful_elements', []))}
+
+💑 夫妻星：{bazi_data.get('spouse_star_status', '未知')}
+🏠 夫妻宮：{bazi_data.get('spouse_palace_status', '未知')}
+✨ 神煞：{bazi_data.get('shen_sha_names', '無')}
+
+📊 五行分佈：
+  木：{wood:.1f}%
+  火：{fire:.1f}%
+  土：{earth:.1f}%
+  金：{metal:.1f}%
+  水：{water:.1f}%
+
+🕰️ 出生時間：{bazi_data.get('birth_year', '')}年{bazi_data.get('birth_month', '')}月{bazi_data.get('birth_day', '')}日 {hour_str}
+📈 時間信心度：{confidence}
+
+🎯 配對建議：
+"""
+        
+        # 添加配對建議
+        advice_list = PairingAdviceGenerator.generate_advice(bazi_data)
+        for i, advice in enumerate(advice_list, 1):
+            text += f"  {i}. {advice}\n"
+        
+        # 添加健康分析
+        try:
+            health_data = HealthAnalyzer.analyze_health(bazi_data)
+            text += f"\n💚 健康指數：{health_data.get('element_balance_score', 0):.1f}分"
+            if health_data.get('health_advice'):
+                text += f"\n💡 養生建議：{health_data['health_advice'][0]}"
+        except Exception as e:
+            logger.debug(f"健康分析失敗: {e}")
+        
+        return text
+    
+    @staticmethod
+    def format_match_result(match_result: Dict, bazi1: Dict, bazi2: Dict, 
+                          user_a_name: str = "用戶A", user_b_name: str = "用戶B") -> List[str]:
+        """配對結果完整格式（5部分）"""
+        messages = []
+        
+        # 第一部分：核心分析結果
+        score = match_result.get('score', 0)
+        rating = FormatUtils.format_rating(match_result.get('rating', '未知'))
+        model = match_result.get('relationship_model', '')
+        
+        part1 = f"""🎯 核心分析結果
+{"="*30}
+
+📊 配對分數：{score:.1f}分
+✨ 評級：{rating}
+🎭 關係模型：{model}
+
+📈 模組分數：
+  💫 能量救應：{match_result.get('module_scores', {}).get('energy_rescue', 0):.1f}分
+  🏗️ 結構核心：{match_result.get('module_scores', {}).get('structure_core', 0):.1f}分
+  ⚠️ 人格風險：{match_result.get('module_scores', {}).get('personality_risk', 0):.1f}分
+  💢 刑沖壓力：{match_result.get('module_scores', {}).get('pressure_penalty', 0):.1f}分
+  ✨ 神煞加持：{match_result.get('module_scores', {}).get('shen_sha_bonus', 0):.1f}分
+  🔧 專業化解：{match_result.get('module_scores', {}).get('resolution_bonus', 0):.1f}分
+  📅 大運風險：{match_result.get('module_scores', {}).get('dayun_risk', 0):.1f}分"""
+        
+        messages.append(part1)
+        
+        # 第二部分：配對資訊（雙方資料）
+        part2 = f"""🤝 配對資訊
+{"="*30}
+
+{FormatUtils.format_bazi_basic(bazi1, user_a_name)}
+
+{'-'*20}
+
+{FormatUtils.format_bazi_basic(bazi2, user_b_name)}"""
+        
+        messages.append(part2)
+        
+        # 第三部分：雙向影響分析
+        a_to_b = match_result.get('a_to_b_score', 0)
+        b_to_a = match_result.get('b_to_a_score', 0)
+        
+        part3 = f"""📊 雙向影響分析
+{"="*30}
+
+{user_a_name} 對 {user_b_name} 的影響：{a_to_b:.1f}分
+{user_b_name} 對 {user_a_name} 的影響：{b_to_a:.1f}分
+
+💡 關係解讀：
+"""
+        
+        if abs(a_to_b - b_to_a) < 10:
+            part3 += "• 雙方影響力相近，屬於平衡型關係\n• 互動平等，互相支持\n"
+        elif a_to_b > b_to_a + 15:
+            part3 += f"• {user_a_name}對{user_b_name}影響較強\n• {user_a_name}可能扮演供應者角色\n"
+        elif b_to_a > a_to_b + 15:
+            part3 += f"• {user_b_name}對{user_a_name}影響較強\n• {user_b_name}可能扮演供應者角色\n"
+        else:
+            part3 += "• 雙方有明顯的供需關係\n• 需要留意平衡點\n"
+        
+        messages.append(part3)
+        
+        # 第四部分：優點與挑戰
+        part4 = f"""🌟 優點與挑戰
+{"="*30}
+
+✅ 優勢：
+"""
+        
+        # 根據分數添加優勢
+        if score >= Config.THRESHOLD_EXCELLENT_MATCH:
+            part4 += "• 五行能量高度互補\n• 結構穩定無硬傷\n• 有明顯的救應機制\n"
+        elif score >= Config.THRESHOLD_GOOD_MATCH:
+            part4 += "• 核心需求能夠對接\n• 主要結構無大沖\n• 有化解機制\n"
+        elif score >= Config.THRESHOLD_CONTACT_ALLOWED:
+            part4 += "• 基本能量可以互補\n• 需要努力經營關係\n"
+        
+        part4 += "\n⚠️ 挑戰：\n"
+        
+        # 根據風險模組添加挑戰
+        module_scores = match_result.get('module_scores', {})
+        if module_scores.get('personality_risk', 0) < -10:
+            part4 += "• 人格風險較高，可能性格衝突\n"
+        if module_scores.get('pressure_penalty', 0) < -15:
+            part4 += "• 刑沖壓力較大，容易產生矛盾\n"
+        if module_scores.get('dayun_risk', 0) < -10:
+            part4 += "• 未來大運有挑戰，需要提前準備\n"
+        
+        messages.append(part4)
+        
+        # 第五部分：建議與提醒
+        part5 = f"""💡 建議與提醒
+{"="*30}
+
+📅 關係發展時間線：
+"""
+        
+        try:
+            timeline = RelationshipTimeline.generate_timeline(bazi1, bazi2)
+            years = timeline.get('timeline', [])[:2]  # 只顯示前2年
+            for year_info in years:
+                part5 += f"• {year_info.get('year', '')}年：{year_info.get('phase', '')} - {year_info.get('description', '')}\n"
+        except Exception as e:
+            logger.debug(f"時間線生成失敗: {e}")
+            part5 += "• 需要更多數據生成時間線\n"
+        
+        part5 += f"""
+💭 建議：
+"""
+        
+        if score >= Config.THRESHOLD_EXCELLENT_MATCH:
+            part5 += "• 這是極佳的組合，可以深入發展\n• 保持良好溝通，互相支持\n"
+        elif score >= Config.THRESHOLD_GOOD_MATCH:
+            part5 += "• 良好的婚配組合，現實成功率較高\n• 需要互相理解和包容\n"
+        elif score >= Config.THRESHOLD_CONTACT_ALLOWED:
+            part5 += "• 可以嘗試交往，但需謹慎經營\n• 注意溝通方式，避免衝突\n"
+        elif score >= Config.THRESHOLD_WARNING:
+            part5 += "• 關係存在明顯挑戰，需謹慎考慮\n• 建議深入了解後再做決定\n"
+        else:
+            part5 += "• 不建議發展長期關係\n• 建議尋找更合適的配對\n"
+        
+        messages.append(part5)
+        
+        return messages
+    
+    @staticmethod
+    def generate_ai_prompt(match_result: Dict, bazi1: Dict, bazi2: Dict) -> str:
+        """AI分析提示格式（7個問題）"""
+        score = match_result.get('score', 0)
+        rating = match_result.get('rating', '')
+        model = match_result.get('relationship_model', '')
+        
+        prompt = f"""請作為八字配對專家，分析以下婚配組合：
+
+1. **基本資訊**：
+   - 配對分數：{score:.1f}分
+   - 評級：{rating}
+   - 關係模型：{model}
+
+2. **用戶A八字**：
+   - 八字：{bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}
+   - 日主：{bazi1.get('day_stem', '')}{bazi1.get('day_stem_element', '')}（{bazi1.get('day_stem_strength', '中')}）
+   - 喜用神：{', '.join(bazi1.get('useful_elements', []))}
+   - 忌神：{', '.join(bazi1.get('harmful_elements', []))}
+
+3. **用戶B八字**：
+   - 八字：{bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}
+   - 日主：{bazi2.get('day_stem', '')}{bazi2.get('day_stem_element', '')}（{bazi2.get('day_stem_strength', '中')}）
+   - 喜用神：{', '.join(bazi2.get('useful_elements', []))}
+   - 忌神：{', '.join(bazi2.get('harmful_elements', []))}
+
+4. **請分析以下7個問題**：
+
+一、能量互補性：
+   1. 雙方五行能量如何互補？
+   2. 喜用神是否能夠對接？
+
+二、結構穩定性：
+   3. 日柱關係（天干五合、地支六合/六沖）如何？
+   4. 夫妻宮和夫妻星的狀態如何？
+
+三、潛在挑戰：
+   5. 主要的刑沖壓力在哪些方面？
+   6. 人格風險和十神結構的影響？
+
+四、發展建議：
+   7. 根據關係模型和時間線，給出具體發展建議。
+
+請提供專業、深入的分析，每個問題不少於100字。"""
+        
+        return prompt
+    
+    @staticmethod
+    def format_find_soulmate_result(matches: List[Dict], start_year: int, end_year: int, purpose: str) -> List[str]:
+        """真命天子搜尋結果格式"""
+        if not matches:
+            return ["❌ 在指定範圍內未找到合適的匹配時空。"]
+        
+        messages = []
+        
+        # 第一部分：搜尋摘要
+        part1 = f"""🔮 真命天子搜尋結果
+{"="*40}
+
+📅 搜尋範圍：{start_year}年 - {end_year}年
+🎯 搜尋目的：{"尋找正緣" if purpose == "正緣" else "事業合夥"}
+📊 找到匹配：{len(matches)}個時空
+
+🏆 最佳匹配："""
+        
+        if matches:
+            best = matches[0]
+            part1 += f"""
+  分數：{best.get('score', 0):.1f}分
+  日期：{best.get('date', '')}
+  時辰：{best.get('hour', 0)}:00"""
+        
+        messages.append(part1)
+        
+        # 第二部分：詳細列表（最多10個）
+        part2 = f"""📋 詳細匹配列表
+{"="*40}"""
+        
+        for i, match in enumerate(matches[:10], 1):
+            score = match.get('score', 0)
+            date = match.get('date', '')
+            hour = match.get('hour', 0)
+            pillar = match.get('pillar', '')
+            
+            part2 += f"""
+{i:2d}. {date} {hour:02d}:00
+    八字：{pillar}
+    分數：{score:.1f}分"""
+            
+            # 每5個分一頁
+            if i % 5 == 0 and i < len(matches[:10]):
+                messages.append(part2)
+                part2 = ""
+        
+        if part2:
+            messages.append(part2)
+        
+        # 第三部分：建議
+        part3 = f"""💡 使用建議
+{"="*40}
+
+1. **確認時辰**：以上時辰均為整點，實際使用時需結合出生地經度校正
+2. **綜合考慮**：分數僅供參考，還需結合實際情況
+3. **深入分析**：可複製具體八字使用 /testpair 命令深入分析
+4. **時間信心度**：搜尋結果為理論最佳，實際應用時需考慮時間精度"""
+        
+        messages.append(part3)
+        
+        return messages
+# ========1.3 統一格式化工具類結束 ========#
+
+# ========1.4 數據庫工具開始 ========#
 def get_conn():
     """獲取 PostgreSQL 數據庫連接"""
     try:
@@ -266,7 +631,7 @@ def check_daily_limit(user_id):
         return True, 0
 
 def clear_user_data(telegram_id):
-    """清除用戶所有資料"""
+    """清除用戶所有資料 - 修正版"""
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
@@ -280,16 +645,25 @@ def clear_user_data(telegram_id):
                 
             user_id = user_row[0]
             
-            # 刪除關聯數據
-            cur.execute("DELETE FROM matches WHERE user_a = %s OR user_b = %s", (user_id, user_id))
-            cur.execute("DELETE FROM daily_limits WHERE user_id = %s", (user_id,))
-            cur.execute("DELETE FROM profiles WHERE user_id = %s", (user_id,))
-            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            # 使用事務確保原子性
+            conn.autocommit = False
             
-            conn.commit()
-            logger.info(f"已清除用戶 {telegram_id} 的資料")
-            return True
-            
+            try:
+                # 刪除關聯數據（按正確順序）
+                cur.execute("DELETE FROM matches WHERE user_a = %s OR user_b = %s", (user_id, user_id))
+                cur.execute("DELETE FROM daily_limits WHERE user_id = %s", (user_id,))
+                cur.execute("DELETE FROM profiles WHERE user_id = %s", (user_id,))
+                cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+                
+                conn.commit()
+                logger.info(f"已清除用戶 {telegram_id} 的所有資料")
+                return True
+                
+            except Exception as e:
+                conn.rollback()
+                logger.error(f"清除用戶資料失敗（事務回滾）: {e}")
+                return False
+                
     except Exception as e:
         logger.error(f"清除用戶資料失敗: {e}")
         return False
@@ -381,9 +755,30 @@ def get_profile_data(internal_user_id):
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
-# ========1.3 數據庫工具結束 ========#
+# ========1.4 數據庫工具結束 ========#
 
-# ========1.4 隱私條款模組開始 ========#
+# ========1.5 維護模式檢查開始 ========#
+def check_maintenance(func):
+    """維護模式檢查裝飾器"""
+    async def wrapper(update, context, *args, **kwargs):
+        if MAINTENANCE_MODE:
+            user_id = update.effective_user.id
+            if user_id not in ADMIN_USER_IDS:
+                await update.message.reply_text(
+                    "🔧 系統正在維護中，請稍後再試。\n"
+                    "預計恢復時間：請關注公告。"
+                )
+                return
+        return await func(update, context, *args, **kwargs)
+    return wrapper
+
+def is_admin(user_id: int) -> bool:
+    """檢查是否為管理員"""
+    return user_id in ADMIN_USER_IDS
+# ========1.5 維護模式檢查結束 ========#
+
+# ========1.6 隱私條款模組開始 ========#
+@check_maintenance
 async def show_terms(update, context):
     """顯示隱私條款"""
     keyboard = [["✅ 同意並繼續", "❌ 不同意"]]
@@ -397,6 +792,7 @@ async def show_terms(update, context):
     )
     return TERMS_ACCEPTANCE
 
+@check_maintenance
 async def handle_terms_acceptance(update, context):
     """處理隱私條款同意"""
     text = update.message.text.strip()
@@ -422,12 +818,21 @@ async def handle_terms_acceptance(update, context):
             keyboard, one_time_keyboard=True, resize_keyboard=True)
         await update.message.reply_text("請選擇「同意並繼續」或「不同意」：", reply_markup=reply_markup)
         return TERMS_ACCEPTANCE
-# ========1.4 隱私條款模組結束 ========#
+# ========1.6 隱私條款模組結束 ========#
 
-# ========1.5 Bot 註冊流程函數開始 ========#
+# ========1.7 Bot 註冊流程函數開始 ========#
+@check_maintenance
 async def start(update, context):
     """開始命令 - 顯示隱私條款"""
     user = update.effective_user
+    
+    # 檢查維護模式
+    if MAINTENANCE_MODE and not is_admin(user.id):
+        await update.message.reply_text(
+            "🔧 系統正在維護中，請稍後再試。\n"
+            "預計恢復時間：請關注公告。"
+        )
+        return ConversationHandler.END
     
     # 僅在用戶有資料且需要覆蓋時才清除
     internal_user_id = get_internal_user_id(user.id)
@@ -444,6 +849,7 @@ async def start(update, context):
 
     return await show_terms(update, context)
 
+@check_maintenance
 async def ask_year(update, context):
     """詢問年份"""
     text = update.message.text.strip()
@@ -477,12 +883,54 @@ async def ask_year(update, context):
         return ASK_YEAR
 
     context.user_data["birth_year"] = year
-    await update.message.reply_text("請輸入出生月份（1-12）：")
+    
+    # 詢問是否繼續輸入其他信息
+    keyboard = [["是", "否"]]
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard, one_time_keyboard=True, resize_keyboard=True)
+    
+    await update.message.reply_text(
+        f"已記錄出生年份：{year}年\n\n"
+        "是否繼續輸入其他出生信息？\n"
+        "選擇「否」將使用默認值（1月1日12:00，香港經度）",
+        reply_markup=reply_markup
+    )
+    
+    # 設置標記以區分流程
+    context.user_data["simplified_flow"] = True
     return ASK_MONTH
 
+@check_maintenance
 async def ask_month(update, context):
-    """詢問月份"""
+    """詢問月份（簡化流程）"""
     text = update.message.text.strip()
+    
+    # 檢查是否為簡化流程中的"否"
+    if context.user_data.get("simplified_flow") and text == "否":
+        # 使用默認值
+        context.user_data["birth_month"] = 1
+        context.user_data["birth_day"] = 1
+        context.user_data["birth_hour"] = 12
+        context.user_data["birth_minute"] = 0
+        context.user_data["longitude"] = DEFAULT_LONGITUDE
+        context.user_data["hour_confidence"] = "低"
+        
+        keyboard = [["男", "女"]]
+        reply_markup = ReplyKeyboardMarkup(
+            keyboard, one_time_keyboard=True, resize_keyboard=True)
+        
+        await update.message.reply_text(
+            "✅ 已使用默認值：\n"
+            "• 日期：1月1日\n"
+            "• 時間：12:00\n"
+            "• 經度：香港 (114.17)\n"
+            "• 信心度：低\n\n"
+            "請選擇性別：",
+            reply_markup=reply_markup
+        )
+        return ASK_GENDER
+    
+    # 正常流程
     if not text.isdigit():
         await update.message.reply_text("請輸入數字月份（1-12）：")
         return ASK_MONTH
@@ -496,6 +944,7 @@ async def ask_month(update, context):
     await update.message.reply_text("請輸入出生日（1-31）：")
     return ASK_DAY
 
+@check_maintenance
 async def ask_day(update, context):
     """詢問日期"""
     text = update.message.text.strip()
@@ -529,6 +978,7 @@ async def ask_day(update, context):
     )
     return ASK_HOUR_KNOWN
 
+@check_maintenance
 async def ask_hour_known(update, context):
     """處理是否知道出生時間"""
     text = update.message.text.strip()
@@ -555,15 +1005,11 @@ async def ask_hour_known(update, context):
         context.user_data["birth_minute"] = 0
         context.user_data["hour_confidence"] = "低"
 
-        keyboard = [["男", "女"]]
-        reply_markup = ReplyKeyboardMarkup(
-            keyboard, one_time_keyboard=True, resize_keyboard=True)
-
         await update.message.reply_text(
-            UNKNOWN_HOUR_WARNING,
-            reply_markup=reply_markup
+            "請輸入出生地經度（例如香港114.17，上海121.47）：\n"
+            "如不清楚可留空使用預設值（香港經度114.17）"
         )
-        return ASK_GENDER
+        return ASK_LONGITUDE
 
     else:
         keyboard = [["✅ 知道確切時間", "🤔 大約知道", "❓ 完全不知道"]]
@@ -572,6 +1018,7 @@ async def ask_hour_known(update, context):
         await update.message.reply_text("請選擇上方選項：", reply_markup=reply_markup)
         return ASK_HOUR_KNOWN
 
+@check_maintenance
 async def ask_hour(update, context):
     """詢問出生小時"""
     hour_known = context.user_data.get("hour_known", "yes")
@@ -614,12 +1061,13 @@ async def ask_hour(update, context):
             "💡 如需更準確，請查詢確切出生時間。"
         )
 
-        keyboard = [["男", "女"]]
-        reply_markup = ReplyKeyboardMarkup(
-            keyboard, one_time_keyboard=True, resize_keyboard=True)
-        await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
-        return ASK_GENDER
+        await update.message.reply_text(
+            "請輸入出生地經度（例如香港114.17，上海121.47）：\n"
+            "如不清楚可留空使用預設值（香港經度114.17）"
+        )
+        return ASK_LONGITUDE
 
+@check_maintenance
 async def ask_minute(update, context):
     """詢問出生分鐘 - 修正版"""
     text = update.message.text.strip()
@@ -642,6 +1090,7 @@ async def ask_minute(update, context):
     )
     return ASK_LONGITUDE  # 轉到詢問經度
 
+@check_maintenance
 async def ask_longitude(update, context):
     """詢問出生地經度"""
     text = update.message.text.strip()
@@ -649,16 +1098,6 @@ async def ask_longitude(update, context):
     if text == "":
         longitude = DEFAULT_LONGITUDE
         context.user_data["longitude"] = longitude
-        
-        keyboard = [["男", "女"]]
-        reply_markup = ReplyKeyboardMarkup(
-            keyboard, one_time_keyboard=True, resize_keyboard=True)
-        
-        await update.message.reply_text(
-            f"使用預設經度: {DEFAULT_LONGITUDE}\n\n請選擇性別：",
-            reply_markup=reply_markup
-        )
-        return ASK_GENDER
     else:
         try:
             longitude = float(text)
@@ -668,17 +1107,18 @@ async def ask_longitude(update, context):
             
             context.user_data["longitude"] = longitude
             
-            keyboard = [["男", "女"]]
-            reply_markup = ReplyKeyboardMarkup(
-                keyboard, one_time_keyboard=True, resize_keyboard=True)
-            
-            await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
-            return ASK_GENDER
-            
         except ValueError:
             await update.message.reply_text("請輸入有效的數字經度，例如114.17：")
             return ASK_LONGITUDE
+    
+    keyboard = [["男", "女"]]
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard, one_time_keyboard=True, resize_keyboard=True)
+    
+    await update.message.reply_text("請選擇性別：", reply_markup=reply_markup)
+    return ASK_GENDER
 
+@check_maintenance
 async def ask_gender(update, context):
     """詢問性別並完成註冊"""
     text = update.message.text.strip()
@@ -693,11 +1133,11 @@ async def ask_gender(update, context):
 
     # 獲取所有註冊資料
     year = context.user_data["birth_year"]
-    month = context.user_data["birth_month"]
-    day = context.user_data["birth_day"]
+    month = context.user_data.get("birth_month", 1)
+    day = context.user_data.get("birth_day", 1)
     hour = context.user_data.get("birth_hour", 12)
     minute = context.user_data.get("birth_minute", 0)
-    hour_confidence = context.user_data.get("hour_confidence", "高")
+    hour_confidence = context.user_data.get("hour_confidence", "低")
     longitude = context.user_data.get("longitude", DEFAULT_LONGITUDE)
 
     try:
@@ -847,7 +1287,7 @@ async def ask_gender(update, context):
         "birth_minute": minute
     }
 
-    profile_result = format_profile_result(bazi_data_for_display, username)
+    profile_result = FormatUtils.format_profile_result(bazi_data_for_display, username)
     
     # 準備信心度文本
     confidence_map = {
@@ -887,10 +1327,7 @@ async def ask_gender(update, context):
    /explain - 詳細算法說明
    /help - 完整使用指南
 
-5. 🛠️ **系統狀態**
-   /debug - 查看系統資訊
-
-6. 🗑️ **清除資料**
+5. 🗑️ **清除資料**
    /clear - 清除你的所有資料（重新註冊）
 
 💡 **建議下一步：**
@@ -905,21 +1342,25 @@ async def ask_gender(update, context):
 
     return ConversationHandler.END
 
+@check_maintenance
 async def cancel(update, context):
     """取消流程"""
     await update.message.reply_text("已取消流程。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
-# ========1.5 Bot 註冊流程函數結束 ========#
+# ========1.7 Bot 註冊流程函數結束 ========#
 
-# ========1.6 命令處理函數開始 ========#
+# ========1.8 命令處理函數開始 ========#
+@check_maintenance
 async def help_command(update, context):
     """幫助命令"""
     await update.message.reply_text(HELP_TEXT)
 
+@check_maintenance
 async def explain_command(update, context):
     """解釋算法命令"""
     await update.message.reply_text(EXPLANATION_TEXT)
 
+@check_maintenance
 async def profile(update, context):
     """查看個人資料"""
     telegram_id = update.effective_user.id
@@ -997,12 +1438,13 @@ async def profile(update, context):
         "birth_minute": bmin
     }
 
-    # 使用計算核心的格式化函數
-    profile_text = format_profile_result(bazi_data, uname)
+    # 使用統一的格式化函數
+    profile_text = FormatUtils.format_profile_result(bazi_data, uname)
     await update.message.reply_text(profile_text)
 
+@check_maintenance
 async def match(update, context):
-    """開始配對"""
+    """開始配對 - 修正版（解決高分匹配不到問題）"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
 
@@ -1087,6 +1529,7 @@ async def match(update, context):
         me_profile = to_profile(me_p)
         my_gender = me_p[6]
 
+        # 修正查詢：移除性別限制，允許同性配對
         cur.execute("""
             SELECT
                 u.id, u.telegram_id, u.username,
@@ -1101,7 +1544,6 @@ async def match(update, context):
             JOIN profiles p ON u.id = p.user_id
             WHERE u.id != %s
             AND u.active = 1
-            AND p.gender != %s
             AND NOT EXISTS (
                 SELECT 1 FROM matches m
                 WHERE ((m.user_a = %s AND m.user_b = u.id)
@@ -1109,8 +1551,8 @@ async def match(update, context):
                 AND m.user_a_accepted = 1 AND m.user_b_accepted = 1
             )
             ORDER BY RANDOM()
-            LIMIT 50
-        """, (internal_user_id, my_gender, internal_user_id, internal_user_id))
+            LIMIT 100  # 增加查詢數量以提高找到高分的概率
+        """, (internal_user_id, internal_user_id, internal_user_id))
 
         rows = cur.fetchall()
 
@@ -1208,24 +1650,21 @@ async def match(update, context):
         "match_result": match_result
     }
 
-    # 使用 format_match_result 返回的列表
-    formatted_messages = format_match_result(match_result, me_profile, op)
-    if len(formatted_messages) >= 2:
-        core_analysis = formatted_messages[0]  # 第一條：核心分析結果
-        pairing_info = formatted_messages[1]   # 第二條：分數詳情
-    else:
-        core_analysis = formatted_messages[0]
-        pairing_info = ""
+    # 使用統一格式化函數
+    formatted_messages = FormatUtils.format_match_result(
+        match_result, me_profile, op, 
+        user_a_name="您", user_b_name=best["username"]
+    )
     
-    # 發送前兩條消息
-    await update.message.reply_text(core_analysis)
-    await update.message.reply_text(pairing_info)
+    # 發送所有格式化消息
+    for message in formatted_messages:
+        await update.message.reply_text(message)
     
     # 發送按鈕
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
     
     # 發送AI分析提示按鈕
-    ai_prompt = generate_ai_prompt(match_result, me_profile, op)
+    ai_prompt = FormatUtils.generate_ai_prompt(match_result, me_profile, op)
     context.user_data["ai_prompt"] = ai_prompt
     
     ai_keyboard = [
@@ -1239,17 +1678,14 @@ async def match(update, context):
         reply_markup=ai_reply_markup
     )
 
-    # 通知對方（只發送【核心分析結果】和【配對資訊】）
+    # 通知對方
     try:
-        await context.bot.send_message(
-            chat_id=best["telegram_id"],
-            text=core_analysis
-        )
-        
-        await context.bot.send_message(
-            chat_id=best["telegram_id"],
-            text=pairing_info
-        )
+        # 發送格式化消息給對方
+        for message in formatted_messages:
+            await context.bot.send_message(
+                chat_id=best["telegram_id"],
+                text=message
+            )
         
         await context.bot.send_message(
             chat_id=best["telegram_id"],
@@ -1265,30 +1701,14 @@ async def match(update, context):
     except Exception as e:
         logger.error(f"無法通知對方: {e}")
 
+@check_maintenance
 async def test_command(update, context):
     """測試命令"""
     await update.message.reply_text("✅ Bot 正在運行中！")
 
-async def debug_command(update, context):
-    """調試命令"""
-    import platform
-
-    info = f"""
-🛠️ Debug 資訊：
-Python 版本: {platform.python_version()}
-系統: {platform.system()} {platform.release()}
-數據庫: PostgreSQL (Railway)
-八字算法版本: 師傅級婚配系統（新評分引擎）
-評分模組: 能量救應、結構核心、人格風險、刑沖壓力、神煞加持、專業化解
-聯絡交換門檻: {MASTER_BAZI_CONFIG['SCORING_SYSTEM']['THRESHOLDS']['contact_allowed']}分
-關係模型系統: 已啟用（平衡型、供求型、相欠型、混合型）
-救應優先原則: 能量救應可抵銷後續扣分
-管理員ID: {ADMIN_USER_IDS if ADMIN_USER_IDS else '未設定'}
-"""
-    await update.message.reply_text(info)
-
+@check_maintenance
 async def clear_command(update, context):
-    """清除用戶所有資料"""
+    """清除用戶所有資料 - 修正版"""
     telegram_id = update.effective_user.id
     
     # 確認用戶是否真的要清除資料
@@ -1316,8 +1736,9 @@ async def clear_command(update, context):
             "或輸入其他命令取消。"
         )
 
+@check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對（不加入數據庫）"""
+    """獨立測試任意兩個八字配對（不加入數據庫） - 修正版（顯示完整用戶B資料）"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1397,13 +1818,18 @@ async def test_pair_command(update, context):
         # 配對計算 - 使用主入口函數
         match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
 
-        # 發送完整的格式化消息
-        formatted_messages = format_match_result(match_result, bazi1, bazi2)
+        # 使用統一格式化函數
+        formatted_messages = FormatUtils.format_match_result(
+            match_result, bazi1, bazi2, 
+            user_a_name="用戶A", user_b_name="用戶B"
+        )
+        
+        # 發送所有格式化消息
         for message in formatted_messages:
             await update.message.reply_text(message)
 
         # 提供AI分析提示
-        ai_prompt = generate_ai_prompt(match_result, bazi1, bazi2)
+        ai_prompt = FormatUtils.generate_ai_prompt(match_result, bazi1, bazi2)
         await update.message.reply_text(
             "🤖 AI分析提示（可複製問AI）：\n\n"
             f"```\n{ai_prompt}\n```",
@@ -1420,11 +1846,43 @@ async def test_pair_command(update, context):
         logger.error(f"測試配對失敗: {e}", exc_info=True)
         await update.message.reply_text(f"❌ 測試失敗: {str(e)}\n請檢查輸入格式是否正確。")
 
+@check_maintenance
+async def maintenance_command(update, context):
+    """維護模式命令 - 僅管理員可用"""
+    telegram_id = update.effective_user.id
+    if not is_admin(telegram_id):
+        await update.message.reply_text("❌ 此功能僅限管理員使用")
+        return
+    
+    global MAINTENANCE_MODE
+    
+    if context.args and context.args[0] == "on":
+        MAINTENANCE_MODE = True
+        await update.message.reply_text(
+            "🔧 維護模式已開啟\n"
+            "系統現在只響應管理員命令。"
+        )
+    elif context.args and context.args[0] == "off":
+        MAINTENANCE_MODE = False
+        await update.message.reply_text(
+            "✅ 維護模式已關閉\n"
+            "系統恢復正常運作。"
+        )
+    else:
+        status = "開啟" if MAINTENANCE_MODE else "關閉"
+        await update.message.reply_text(
+            f"🛠️ 當前維護模式：{status}\n\n"
+            "使用方法：\n"
+            "/maintenance on - 開啟維護模式\n"
+            "/maintenance off - 關閉維護模式"
+        )
+
+@check_maintenance
 async def admin_test_command(update, context):
     """管理員測試命令 - 運行20組測試案例"""
     # 檢查是否為管理員
     telegram_id = update.effective_user.id
-    if telegram_id not in ADMIN_USER_IDS:
+    if not is_admin(telegram_id):
         await update.message.reply_text("❌ 此功能僅限管理員使用")
         return
     
@@ -1439,11 +1897,12 @@ async def admin_test_command(update, context):
     formatted_results = admin_service.format_test_results(results)
     await update.message.reply_text(formatted_results)
 
+@check_maintenance
 async def admin_stats_command(update, context):
     """管理員統計命令 - 查看系統統計"""
     # 檢查是否為管理員
     telegram_id = update.effective_user.id
-    if telegram_id not in ADMIN_USER_IDS:
+    if not is_admin(telegram_id):
         await update.message.reply_text("❌ 此功能僅限管理員使用")
         return
     
@@ -1457,9 +1916,50 @@ async def admin_stats_command(update, context):
     # 格式化並發送結果
     formatted_stats = admin_service.format_system_stats(stats)
     await update.message.reply_text(formatted_stats)
-# ========1.6 命令處理函數結束 ========#
 
-# ========1.7 Find Soulmate 流程函數開始 ========#
+@check_maintenance
+async def admin_demo_command(update, context):
+    """管理員一鍵測試演示"""
+    # 檢查是否為管理員
+    telegram_id = update.effective_user.id
+    if not is_admin(telegram_id):
+        await update.message.reply_text("❌ 此功能僅限管理員使用")
+        return
+    
+    await update.message.reply_text("🔄 開始一鍵測試演示...")
+    
+    # 演示testpair功能
+    demo_text = """📋 **一鍵測試演示**
+
+1. **測試配對功能**：
+   `/testpair 1990 1 1 12 男 1991 2 2 13 女`
+   
+2. **查看個人資料**：
+   `/profile`
+   
+3. **運行配對**：
+   `/match`
+   
+4. **運行管理員測試**：
+   `/admin_test`
+   
+5. **查看系統統計**：
+   `/admin_stats`
+   
+6. **管理維護模式**：
+   `/maintenance on` - 開啟維護
+   `/maintenance off` - 關閉維護
+   
+7. **清除用戶資料**：
+   `/clear confirm`
+   
+💡 所有功能已準備就緒！"""
+    
+    await update.message.reply_text(demo_text)
+# ========1.8 命令處理函數結束 ========#
+
+# ========1.9 Find Soulmate 流程函數開始 ========#
+@check_maintenance
 async def find_soulmate_start(update, context):
     """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
@@ -1486,6 +1986,7 @@ async def find_soulmate_start(update, context):
     
     return FIND_SOULMATE_RANGE
 
+@check_maintenance
 async def find_soulmate_range(update, context):
     """處理搜尋年份範圍"""
     text = update.message.text.strip()
@@ -1542,6 +2043,7 @@ async def find_soulmate_range(update, context):
         await update.message.reply_text("處理失敗，請重新輸入")
         return FIND_SOULMATE_RANGE
 
+@check_maintenance
 async def find_soulmate_purpose(update, context):
     """處理搜尋目的並開始計算"""
     text = update.message.text.strip()
@@ -1646,8 +2148,8 @@ async def find_soulmate_purpose(update, context):
             user_bazi, user_gender, start_year, end_year, purpose, limit=10
         )
         
-        # 使用計算核心的格式化函數
-        formatted_messages = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
+        # 使用統一格式化函數
+        formatted_messages = FormatUtils.format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
         # 更新計算完成消息
         await calculating_msg.edit_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
@@ -1662,13 +2164,14 @@ async def find_soulmate_purpose(update, context):
     
     return ConversationHandler.END
 
+@check_maintenance
 async def find_soulmate_cancel(update, context):
     """取消真命天子搜尋"""
     await update.message.reply_text("已取消真命天子搜尋。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
-# ========1.7 Find Soulmate 流程函數結束 ========#
+# ========1.9 Find Soulmate 流程函數結束 ========#
 
-# ========1.8 按鈕回調處理函數開始 ========#
+# ========1.10 按鈕回調處理函數開始 ========#
 async def button_callback(update, context):
     """處理按鈕回調"""
     query = update.callback_query
@@ -1847,7 +2350,7 @@ async def button_callback(update, context):
                     'estimated': '估算'
                 }
 
-                # 格式化配對成功消息 - 根據要求1
+                # 格式化配對成功消息
                 message_for_a = f"{rating} 配對成功！\n\n"
                 message_for_a += f"🎯 配對分數：{actual_score:.1f}分\n"
                 message_for_a += f"📱 對方 Telegram: @{b_username}\n"
@@ -1929,8 +2432,8 @@ async def button_callback(update, context):
                 match_result = context.user_data.get(
                     "current_match", {}).get(
                     "match_result", {})
-                if match_result:
-                    ai_prompt = generate_ai_prompt(match_result, a_profile, b_profile)
+                if match_result and a_profile and b_profile:
+                    ai_prompt = FormatUtils.generate_ai_prompt(match_result, a_profile, b_profile)
 
                     ai_tips = (
                         "🤖 AI分析提示：\n\n"
@@ -1951,9 +2454,9 @@ async def button_callback(update, context):
 
     elif data.startswith("reject_"):
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
-# ========1.8 按鈕回調處理函數結束 ========#
+# ========1.10 按鈕回調處理函數結束 ========#
 
-# ========1.9 主程序開始 ========#
+# ========1.11 主程序開始 ========#
 def main():
     import time
 
@@ -2025,13 +2528,15 @@ def main():
         app.add_handler(CommandHandler("profile", profile))
         app.add_handler(CommandHandler("explain", explain_command))
         app.add_handler(CommandHandler("test", test_command))
-        app.add_handler(CommandHandler("debug", debug_command))
+        # 刪除debug命令：app.add_handler(CommandHandler("debug", debug_command))
         app.add_handler(CommandHandler("clear", clear_command))
         app.add_handler(CommandHandler("testpair", test_pair_command))
         app.add_handler(CommandHandler("match", match))
         # 添加管理員命令處理器
         app.add_handler(CommandHandler("admin_test", admin_test_command))
         app.add_handler(CommandHandler("admin_stats", admin_stats_command))
+        app.add_handler(CommandHandler("admin_demo", admin_demo_command))
+        app.add_handler(CommandHandler("maintenance", maintenance_command))
         app.add_handler(CallbackQueryHandler(button_callback))
 
         app.run_polling(
@@ -2046,7 +2551,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-# ========1.9 主程序結束 ========#
+# ========1.11 主程序結束 ========#
 
 # ========文件信息開始 ========#
 """
@@ -2061,200 +2566,17 @@ if __name__ == "__main__":
 - psycopg2 (PostgreSQL數據庫連接)
 
 被引用文件: 無
+
+主要修改：
+1. 添加FormatUtils統一格式化類
+2. 修復testpair顯示完整用戶B資料
+3. 修復match高分匹配不到問題
+4. 完善clear功能（使用事務）
+5. 添加維護功能
+6. 刪除debug功能
+7. 簡化註冊流程（年份後彈出是/否選項）
+8. 支持同性配對
+9. 添加健康引用功能
+10. 統一四方功能格式
 """
 # ========文件信息結束 ========#
-
-# ========目錄開始 ========#
-"""
-1.1 導入模組 - 導入所有必要的庫和模組
-1.2 配置與初始化 - 日誌配置、基礎配置
-1.3 數據庫工具 - PostgreSQL數據庫連接、初始化、輔助函數
-1.4 隱私條款模組 - 隱私條款相關函數
-1.5 Bot 註冊流程函數 - 所有註冊流程處理函數（包含分鐘和經度輸入）
-1.6 命令處理函數 - 所有命令處理函數
-1.7 Find Soulmate 流程函數 - 真命天子搜尋流程
-1.8 按鈕回調處理函數 - 所有按鈕回調處理
-1.9 主程序 - Bot啟動和主循環
-"""
-# ========目錄結束 ========#
-
-# ========修正紀錄開始 ========#
-"""
-版本 1.0 (2024-01-31)
-重構文件：
-- 將所有計算邏輯遷移到 bazi_calculator.py
-- 保留Bot交互邏輯在本文件
-- 使用計算核心的格式化函數
-- 刪除profile中的概率分析
-- 統一match/testpair/profile的顯示格式
-
-版本 1.1 (2024-01-31)
-修改內容：
-1. 添加 import json 模塊（解決 json 未定義錯誤）
-2. 移除所有日誌中的 "✅ " 前綴
-3. 將硬編碼文字替換為從 texts.py 導入的常量：
-   - 詢問出生時間文字
-   - 大約知道時間描述
-   - 時辰未知提示
-   - 幫助命令文字
-   - AI使用提示
-   - 註冊完成提示
-4. 添加新的文字常量導入
-5. 更新目錄和修正紀錄
-
-版本 1.2 (2024-02-01)
-緊急修復：
-1. 添加 import hashlib（解決match按鈕無反應問題）
-2. 修復信心度顯示為英文問題
-3. 優化數據庫操作
-4. 刪除重複提示
-
-版本 1.3 (2024-02-01)
-問題修復：
-1. 修復信心度數據庫初始化問題
-2. 優化start函數邏輯
-3. 統一section header編號
-
-版本 1.4 (2024-02-01)
-重要修改：
-1. 修復 testpair 顯示完整分析問題
-2. 優化配對通知流程
-3. 修復數據庫查詢錯誤
-4. 簡化通知邏輯
-5. 數據庫默認值統一為中文
-
-版本 1.5 (2024-02-01)
-重要修改：
-1. 對齊 new_calculator.py 接口
-2. 更新函數調用
-3. 整合審計日誌系統
-4. 更新評分系統
-5. 保持向後兼容
-
-版本 1.6 (2024-02-01)
-重要修改：
-1. 修復錯誤1：註冊完成後添加功能選單
-2. 修復錯誤2：/testpair 功能錯誤
-3. 修復錯誤3：match按鈕無反應
-4. 更新導入語句
-5. 修正評分閾值使用
-
-版本 1.7 (2024-02-01)
-重要修改：
-1. 修正錯誤1：profile功能無咗年月日時
-   - 問題：format_profile_result()函數沒有顯示出生年月日時
-   - 位置：profile()函數和ask_gender()函數
-   - 修改：在bazi_data中添加birth_year、birth_month、birth_day、birth_hour字段
-   - 修改：更新to_profile()函數以包含出生時間信息
-
-2. 修正錯誤2：/testpair無咗2人個人資料同置信度調整扣分太多
-   - 問題：testpair命令中使用默認hour_confidence="高"，但會觸發時間調整
-   - 位置：test_pair_command()函數
-   - 修改：明確設置minute=0和longitude=114.17避免時間調整
-   - 修改：使用hour_confidence="high"（英文）以匹配new_calculator中的映射
-
-版本 1.8 (2024-02-01)
-重要修改：
-1. 修正錯誤3：雙向影響分析無講A同B係邊個
-   - 問題：雙向影響分析只顯示A對B、B對A，但不知道誰是A誰是B
-   - 位置：test_pair_command()函數
-   - 修改：修正format_match_result()調用，傳入bazi1和bazi2參數
-   - 修改：在format_match_result()中顯示明確的"用戶A對用戶B"和"用戶B對用戶A"
-   - 影響：現在雙向影響分析明確標識了A和B是誰
-
-2. 添加管理員功能：
-   - 導入admin_service.py
-   - 添加管理員用戶ID配置
-   - 添加/admin_test和/admin_stats命令處理函數
-   - 在主程序中註冊管理員命令處理器
-
-版本 1.9 (2024-02-01)
-重要修改：
-1. 修復要求1：配對成功消息格式
-   - 問題：配對成功消息格式不符合要求
-   - 位置：button_callback()函數中的配對成功部分
-   - 修改：重新格式化配對成功消息，按照要求格式顯示
-   - 格式：
-     ✨ 上等婚配 配對成功！
-     🎯 配對分數：85.3分
-     📱 對方 Telegram: @username
-     📅 出生時間: 1990年1月1日 12:00
-     ...（完整個人資料）
-
-2. 修復問題3：管理員ID硬編碼
-   - 問題：ADMIN_USER_IDS硬編碼在代碼中
-   - 位置：第75行
-   - 修改：改為從環境變量ADMIN_USER_IDS讀取
-   - 支持格式：逗號分隔的多個ID，例如："123456789,987654321"
-   - 後果：部署更靈活，無需修改代碼
-
-3. 修復要求5：加入用戶輸入出生分鐘同經度功能
-   - 問題：原系統只支持輸入小時，不支持分鐘和經度
-   - 位置：ask_hour()函數和ask_gender()函數
-   - 修改：
-     a. 在數據庫profiles表中添加birth_minute字段
-     b. 在註冊流程中添加詢問分鐘和經度步驟
-     c. 更新ask_hour()和ask_gender()函數邏輯
-     d. 修改testpair命令支持分鐘和經度參數
-   - 注意：緯度功能未添加，只加經度
-   - 向後兼容：為舊用戶設置默認值
-
-4. 修復要求2：加入清除資料功能
-   - 問題：用戶無法清除自己的所有資料
-   - 位置：新增clear_command()函數
-   - 修改：
-     a. 添加/clear命令
-     b. 添加clear_user_data()函數
-     c. 更新功能選單提示
-     d. 添加確認機制防止誤刪
-
-版本 1.10 (2024-02-01) - 本次修正
-重要修改：
-1. 修復問題：輸入出生分鐘後，變輸入時間
-   - 問題：當用戶輸入分鐘後，系統錯誤地調用ask_hour函數而不是ask_minute
-   - 位置：ask_hour()函數中的分鐘處理邏輯
-   - 修改：
-     a. 在對話狀態中新增ASK_MINUTE和ASK_LONGITUDE狀態
-     b. 修改ask_hour()函數，在小時輸入後轉到ASK_MINUTE狀態
-     c. 新增ask_minute()函數專門處理分鐘輸入
-     d. 新增ask_longitude()函數專門處理經度輸入
-   - 後果：註冊流程現在正確處理：小時→分鐘→經度→性別
-
-2. 修改要求2：只用Railway的PostgreSQL做數據庫
-   - 問題：原系統同時支持SQLite和PostgreSQL，但您要求只用PostgreSQL
-   - 位置：整個數據庫連接部分
-   - 修改：
-     a. 移除所有SQLite相關代碼
-     b. 移除USE_POSTGRES變量和相關邏輯
-     c. 只保留PostgreSQL連接代碼
-     d. 使用psycopg2庫連接PostgreSQL
-     e. 修復Railway PostgreSQL URL格式（postgres:// → postgresql://）
-   - 後果：系統現在只使用Railway的PostgreSQL，簡化代碼
-
-3. 檢查對齊標準做法
-   - 確保所有section header使用正確的數字格式（1.1, 1.2, 2.1等）
-   - 檢查所有函數註釋和文檔使用繁體中文
-   - 移除所有版本號標示
-   - 確保所有文件引用關係正確
-   - 檢查並修復所有生成AI提示的調用，傳入正確的參數
-
-4. 保持四方功能一致
-   - 確保match/testpair/findsoulmate/profile結果格式一致
-   - 所有功能都顯示完整的個人資料信息（包含分鐘）
-   - 統一的時間格式顯示
-
-5. 修復AI提示生成調用
-   - 問題：generate_ai_prompt()調用缺少必要的bazi1和bazi2參數
-   - 位置：match()函數和test_pair_command()函數
-   - 修改：在所有調用generate_ai_prompt的地方傳入bazi1和bazi2參數
-
-6. 移除無用代碼和重複功能
-   - 移除所有SQLite相關的條件判斷
-   - 移除重複的數據庫連接邏輯
-   - 簡化數據庫初始化代碼
-
-7. 更新debug命令顯示信息
-   - 顯示當前使用PostgreSQL數據庫
-   - 移除SQLite相關信息
-"""
-# ========修正紀錄結束 ========
