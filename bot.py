@@ -803,7 +803,7 @@ async def handle_terms_acceptance(update, context):
 
     if text == "✅ 同意並繼續":
         await update.message.reply_text(
-            "✅ 感謝您同意隱私條款！\n\n"
+            "✅ 感謝您同意隱私條款！\n\n",
             "現在開始註冊流程。\n\n"
             BASIC_INFO_FORMAT_TEXT,
             reply_markup=ReplyKeyboardRemove()

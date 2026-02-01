@@ -171,14 +171,8 @@ ADMIN_TEST_CASES = [
 # ========修正紀錄開始 ========#
 """
 修正內容：
-1. 添加缺失的導入語句: from typing import Dict, List, Tuple, Any
-2. 移除輔助函數：get_all_test_descriptions(), format_test_case(), get_test_case_by_id()
-   （這些函數已移至 admin_service.py）
-3. 簡化文件結構，只保留測試案例列表
-4. 總行數減少約50行
-
-導致問題：admin_service.py 無法調用輔助函數
-如何修復：將輔助函數移至 admin_service.py，保持功能完整
-後果：減少文件依賴，test_cases.py 更專注於數據
+1. 保持文件簡潔，只包含測試案例數據
+2. 輔助函數已移至admin_service.py
+3. 總行數減少，專注於數據
 """
 # ========修正紀錄結束 ========#

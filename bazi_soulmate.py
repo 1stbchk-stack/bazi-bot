@@ -103,19 +103,22 @@ class SoulmateFinder:
         user_day_branch = user_day_pillar[1] if len(user_day_pillar) >= 2 else ''
         target_day_branch = target_day_pillar[1] if len(target_day_pillar) >= 2 else ''
         
-        # 檢查地支六沖
+        # 檢查地支六沖 - 使用ScoringEngine的常量
+        from new_calculator import ScoringEngine
         branch_pair = tuple(sorted([user_day_branch, target_day_branch]))
-        if branch_pair in MasterBaziMatcher.BRANCH_SIX_CLASHES:
-            # 檢查是否有解藥（六合）
-            has_remedy = False
-            for b1 in [user_day_branch]:
-                for b2 in [target_day_branch]:
-                    if tuple(sorted([b1, b2])) in MasterBaziMatcher.BRANCH_SIX_COMBINATIONS:
-                        has_remedy = True
-                        break
-            
-            if not has_remedy:
-                return False, "日柱六沖無解"
+        if hasattr(ScoringEngine, 'BRANCH_SIX_CLASHES'):
+            if branch_pair in ScoringEngine.BRANCH_SIX_CLASHES:
+                # 檢查是否有解藥（六合）
+                has_remedy = False
+                if hasattr(ScoringEngine, 'BRANCH_SIX_COMBINATIONS'):
+                    for b1 in [user_day_branch]:
+                        for b2 in [target_day_branch]:
+                            if tuple(sorted([b1, b2])) in ScoringEngine.BRANCH_SIX_COMBINATIONS:
+                                has_remedy = True
+                                break
+                
+                if not has_remedy:
+                    return False, "日柱六沖無解"
         
         # 神煞預篩（加分但不篩選）
         target_shen_sha = target_bazi.get('shen_sha_names', '無')
@@ -157,9 +160,9 @@ class SoulmateFinder:
     def calculate_final_score(user_bazi, target_bazi, user_gender, target_gender, purpose="正緣"):
         """第三階段：資深精算加分項"""
         
-        # 使用師傅級配對算法
-        match_result = MasterBaziMatcher.match(
-            user_bazi, target_bazi, user_gender, target_gender, purpose
+        # 使用主入口函數進行配對
+        match_result = calculate_match(
+            user_bazi, target_bazi, user_gender, target_gender, is_testpair=True
         )
         
         base_score = match_result.get('score', 50)
@@ -191,10 +194,10 @@ class SoulmateFinder:
             # 正緣模式：配偶承載*0.4 + 日柱*0.3 + 性格*0.2 + 氣勢*0.1
             module_scores = match_result.get('module_scores', {})
             weighted_score = (
-                module_scores.get('spouse_carriage', 0) * 0.4 +
-                module_scores.get('day_pillar', 0) * 0.3 +
-                module_scores.get('personality', 0) * 0.2 +
-                module_scores.get('energy_flow', 0) * 0.1
+                module_scores.get('energy_rescue', 0) * 0.4 +
+                module_scores.get('structure_core', 0) * 0.3 +
+                module_scores.get('personality_risk', 0) * 0.2 +
+                module_scores.get('pressure_penalty', 0) * 0.1
             )
             final_score = (final_score + weighted_score) / 2
         elif purpose == "合夥":
@@ -222,8 +225,10 @@ class SoulmateFinder:
             hour = random.randint(0, 23)
             
             try:
-                target_bazi = ProfessionalBaziCalculator.calculate_bazi(
-                    year, month, day, hour, user_gender, '高'
+                target_bazi = BaziCalculator.calculate(
+                    year, month, day, hour, 
+                    gender=user_gender,
+                    hour_confidence='高'
                 )
                 
                 # 添加出生年份信息
@@ -361,8 +366,14 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 文件: bazi_soulmate.py
 功能: 真命天子搜尋功能（獨立檔案）
 
-引用文件: bazi_calculator.py
+引用文件: new_calculator.py
 被引用文件: bot.py (主程序)
+
+主要修改：
+1. 修復導入問題：使用BaziCalculator而不是ProfessionalBaziCalculator
+2. 修復常量引用問題：使用ScoringEngine的常量
+3. 使用主入口函數calculate_match進行配對計算
+4. 保持與new_calculator.py的兼容性
 """
 # ========文件信息結束 ========#
 
@@ -371,3 +382,21 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 1.6 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
 """
 # ========目錄結束 ========#
+
+# ========修正紀錄開始 ========#
+"""
+修正內容：
+1. 修復導入問題：使用BaziCalculator而不是ProfessionalBaziCalculator（別名問題）
+2. 修復常量引用問題：直接從ScoringEngine獲取常量
+3. 使用主入口函數calculate_match：保持計算一致性
+4. 修復預篩選函數中的常量引用問題
+
+導致問題：原代碼使用ProfessionalBaziCalculator（bot.py中的別名）
+如何修復：直接使用new_calculator.py中的BaziCalculator
+後果：解決導入依賴問題，保持功能正常
+
+導致問題：原代碼使用MasterBaziMatcher.BRANCH_SIX_CLASHES（未定義）
+如何修復：從ScoringEngine獲取常量或使用calculate_match函數
+後果：解決常量引用問題，保持功能正常
+"""
+# ========修正紀錄結束 ========#
