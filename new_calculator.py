@@ -187,8 +187,8 @@ class Config:
     }
     
     # 現實校準配置 - 修正為師傅級標準
-    NO_HARD_PROBLEM_FLOOR = 68           # 無硬傷保底分
-    DAY_CLASH_CAP = 65                   # 日支六沖上限（原75，修正為65）
+    NO_HARD_PROBLEM_FLOOR = 60           # 無硬傷保底分
+    DAY_CLASH_CAP = 55                   # 日支六沖上限（原75，修正為65）
     AGE_GAP_PENALTY_11_15 = -5           # 11-15歲年齡差距扣分（原-3，修正為-5）
     AGE_GAP_PENALTY_16_PLUS = -8         # 16歲以上年齡差距扣分（原-5，修正為-8）
     FATAL_RISK_CAP = 40                  # 致命風險上限（原45，修正為40）
@@ -1787,13 +1787,13 @@ class ScoringEngine:
         score += useful_match_score
         
         target_spouse_effective = target_bazi.get('spouse_star_effective', 'unknown')
-        if target_spouse_effective == 'strong':
+        if target_spouse_effective == '強':
             score += 8
             details.append(f"{direction} 配偶星旺盛: +8分")
-        elif target_spouse_effective == 'medium':
+        elif target_spouse_effective == '中':
             score += 5
             details.append(f"{direction} 配偶星明顯: +5分")
-        elif target_spouse_effective == 'weak':
+        elif target_spouse_effective == '弱':
             score += 2
             details.append(f"{direction} 配偶星單一: +2分")
         
@@ -2130,6 +2130,10 @@ class BaziFormatters:
     @staticmethod
     def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
         """統一個人資料格式化"""
+
+        # 提取性別
+        gender = bazi_data.get('gender', '')
+
         # 提取基本資料
         birth_year = bazi_data.get('birth_year', '')
         birth_month = bazi_data.get('birth_month', '')
@@ -2139,7 +2143,7 @@ class BaziFormatters:
         # 信心度處理
         hour_confidence = bazi_data.get('hour_confidence', '中')
         confidence_text = C.format_confidence(hour_confidence)
-        
+
         # 八字四柱
         year_pillar = bazi_data.get('year_pillar', '')
         month_pillar = bazi_data.get('month_pillar', '')
@@ -2157,17 +2161,23 @@ class BaziFormatters:
         
         # 格局類型
         pattern_type = bazi_data.get('pattern_type', '正格')
-        
+
+        # 十神結構
+        shi_shen_structure = bazi_data.get('shi_shen_structure', '正格')
+
         # 喜用神和忌神
-        useful_elements = bazi_data.get('useful_elements', [])
-        harmful_elements = bazi_data.get('harmful_elements', [])
+        useful_elements = join(bazi_data.get('useful_elements', [])) if bazi_data.get('useful_elements') else '平衡'
+        harmful_elements = join(bazi_data.get('harmful_elements', [])) if bazi_data.get('harmful_elements') else '無'
         
         # 夫妻星和夫妻宮
         spouse_star_status = bazi_data.get('spouse_star_status', '未知')
         spouse_palace_status = bazi_data.get('spouse_palace_status', '未知')
-        
+        spouse_star_effective = bazi_data.get('spouse_star_effective', '未知')
+        pressure_score = bazi_data.get('pressure_score', 0)
+
         # 神煞
         shen_sha_names = bazi_data.get('shen_sha_names', '無')
+        shen_sha_bonus = bazi_data.get('shen_sha_bonus', 0)
         
         # 五行分佈
         elements = bazi_data.get('elements', {})
@@ -2178,30 +2188,39 @@ class BaziFormatters:
         water = elements.get('水', 0)
         
         # 構建個人資料文本
-        personal_text = f"📊 {username} 的八字分析\n{'='*40}\n\n"
+        personal_text = f"📊 @{username} 的八字分析\n{'='*40}\n\n"
+
+        # 第一行：性別
+        personal_text += f"性別:{gender}，\n"
         
-        # 第一行：出生時間和信心度
+        # 第二行：出生時間和信心度
         personal_text += f"{birth_year}年{birth_month}月{birth_day}日{birth_hour}時出生（時間信心度{confidence_text}），\n"
         
-        # 第二行：八字四柱
+        # 第三行：八字四柱
         personal_text += f"八字：{year_pillar} {month_pillar} {day_pillar} {hour_pillar}，\n"
         
-        # 第三行：生肖和日主
-        personal_text += f"生肖{zodiac}，日主{day_stem}{day_stem_element}（{day_stem_strength}，{strength_score:.1f}分）。\n\n"
+        # 第四行：生肖和日主
+        personal_text += f"生肖{zodiac}，日主{day_stem}{day_stem_element}（身強弱:{day_stem_strength}，{strength_score:.1f}分）。\n\n"
         
-        # 第四行：格局
+        # 第五行：格局
         personal_text += f"格局：{pattern_type}\n"
+
+        # 第六行：十神結構
+        personal_text += f"十神結構：{shi_shen_structure}\n"
         
-        # 第五行：喜用神和忌神
+        # 第七行：喜用神和忌神
+        if isinstance(useful_elements, str):
+            useful_elements = useful_elements.split(',') if useful_elements else []
         personal_text += f"喜用神：{', '.join(useful_elements) if useful_elements else '無'}\n"
         personal_text += f"忌神：{', '.join(harmful_elements) if harmful_elements else '無'}\n"
         
-        # 第六行：夫妻星和夫妻宮
+        # 第八行：夫妻星和夫妻宮
         personal_text += f"夫妻星：{spouse_star_status}\n"
         personal_text += f"夫妻宮：{spouse_palace_status}\n"
+        personal_text += f"夫妻星：{spouse_star_effective},{pressure_score}分\n"
         
         # 第七行：神煞
-        personal_text += f"神煞：{shen_sha_names}\n"
+        personal_text += f"神煞：{shen_sha_names},{shen_sha_bonus}分\n"
         
         # 第八行：五行分佈
         personal_text += f"五行分佈：木{wood:.1f}%、火{fire:.1f}%、土{earth:.1f}%、金{metal:.1f}%、水{water:.1f}%\n"

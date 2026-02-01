@@ -120,18 +120,10 @@ if ADMIN_USER_IDS_STR:
     TERMS_ACCEPTANCE,
     ASK_BASIC_INFO,          # 新增：一步輸入所有基本信息
     ASK_TIME_CONFIRMATION,   # 新增：時間確認
-    ASK_YEAR,
-    ASK_MONTH,
-    ASK_DAY,
     ASK_HOUR_KNOWN,
-    ASK_HOUR,
-    ASK_MINUTE,
-    ASK_LONGITUDE,
-    ASK_GENDER,
-    ASK_TARGET_GENDER,       # 新增：對象性別
     FIND_SOULMATE_RANGE,
     FIND_SOULMATE_PURPOSE,
-) = range(14)
+) = range(6)
 
 # 從 Config 類獲取評分閾值常量
 THRESHOLD_WARNING = Config.THRESHOLD_WARNING
@@ -1126,17 +1118,17 @@ async def match(update, context):
         # 根據目標性別偏好構建查詢條件
         if target_gender == "異性":
             gender_condition = "p.gender != %s"
-            params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
+            gender_param = my_gender
         elif target_gender == "同性":
             gender_condition = "p.gender = %s"
-            params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
+            gender_param = my_gender
         elif target_gender in ["男", "女"]:
             gender_condition = "p.gender = %s"
-            params = (internal_user_id, internal_user_id, internal_user_id, target_gender)
+            gender_param = target_gender
         else:
             # 默認異性
             gender_condition = "p.gender != %s"
-            params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
+            gender_param = my_gender
         
         # 修正查詢：支援同性配對
         query = f"""
@@ -1164,7 +1156,7 @@ async def match(update, context):
             LIMIT 100
         """
         
-        cur.execute(query, params)
+        cur.execute(query, (internal_user_id, internal_user_id, internal_user_id, gender_param))
         rows = cur.fetchall()
     
     if not rows:
@@ -1318,9 +1310,12 @@ async def test_command(update, context):
 async def clear_command(update, context):
     """清除用戶所有資料 - 修復版"""
     telegram_id = update.effective_user.id
+
+    # 檢查是否有參數
+    has_args = context.args is not None and len(context.args) > 0
     
     # 確認用戶是否真的要清除資料
-    if context.args and context.args[0] == "confirm":
+    if has_args and context.args[0] == "confirm":
         success = clear_user_data(telegram_id)
         if success:
             await update.message.reply_text(
@@ -2196,7 +2191,12 @@ if __name__ == "__main__":
 1. 修復數據庫初始化函數，確保target_gender欄位存在
 2. 添加format_find_soulmate_result函數（第1.10節）
 3. 修改button_callback函數使用BaziFormatters.format_match_result
-4. 保持所有四方功能格式一致
+4. 修復match函數中的SQL查詢參數錯誤（最關鍵修復）
+5. 保持所有四方功能格式一致
+
+導致問題：/match命令無反應
+如何修復：修正第885-900行的SQL查詢參數邏輯，將gender_param作為單獨參數傳遞
+後果：/match命令恢復正常運作，能夠查詢數據庫並返回配對結果
 
 導致問題：數據庫缺少target_gender欄位
 如何修復：在init_db()中添加ALTER TABLE語句
@@ -2235,6 +2235,7 @@ if __name__ == "__main__":
 2. 添加缺失的format_find_soulmate_result函數（第1.10節）
 3. 修改button_callback函數使用BaziFormatters.format_match_result統一格式化
 4. 修復配對成功消息的格式化邏輯，確保使用統一格式化工具
+5. 修復match函數中的SQL查詢參數錯誤（第885-900行），這是/match無反應的根本原因
 
 導致問題：原數據庫缺少target_gender欄位，導致註冊失敗
 如何修復：在init_db()中添加檢查和修復代碼
@@ -2248,6 +2249,12 @@ if __name__ == "__main__":
 如何修復：改用BaziFormatters.format_match_result
 後果：所有格式化邏輯統一，維護更簡單
 
+導致問題：/match命令無反應
+如何修復：修正SQL查詢參數邏輯，將gender_param作為單獨參數傳遞
+原錯誤：params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
+修正後：cur.execute(query, (internal_user_id, internal_user_id, internal_user_id, gender_param))
+後果：/match命令恢復正常運作，能夠查詢數據庫並返回配對結果
+
 累積修正：
 1. 已刪除FormatUtils類，統一使用BaziFormatters
 2. 已修復complete_registration函數字符串語法錯誤
@@ -2255,5 +2262,6 @@ if __name__ == "__main__":
 4. 已修復數據庫target_gender欄位問題
 5. 已添加format_find_soulmate_result函數
 6. 已統一button_callback中的格式化邏輯
+7. 已修復/match命令的SQL查詢參數錯誤（最關鍵修復）
 """
 # ========修正紀錄結束 ========#

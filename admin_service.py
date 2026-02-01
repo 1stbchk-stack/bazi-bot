@@ -635,7 +635,7 @@ class AdminService:
 """
         
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
-            status_emoji = '' if detail['status'] == 'PASS' else '' if detail['status'] == 'FAIL' else ''
+            status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
             text += f"\n{status_emoji} {detail['description']}"
             text += f"\n   分數: {detail.get('score', 0):.1f}分"
             if detail.get('error'):
