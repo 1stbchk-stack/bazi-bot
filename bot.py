@@ -203,7 +203,7 @@ def get_conn():
         raise
 
 def init_db():
-    """初始化 PostgreSQL 數據庫"""
+    """初始化 PostgreSQL 數據庫 - 修正版（添加target_gender欄位）"""
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
@@ -221,7 +221,7 @@ def init_db():
             )
             ''')
             
-            # 創建 profiles 表
+            # 創建 profiles 表 - 修正版：確保有target_gender欄位
             cur.execute('''
             CREATE TABLE IF NOT EXISTS profiles (
                 user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -232,7 +232,7 @@ def init_db():
                 birth_minute INTEGER DEFAULT 0,
                 hour_confidence TEXT DEFAULT '高',
                 gender TEXT,
-                target_gender TEXT DEFAULT '異性',  -- 新增：對象性別偏好
+                target_gender TEXT DEFAULT '異性',
                 year_pillar TEXT,
                 month_pillar TEXT,
                 day_pillar TEXT,
@@ -258,6 +258,13 @@ def init_db():
                 shen_sha_data TEXT
             )
             ''')
+            
+            # 檢查並添加可能缺失的欄位
+            try:
+                cur.execute("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_gender TEXT DEFAULT '異性'")
+                logger.info("已確保target_gender欄位存在")
+            except Exception as e:
+                logger.warning(f"添加target_gender欄位時出現警告: {e}")
             
             # 創建 matches 表
             cur.execute('''
@@ -1759,7 +1766,7 @@ async def find_soulmate_purpose(update, context):
             user_bazi, user_gender, start_year, end_year, purpose, limit=10
         )
         
-        # 使用bazi_soulmate.py中的格式化函數
+        # 使用bot.py中的格式化函數
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
         # 更新計算完成消息
@@ -1952,69 +1959,51 @@ async def button_callback(update, context):
                 from new_calculator import ScoringEngine
                 rating = ScoringEngine.get_rating(actual_score)
                 
-                # 格式化配對成功消息
-                message_for_a = f"{rating} 配對成功！\n\n"
-                message_for_a += f"🎯 配對分數：{actual_score:.1f}分\n"
-                message_for_a += f"📱 對方 Telegram: @{b_username}\n"
-                
-                if b_profile:
-                    b_hour_conf = Config.format_confidence(b_profile['hour_confidence'])
-                    message_for_a += f"📅 出生時間: {b_profile['birth_year']}年{b_profile['birth_month']}月{b_profile['birth_day']}日 {b_profile['birth_hour']}:{b_profile['birth_minute']:02d}\n"
-                    message_for_a += f"🕰️ 時間信心度: {b_hour_conf}\n"
-                    message_for_a += f"📅 八字: {b_profile['year_pillar']} {b_profile['month_pillar']} {b_profile['day_pillar']} {b_profile['hour_pillar']}\n"
-                    message_for_a += f"🐉 生肖: {b_profile['zodiac']}\n"
-                    message_for_a += f"⚖️ 日主: {b_profile['day_stem']}{b_profile['day_stem_element']} ({b_profile['day_stem_strength']})\n"
-                    message_for_a += f"💪 身強弱: {b_profile['strength_score']:.1f}分\n"
-                    message_for_a += f"🎭 格局: {b_profile['cong_ge_type']}\n"
-                    message_for_a += f"🎯 喜用神: {', '.join(b_profile['useful_elements'])}\n"
-                    message_for_a += f"🚫 忌神: {', '.join(b_profile['harmful_elements'])}\n"
-                    message_for_a += f"💑 夫妻星: {b_profile['spouse_star_status']}\n"
-                    message_for_a += f"🏠 夫妻宮: {b_profile['spouse_palace_status']}\n"
-                    message_for_a += f"✨ 神煞: {b_profile['shen_sha_names']}\n"
-                
-                message_for_a += "💡 溫馨提示：\n"
-                message_for_a += "• 先打招呼互相認識\n"
-                message_for_a += "• 分享興趣尋找共同話題\n"
-                message_for_a += "• 保持尊重，慢慢了解\n\n"
-                message_for_a += "✨ 祝你們交流愉快！"
-                
-                message_for_b = f"{rating} 配對成功！\n\n"
-                message_for_b += f"🎯 配對分數：{actual_score:.1f}分\n"
-                message_for_b += f"📱 對方 Telegram: @{a_username}\n"
-                
-                if a_profile:
-                    a_hour_conf = Config.format_confidence(a_profile['hour_confidence'])
-                    message_for_b += f"📅 出生時間: {a_profile['birth_year']}年{a_profile['birth_month']}月{a_profile['birth_day']}日 {a_profile['birth_hour']}:{a_profile['birth_minute']:02d}\n"
-                    message_for_b += f"🕰️ 時間信心度: {a_hour_conf}\n"
-                    message_for_b += f"📅 八字: {a_profile['year_pillar']} {a_profile['month_pillar']} {a_profile['day_pillar']} {a_profile['hour_pillar']}\n"
-                    message_for_b += f"🐉 生肖: {a_profile['zodiac']}\n"
-                    message_for_b += f"⚖️ 日主: {a_profile['day_stem']}{a_profile['day_stem_element']} ({a_profile['day_stem_strength']})\n"
-                    message_for_b += f"💪 身強弱: {a_profile['strength_score']:.1f}分\n"
-                    message_for_b += f"🎭 格局: {a_profile['cong_ge_type']}\n"
-                    message_for_b += f"🎯 喜用神: {', '.join(a_profile['useful_elements'])}\n"
-                    message_for_b += f"🚫 忌神: {', '.join(a_profile['harmful_elements'])}\n"
-                    message_for_b += f"💑 夫妻星: {a_profile['spouse_star_status']}\n"
-                    message_for_b += f"🏠 夫妻宮: {a_profile['spouse_palace_status']}\n"
-                    message_for_b += f"✨ 神煞: {a_profile['shen_sha_names']}\n"
-                
-                message_for_b += "💡 溫馨提示：\n"
-                message_for_b += "• 先打招呼互相認識\n"
-                message_for_b += "• 分享興趣尋找共同話題\n"
-                message_for_b += "• 保持尊重，慢慢了解\n\n"
-                message_for_b += "✨ 祝你們交流愉快！"
+                # 使用BaziFormatters格式化配對成功消息
+                if a_profile and b_profile:
+                    # 創建簡化的match_result用於格式化
+                    simplified_match_result = {
+                        "score": actual_score,
+                        "rating": rating,
+                        "relationship_model": "配對成功",
+                        "details": ["雙方互相選擇成功"],
+                        "module_scores": {}
+                    }
+                    
+                    match_text = BaziFormatters.format_match_result(
+                        simplified_match_result, a_profile, b_profile,
+                        user_a_name=a_username, user_b_name=b_username
+                    )
+                    
+                    # 添加聯絡方式
+                    match_text += f"\n\n📱 聯絡方式交換完成\n"
+                    match_text += f"• {a_username}: @{a_username if a_username != '未設定用戶名' else '請設定Telegram用戶名'}\n"
+                    match_text += f"• {b_username}: @{b_username if b_username != '未設定用戶名' else '請設定Telegram用戶名'}\n\n"
+                    match_text += "💡 溫馨提示：\n"
+                    match_text += "• 先打招呼互相認識\n"
+                    match_text += "• 分享興趣尋找共同話題\n"
+                    match_text += "• 保持尊重，慢慢了解\n\n"
+                    match_text += "✨ 祝你們交流愉快！"
+                else:
+                    # 如果無法獲取完整資料，使用簡化消息
+                    match_text = f"{rating} 配對成功！\n\n"
+                    match_text += f"🎯 配對分數：{actual_score:.1f}分\n"
+                    match_text += f"📱 雙方已交換聯絡方式\n\n"
+                    match_text += f"👤 用戶A: @{a_username}\n"
+                    match_text += f"👤 用戶B: @{b_username}\n\n"
+                    match_text += "✨ 祝你們交流愉快！"
                 
                 if a_username == "未設定用戶名" or b_username == "未設定用戶名":
                     warning = "\n\n⚠️ 注意：如無法聯絡對方，請對方在 Telegram 設定中設定用戶名。"
-                    message_for_a += warning
-                    message_for_b += warning
+                    match_text += warning
                 
                 try:
-                    await context.bot.send_message(chat_id=a_telegram_id, text=message_for_a)
+                    await context.bot.send_message(chat_id=a_telegram_id, text=match_text)
                 except Exception as e:
                     logger.error(f"無法發送消息給用戶A: {e}")
                 
                 try:
-                    await context.bot.send_message(chat_id=b_telegram_id, text=message_for_b)
+                    await context.bot.send_message(chat_id=b_telegram_id, text=match_text)
                 except Exception as e:
                     logger.error(f"無法發送消息給用戶B: {e}")
                 
@@ -2046,7 +2035,58 @@ async def button_callback(update, context):
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
 # ========1.9 按鈕回調處理函數結束 ========#
 
-# ========1.10 主程序開始 ========#
+# ========1.10 Find Soulmate 格式化函數開始 ========#
+def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> str:
+    """格式化Find Soulmate結果"""
+    if not matches:
+        return "❌ 在指定範圍內未找到合適的匹配時空。"
+    
+    purpose_text = "尋找正緣" if purpose == "正緣" else "事業合夥"
+    
+    text = f"""🔮 真命天子搜尋結果
+{'='*40}
+
+📅 搜尋範圍：{start_year}年 - {end_year}年
+🎯 搜尋目的：{purpose_text}
+📊 找到匹配：{len(matches)}個時空
+
+🏆 最佳匹配："""
+    
+    if matches:
+        best = matches[0]
+        text += f"\n• 分數：{best.get('score', 0):.1f}分"
+        text += f"\n• 日期：{best.get('date', '')}"
+        text += f"\n• 時辰：{best.get('hour', '')}"
+        text += f"\n• 八字：{best.get('pillars', '')}"
+    
+    text += f"""
+
+📋 詳細匹配列表（前5名）
+{'='*40}"""
+    
+    for i, match in enumerate(matches[:5], 1):
+        score = match.get('score', 0)
+        date = match.get('date', '')
+        hour = match.get('hour', '')
+        
+        text += f"""
+{i:2d}. {date} {hour}
+     分數：{score:.1f}分"""
+    
+    text += f"""
+
+💡 使用建議
+{'='*40}
+
+1. **確認時辰**：以上時辰均為整點，實際使用時需結合出生地經度校正
+2. **綜合考慮**：分數僅供參考，還需結合實際情況
+3. **深入分析**：可複製具體八字使用 /testpair 命令深入分析
+4. **時間信心度**：搜尋結果為理論最佳，實際應用時需考慮時間精度"""
+    
+    return text
+# ========1.10 Find Soulmate 格式化函數結束 ========#
+
+# ========1.11 主程序開始 ========#
 def main():
     import time
     
@@ -2136,7 +2176,7 @@ def main():
 
 if __name__ == "__main__":
     main()
-# ========1.10 主程序結束 ========#
+# ========1.11 主程序結束 ========#
 
 # ========文件信息開始 ========#
 """
@@ -2153,17 +2193,22 @@ if __name__ == "__main__":
 被引用文件: 無
 
 主要修改：
-1. 刪除了FormatUtils類（第1.4節已刪除）
-2. 添加了BaziFormatters導入
-3. 修改了5個關鍵函數使用統一格式化：
-   - profile() - 使用BaziFormatters.format_personal_data() + 健康引用
-   - match() - 使用BaziFormatters.format_match_result()
-   - test_pair_command() - 使用BaziFormatters.format_match_result()
-   - complete_registration() - 使用BaziFormatters.format_personal_data()
-   - button_callback() - 使用BaziFormatters.generate_ai_prompt()
-4. 修復了字符串語法錯誤（complete_registration函數）
-5. 保持了to_profile()函數的數據轉換邏輯
-6. 確保所有四方功能格式一致
+1. 修復數據庫初始化函數，確保target_gender欄位存在
+2. 添加format_find_soulmate_result函數（第1.10節）
+3. 修改button_callback函數使用BaziFormatters.format_match_result
+4. 保持所有四方功能格式一致
+
+導致問題：數據庫缺少target_gender欄位
+如何修復：在init_db()中添加ALTER TABLE語句
+後果：註冊流程正常運作
+
+導致問題：format_find_soulmate_result函數缺失
+如何修復：添加該函數到bot.py（第1.10節）
+後果：真命天子搜尋功能正常運作
+
+導致問題：button_callback中的配對成功消息手動格式化
+如何修復：改用BaziFormatters.format_match_result
+後果：格式化統一，維護更容易
 """
 # ========文件信息結束 ========#
 
@@ -2178,36 +2223,37 @@ if __name__ == "__main__":
 1.7 命令處理函數開始
 1.8 Find Soulmate流程函數開始
 1.9 按鈕回調處理函數開始
-1.10 主程序開始
+1.10 Find Soulmate格式化函數開始
+1.11 主程序開始
 """
 # ========目錄結束 ========#
 
 # ========修正紀錄開始 ========#
 """
 修正內容：
-1. 刪除了FormatUtils類（第1.4節），改用new_calculator.py中的BaziFormatters
-2. 添加了BaziFormatters導入語句
-3. 修改了5個關鍵函數使用統一格式化：
-   - profile(): 使用BaziFormatters.format_personal_data()，最後單獨添加健康引用
-   - match(): 使用BaziFormatters.format_match_result()
-   - test_pair_command(): 使用BaziFormatters.format_match_result()
-   - complete_registration(): 使用BaziFormatters.format_personal_data()
-   - button_callback(): 使用BaziFormatters.generate_ai_prompt()
-4. 修復了complete_registration()函數中的字符串語法錯誤（多行字符串缺少逗號）
-5. 修正了REGISTRATION_COMPLETE_TEXT的使用方式
-6. 保持to_profile()函數的數據轉換邏輯不變
-7. 確保所有地方使用相同的bazi_data字典結構
+1. 修復數據庫初始化函數init_db()，添加ALTER TABLE語句確保target_gender欄位存在
+2. 添加缺失的format_find_soulmate_result函數（第1.10節）
+3. 修改button_callback函數使用BaziFormatters.format_match_result統一格式化
+4. 修復配對成功消息的格式化邏輯，確保使用統一格式化工具
 
-導致問題：原FormatUtils類與new_calculator.py中的BaziFormatters重複
-如何修復：刪除FormatUtils，統一使用BaziFormatters
-後果：所有個人資料和配對結果格式統一，代碼維護更簡單
+導致問題：原數據庫缺少target_gender欄位，導致註冊失敗
+如何修復：在init_db()中添加檢查和修復代碼
+後果：註冊功能恢復正常
 
-導致問題：complete_registration()函數有語法錯誤
-如何修復：修正字符串連接語法
-後果：註冊流程正常工作
+導致問題：真命天子搜尋結果格式化函數缺失
+如何修復：從bazi_soulmate.py複製到bot.py並調整
+後果：/find_soulmate功能正常運作
 
-導致問題：5個關鍵函數使用不同的格式化方法
-如何修復：統一改用BaziFormatters類的方法
-後果：所有四方功能格式完全一致
+導致問題：button_callback中的配對成功消息手動拼接
+如何修復：改用BaziFormatters.format_match_result
+後果：所有格式化邏輯統一，維護更簡單
+
+累積修正：
+1. 已刪除FormatUtils類，統一使用BaziFormatters
+2. 已修復complete_registration函數字符串語法錯誤
+3. 已確保5個關鍵函數使用統一格式化
+4. 已修復數據庫target_gender欄位問題
+5. 已添加format_find_soulmate_result函數
+6. 已統一button_callback中的格式化邏輯
 """
 # ========修正紀錄結束 ========#
