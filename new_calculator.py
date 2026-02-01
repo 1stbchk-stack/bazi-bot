@@ -361,7 +361,7 @@ class TimeProcessor:
         
         try:
             day_obj = sxtwl.fromSolar(year, month, day)
-            jd = day_obj.getJulianDay() + (hour + minute/60.0)/24.0
+            jd = day_obj.jq_jd + (hour + minute/60.0)/24.0
             eot_adjust = TimeProcessor.calculate_eot(jd)
             audit_log.append(f"EOT調整: {eot_adjust:.2f}分鐘")
         except Exception as e:
@@ -785,7 +785,7 @@ class BaziCalculator:
             day_obj = sxtwl.fromSolar(year, month, day)
             
             jieqi_jd = day_obj.getJieQiJD()
-            birth_jd = day_obj.getJulianDay() + hour / 24.0
+            birth_jd = day_obj.jq_jd + hour / 24.0
             minutes_since_jieqi = (birth_jd - jieqi_jd) * 1440
             days_since_jieqi = minutes_since_jieqi / 1440.0
             
@@ -2166,8 +2166,11 @@ class BaziFormatters:
         shi_shen_structure = bazi_data.get('shi_shen_structure', '正格')
 
         # 喜用神和忌神
-        useful_elements = join(bazi_data.get('useful_elements', [])) if bazi_data.get('useful_elements') else '平衡'
-        harmful_elements = join(bazi_data.get('harmful_elements', [])) if bazi_data.get('harmful_elements') else '無'
+        useful_elements_list = bazi_data.get('useful_elements', [])
+        harmful_elements_list = bazi_data.get('harmful_elements', [])
+    
+        useful_elements = ','.join(useful_elements_list) if useful_elements_list else '平衡'
+        harmful_elements = ','.join(harmful_elements_list) if harmful_elements_list else '無'
         
         # 夫妻星和夫妻宮
         spouse_star_status = bazi_data.get('spouse_star_status', '未知')
