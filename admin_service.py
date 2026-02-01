@@ -13,7 +13,7 @@ from new_calculator import (
     calculate_match,
     ScoringEngine,
     Config,
-    BaziFormatters  # 保留有用的格式化工具
+    BaziFormatters
 )
 
 # 从 Config 类获取常量
@@ -53,6 +53,9 @@ class TestResult:
     model: str
     expected_model: str
     model_match: bool
+    birth1: str = ""
+    birth2: str = ""
+    range: str = ""
     error: str = ""
     details: List[str] = None
 
@@ -125,16 +128,24 @@ class AdminService:
     async def _run_single_test(self, test_id: int, test_case: Dict) -> TestResult:
         """運行單個測試案例"""
         try:
+            # 提取出生時間信息用於顯示
+            bazi_data1 = test_case['bazi_data1']
+            bazi_data2 = test_case['bazi_data2']
+            
+            birth1 = f"{bazi_data1['year']}年{bazi_data1['month']}月{bazi_data1['day']}日{bazi_data1['hour']}時"
+            birth2 = f"{bazi_data2['year']}年{bazi_data2['month']}月{bazi_data2['day']}日{bazi_data2['hour']}時"
+            range_str = f"{test_case['expected_range'][0]}-{test_case['expected_range'][1]}"
+            
             # 計算八字
-            bazi1 = BaziCalculator.calculate(**test_case['bazi_data1'])
-            bazi2 = BaziCalculator.calculate(**test_case['bazi_data2'])
+            bazi1 = BaziCalculator.calculate(**bazi_data1)
+            bazi2 = BaziCalculator.calculate(**bazi_data2)
             
             if not bazi1 or not bazi2:
                 raise ValueError("八字計算失敗")
             
             # 配對計算
-            gender1 = test_case['bazi_data1']['gender']
-            gender2 = test_case['bazi_data2']['gender']
+            gender1 = bazi_data1['gender']
+            gender2 = bazi_data2['gender']
             
             match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
             
@@ -168,6 +179,9 @@ class AdminService:
                 model=model,
                 expected_model=expected_model,
                 model_match=model_match,
+                birth1=birth1,
+                birth2=birth2,
+                range=range_str,
                 details=details
             )
             
@@ -384,7 +398,7 @@ class AdminService:
             if bazi1:
                 demo_results.append(f"   • 日主: {bazi1.get('day_stem', '')}{bazi1.get('day_stem_element', '')}")
                 demo_results.append(f"   • 生肖: {bazi1.get('zodiac', '')}")
-                demo_results.append(f"   • 格局: {bazi1.get('cong_ge_type', '正格')}")
+                demo_results.append(f"   • 格局: {bazi1.get('pattern_type', '正格')}")
                 demo_results.append(f"   • 喜用神: {', '.join(bazi1.get('useful_elements', []))}")
                 demo_results.append(f"   • 忌神: {', '.join(bazi1.get('harmful_elements', []))}")
                 
@@ -637,13 +651,9 @@ class AdminService:
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
             status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
             text += f"\n{status_emoji} {detail['description']}"
-
-            # 新增呢兩行顯示出生時間
-            text += f"\n   A: {detail.get('birth1')}"
-            text += f"\n   B: {detail.get('birth2')}"
-    
-            # 修改分數呢行，加埋 Range 入去
-            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range')}分)"
+            text += f"\n   A: {detail.get('birth1', '未知')}"
+            text += f"\n   B: {detail.get('birth2', '未知')}"
+            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range', '未知')}分)"
 
             if detail.get('error'):
                 text += f"\n   錯誤: {detail['error'][:50]}..."
@@ -734,9 +744,11 @@ class AdminService:
 7. 格式化功能 - 輸出格式化結果
 
 修改記錄：
-1. 刪除了HealthAnalyzer, RelationshipTimeline, BaziDNAMatcher, PairingAdviceGenerator的導入
-2. 修改了_test_innovation()方法，改名為_test_core_functionality()，使用現有的BaziFormatters
-3. 修改了一鍵演示中的健康分析部分，使用現有數據
-4. 保持所有核心功能正常運作
+2026-02-02 本次修正：
+1. 修復TestResult類：新增birth1、birth2、range字段
+2. 修復_run_single_test方法：正確提取和顯示出生時間信息
+3. 修復format_test_results方法：顯示正確的出生時間和分數範圍
+4. 確保測試報告中不再顯示A: None, B: None問題
+5. 保持所有核心功能正常運作
 """
 # ========文件信息結束 ========#
