@@ -50,9 +50,6 @@ from new_calculator import (
     # 時間處理器
     TimeProcessor,
     
-    # 預設經度
-    DEFAULT_LONGITUDE,
-    
     # 創新功能類
     HealthAnalyzer,
     RelationshipTimeline,
@@ -137,7 +134,8 @@ THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_CONTACT_ALLOWED
 THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
 THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
 THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
-
+# 從 Config 類獲取其他常量
+DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
 
 
 
