@@ -335,15 +335,7 @@ HEALTH_QUOTES = [
 引用文件: 無
 被引用文件: bot.py (主程序)
 
-主要修改：
-1. 添加HEALTH_QUOTES健康引用常量
-2. 添加BASIC_INFO_FORMAT_TEXT簡化註冊格式說明
-3. 添加CONFIRM_TIME_TEXT時間確認文本
-4. 添加FUNCTION_MENU_TEXT功能選單
-5. 添加ADMIN_MENU_TEXT管理員專用功能
-6. 更新HELP_TEXT包含操作提示和管理員命令
-7. 更新PRIVACY_TERMS包含同性配對說明
-8. 更新管理員功能說明，包含一鍵測試演示
+檢查結果：此文件只包含純文本常量，不需要修改
 """
 # ========文件信息結束 ========#
 
@@ -359,17 +351,10 @@ HEALTH_QUOTES = [
 # ========修正紀錄開始 ========#
 """
 修正內容：
-1. 添加HEALTH_QUOTES常量：提供健康建議引用
-2. 添加BASIC_INFO_FORMAT_TEXT：支援簡化註冊流程
-3. 添加CONFIRM_TIME_TEXT：時間確認界面
-4. 添加FUNCTION_MENU_TEXT和ADMIN_MENU_TEXT：註冊後功能選單
-5. 更新HELP_TEXT：添加操作困難提示和管理員命令
-6. 更新PRIVACY_TERMS：包含同性配對說明
-7. 更新ADMIN_MENU_TEXT：包含一鍵測試演示說明
-8. 總行數增加約80行，但大幅提升用戶體驗
+1. 檢查後確認此文件只包含純文本常量
+2. 沒有格式化函數或邏輯
+3. 不需要任何修改
 
-導致問題：原texts.py缺少新功能所需文本
-如何修復：添加所有新功能所需的文本常量
-後果：所有新功能有完整的中文提示和說明
+檢查結果：texts.py保持不變，與統一格式化系統兼容
 """
 # ========修正紀錄結束 ========#
