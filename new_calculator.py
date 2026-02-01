@@ -1167,13 +1167,13 @@ class BaziCalculator:
                         spouse_count += 1
         
         if spouse_count == 0:
-            return "無夫妻星", "none"
+            return "無夫妻星", "無"
         elif spouse_count == 1:
-            return "夫妻星單一", "weak"
+            return "夫妻星單一", "弱"
         elif spouse_count == 2:
-            return "夫妻星明顯", "medium"
+            return "夫妻星明顯", "中"
         else:
-            return "夫妻星旺盛", "strong"
+            return "夫妻星旺盛", "強"
     
     @staticmethod
     def _analyze_spouse_palace(bazi_data: Dict) -> Tuple[str, float]:

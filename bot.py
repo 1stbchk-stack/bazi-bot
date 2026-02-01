@@ -1156,7 +1156,7 @@ async def match(update, context):
             LIMIT 100
         """
         
-        cur.execute(query, (internal_user_id, internal_user_id, internal_user_id, gender_param))
+        cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
         rows = cur.fetchall()
     
     if not rows:
