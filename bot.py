@@ -1821,7 +1821,7 @@ async def admin_test_command(update, context):
         from admin_service import AdminService
         admin_service = AdminService()
         results = await admin_service.run_admin_tests()
-        formatted = admin_service.format_test_results(results)
+        formatted = admin_service.format_test_results_pro(results)
         
         # 分批發送長消息
         if len(formatted) > 4000:
