@@ -12,7 +12,7 @@ from new_calculator import (
     BaziCalculator,
     calculate_match,
     ScoringEngine,
-    Config,
+    ProfessionalConfig as Config,
     BaziFormatters
 )
 
@@ -77,141 +77,141 @@ class SystemStats:
 ADMIN_TEST_CASES = [
     {
         "description": "測試案例1：基礎平衡型（五行中和、無明顯沖合）",
-        "bazi_data1": {"year": 1989, "month": 4, "day": 12, "hour": 11, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 6, "day": 18, "hour": 13, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1989, "month": 4, "day": 12, "hour": 11, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 18, "hour": 13, "gender": "女", "hour_confidence": "高"},
         "expected_range": (60, 75),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例2：天干五合單因子（乙庚合金，日柱明顯）",
-        "bazi_data1": {"year": 1990, "month": 10, "day": 10, "hour": 10, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1991, "month": 11, "day": 11, "hour": 11, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 10, "day": 10, "hour": 10, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1991, "month": 11, "day": 11, "hour": 11, "gender": "女", "hour_confidence": "高"},
         "expected_range": (70, 82),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例3：日支六沖純負例（子午沖，宮位重創）",
-        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (35, 48),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例4：紅鸞天喜組合（神煞強輔助）",
-        "bazi_data1": {"year": 1985, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1986, "month": 8, "day": 15, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1985, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1986, "month": 8, "day": 15, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (75, 85),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例5：喜用神強互補（金木互濟，濃度高）",
-        "bazi_data1": {"year": 1990, "month": 1, "day": 5, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1988, "month": 5, "day": 9, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 1, "day": 5, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1988, "month": 5, "day": 9, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (70, 82),
         "expected_model": "供求型",
     },
     {
         "description": "測試案例6：多重刑沖無解（寅巳申三刑）",
-        "bazi_data1": {"year": 1992, "month": 6, "day": 6, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1992, "month": 12, "day": 6, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1992, "month": 6, "day": 6, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1992, "month": 12, "day": 6, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (30, 45),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例7：年齡差距大但結構穩（供求型）",
-        "bazi_data1": {"year": 1975, "month": 3, "day": 9, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1995, "month": 4, "day": 11, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1975, "month": 3, "day": 9, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1995, "month": 4, "day": 11, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (58, 70),
         "expected_model": "供求型",
     },
     {
         "description": "測試案例8：相同八字（伏吟大忌）",
-        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (50, 65),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例9：六合解沖（子午沖遇丑合）",
-        "bazi_data1": {"year": 1984, "month": 12, "day": 15, "hour": 2, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1984, "month": 12, "day": 15, "hour": 2, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (60, 75),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例10：全面優質組合（無滿分，師傅級）",
-        "bazi_data1": {"year": 1988, "month": 8, "day": 8, "hour": 8, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1989, "month": 9, "day": 9, "hour": 9, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1988, "month": 8, "day": 8, "hour": 8, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1989, "month": 9, "day": 9, "hour": 9, "gender": "女", "hour_confidence": "高"},
         "expected_range": (82, 92),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例11：現代案例 - 合理範圍",
-        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "medium"},
-        "bazi_data2": {"year": 2001, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "medium"},
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "中"},
+        "bazi_data2": {"year": 2001, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "中"},
         "expected_range": (55, 75),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例12：高分但為供求型",
-        "bazi_data1": {"year": 1980, "month": 3, "day": 15, "hour": 10, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 14, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1980, "month": 3, "day": 15, "hour": 10, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 14, "gender": "女", "hour_confidence": "高"},
         "expected_range": (68, 78),
         "expected_model": "供求型",
     },
     {
         "description": "測試案例13：邊緣時辰不確定（子時邊界 + 喜用互補）",
-        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 23, "gender": "男", "hour_confidence": "low"},
-        "bazi_data2": {"year": 2001, "month": 6, "day": 15, "hour": 0, "gender": "女", "hour_confidence": "low"},
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 23, "gender": "男", "hour_confidence": "低"},
+        "bazi_data2": {"year": 2001, "month": 6, "day": 15, "hour": 0, "gender": "女", "hour_confidence": "低"},
         "expected_range": (55, 70),
         "expected_model": "供求型",
     },
     {
         "description": "測試案例14：經緯度差異 + 能量救應（香港 vs 北京）",
-        "bazi_data1": {"year": 2005, "month": 4, "day": 4, "hour": 12, "gender": "男", "hour_confidence": "high", "longitude": 114.17},
-        "bazi_data2": {"year": 2006, "month": 5, "day": 5, "hour": 12, "gender": "女", "hour_confidence": "high", "longitude": 116.4},
+        "bazi_data1": {"year": 2005, "month": 4, "day": 4, "hour": 12, "gender": "男", "hour_confidence": "高", "longitude": 114.17},
+        "bazi_data2": {"year": 2006, "month": 5, "day": 5, "hour": 12, "gender": "女", "hour_confidence": "高", "longitude": 116.4},
         "expected_range": (60, 72),
         "expected_model": "供求型",
     },
     {
         "description": "測試案例15：極端刑沖 + 無化解（多柱刑害）",
-        "bazi_data1": {"year": 1990, "month": 3, "day": 3, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 9, "day": 3, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 3, "day": 3, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 9, "day": 3, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (25, 40),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例16：時辰模糊 + 格局特殊（估算時辰）",
-        "bazi_data1": {"year": 1990, "month": 6, "day": 16, "hour": 12, "gender": "男", "hour_confidence": "estimated"},
-        "bazi_data2": {"year": 1991, "month": 7, "day": 17, "hour": 12, "gender": "女", "hour_confidence": "estimated"},
+        "bazi_data1": {"year": 1990, "month": 6, "day": 16, "hour": 12, "gender": "男", "hour_confidence": "估算"},
+        "bazi_data2": {"year": 1991, "month": 7, "day": 17, "hour": 12, "gender": "女", "hour_confidence": "估算"},
         "expected_range": (55, 68),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例17：中等配對（一般緣分）",
-        "bazi_data1": {"year": 1995, "month": 5, "day": 15, "hour": 14, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1996, "month": 8, "day": 20, "hour": 16, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1995, "month": 5, "day": 15, "hour": 14, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1996, "month": 8, "day": 20, "hour": 16, "gender": "女", "hour_confidence": "高"},
         "expected_range": (50, 65),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例18：良好配對（有發展潛力）",
-        "bazi_data1": {"year": 1988, "month": 12, "day": 25, "hour": 8, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1989, "month": 6, "day": 18, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1988, "month": 12, "day": 25, "hour": 8, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1989, "month": 6, "day": 18, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (65, 78),
         "expected_model": "平衡型",
     },
     {
         "description": "測試案例19：低分警告（需要謹慎）",
-        "bazi_data1": {"year": 1990, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 1990, "month": 8, "day": 14, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 1990, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 1990, "month": 8, "day": 14, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (40, 55),
         "expected_model": "混合型",
     },
     {
         "description": "測試案例20：邊緣合格（剛好及格）",
-        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
-        "bazi_data2": {"year": 2000, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
+        "bazi_data2": {"year": 2000, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (55, 70),
         "expected_model": "混合型",
     }
@@ -358,10 +358,10 @@ class AdminService:
         """從配對結果中正確提取分數細項 - 修復版本"""
         try:
             module_scores = match_result.get('module_scores', {})
-            debug_info = match_result.get('debug_info', {})
+            score_details = match_result.get('score_details', {})
             
-            # 基準分從debug_info獲取，如無則使用60
-            base_score = debug_info.get('base_score', 60)
+            # 基準分從score_details獲取，如無則使用50
+            base_score = score_details.get('base_score', 50)
             
             # 提取各模組分數
             energy = module_scores.get('energy_rescue', 0)
@@ -456,7 +456,7 @@ class AdminService:
                 cur.execute("SELECT AVG(score) FROM matches WHERE score > 0")
                 avg_score = float(cur.fetchone()[0] or 0)
                 
-                # 成功率（使用60分及格線）
+                # 成功率（使用55分及格線）
                 cur.execute("""
                     SELECT COUNT(*) FROM matches 
                     WHERE user_a_accepted = 1 AND user_b_accepted = 1 AND score >= %s
@@ -745,7 +745,7 @@ class AdminService:
                 top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
             text += " ".join(top_texts) + "\n"
         
-        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
         
         return text
     
@@ -786,12 +786,21 @@ class AdminService:
 - bot.py (主程序)
 
 主要修改：
-1. 整合test_cases.py中的測試案例數據
-2. 修復格式化顯示問題，改進測試結果顯示格式
-3. 修改測試結果顯示格式，包含兩人四柱和類型
-4. 保持所有測試功能與新的評分系統兼容
+1. 修正導入語句：使用 ProfessionalConfig as Config
+2. 修正分數細項提取邏輯：從score_details獲取基準分
+3. 統一常量引用：使用 THRESHOLD_CONTACT_ALLOWED 代替硬編碼值
+4. 修正測試案例信心度參數：使用"高/中/低/估算"格式
+5. 保持測試功能與新的評分系統兼容
 
 修改記錄：
+2026-02-03 第四次修正：
+1. 修正導入語句：使用 ProfessionalConfig as Config
+2. 修正分數細項提取邏輯：從score_details獲取基準分，而不是debug_info
+3. 修正測試案例信心度參數：使用"高/中/低/估算"格式，符合new_calculator.py標準
+4. 統一常量引用：使用 THRESHOLD_CONTACT_ALLOWED 代替硬編碼的60分
+5. 修正日期格式化錯誤：%Y-%m-d 修正為 %Y-%m-%d
+6. 保持所有測試功能正常運作，與新的評分系統兼容
+
 2026-02-02 第三次修正：
 1. 修改_test_run_single_test方法，正確提取八字四柱
 2. 修改_format_single_test_result方法，顯示兩人四柱和類型
@@ -808,7 +817,7 @@ class AdminService:
 
 累積修正：
 - 更新常數引用以匹配new_calculator.py的修改
-- 調整分數細項提取，基準分從debug_info獲取
+- 調整分數細項提取，基準分從score_details獲取
 - 修復日期格式化錯誤
 - 保持所有測試功能正常運作
 - 符合繁體中文要求

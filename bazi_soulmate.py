@@ -1,4 +1,4 @@
-# ========1.6 Find Soulmate 功能開始 ========#
+# ========1.1 Find Soulmate 功能開始 ========#
 import json
 import random
 import logging
@@ -7,9 +7,10 @@ from typing import Dict, List, Any, Optional
 
 # 導入計算核心
 from new_calculator import (
-    BaziCalculator,
     calculate_match,
-    Config
+    calculate_bazi,
+    ProfessionalConfig,
+    ScoringEngine
 )
 
 logger = logging.getLogger(__name__)
@@ -103,11 +104,10 @@ class SoulmateFinder:
         target_day_branch = target_day_pillar[1] if len(target_day_pillar) >= 2 else ''
         
         # 檢查地支六沖
-        from new_calculator import ScoringEngine
-        if ScoringEngine.is_clash(user_day_branch, target_day_branch):
+        if ScoringEngine._is_branch_clash(user_day_branch, target_day_branch):
             # 檢查是否有解藥（六合）
             has_remedy = False
-            if ScoringEngine.is_branch_harmony(user_day_branch, target_day_branch):
+            if ScoringEngine._is_branch_six_harmony(user_day_branch, target_day_branch):
                 has_remedy = True
             
             if not has_remedy:
@@ -214,7 +214,7 @@ class SoulmateFinder:
             hour = random.randint(0, 23)
             
             try:
-                target_bazi = BaziCalculator.calculate(
+                target_bazi = calculate_bazi(
                     year, month, day, hour, 
                     gender=user_gender,
                     hour_confidence='高'
@@ -325,7 +325,7 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 4. **時間信心度**：搜尋結果為理論最佳，實際應用時需考慮時間精度"""
     
     return text
-# ========1.6 Find Soulmate 功能結束 ========#
+# ========1.1 Find Soulmate 功能結束 ========#
 
 # ========文件信息開始 ========#
 """
@@ -336,12 +336,19 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 被引用文件: bot.py (主程序)
 
 主要修改：
-1. 更新格局類型引用：cong_ge_type -> pattern_type
-2. 調整大運影響分數，遵守ChatGPT建議（不超過±5分）
-3. 調整最終分數範圍為10-98分
-4. 移除對ScoringEngine常量的直接引用，改用方法調用
+1. 修正導入語句：從 new_calculator 正確導入 ProfessionalConfig 和 ScoringEngine
+2. 更新格局類型引用：cong_ge_type -> pattern_type
+3. 調整大運影響分數，遵守ChatGPT建議（不超過±5分）
+4. 調整最終分數範圍為10-98分
+5. 修正ScoringEngine方法調用：使用正確的方法名
 
 修改記錄：
+2026-02-03 本次修正：
+1. 修正導入語句：從 `from new_calculator import Config` 改為 `from new_calculator import ProfessionalConfig, ScoringEngine`
+2. 修正ScoringEngine方法調用：`ScoringEngine.is_clash()` 改為 `ScoringEngine._is_branch_clash()`
+3. 修正ScoringEngine方法調用：`ScoringEngine.is_branch_harmony()` 改為 `ScoringEngine._is_branch_six_harmony()`
+4. 修正八字計算函數調用：`BaziCalculator.calculate()` 改為 `calculate_bazi()`
+
 2026-02-02 本次修正：
 1. 更新格局類型字段名稱
 2. 遵守大運影響上限（±5分）
@@ -352,6 +359,6 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 
 # ========目錄開始 ========#
 """
-1.6 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
+1.1 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
 """
 # ========目錄結束 ========#
