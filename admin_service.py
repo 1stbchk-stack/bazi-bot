@@ -53,12 +53,12 @@ class TestResult:
     model: str
     expected_model: str
     model_match: bool
-    birth1: str = ""
-    birth2: str = ""
+    pillars1: str = ""
+    pillars2: str = ""
     range_str: str = ""
     error: str = ""
     details: List[str] = None
-    score_details: str = ""
+    calculation_details: str = ""
 
 @dataclass
 class SystemStats:
@@ -94,7 +94,7 @@ ADMIN_TEST_CASES = [
         "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (35, 48),
-        "expected_model": "混合型",
+        "expected_model": "忌避型",
     },
     {
         "description": "測試案例4：紅鸞天喜組合（神煞強輔助）",
@@ -108,35 +108,35 @@ ADMIN_TEST_CASES = [
         "bazi_data1": {"year": 1990, "month": 1, "day": 5, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1988, "month": 5, "day": 9, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (70, 82),
-        "expected_model": "供求型",
+        "expected_model": "穩定型",
     },
     {
         "description": "測試案例6：多重刑沖無解（寅巳申三刑）",
         "bazi_data1": {"year": 1992, "month": 6, "day": 6, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1992, "month": 12, "day": 6, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (30, 45),
-        "expected_model": "混合型",
+        "expected_model": "忌避型",
     },
     {
         "description": "測試案例7：年齡差距大但結構穩（供求型）",
         "bazi_data1": {"year": 1975, "month": 3, "day": 9, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1995, "month": 4, "day": 11, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (58, 70),
-        "expected_model": "供求型",
+        "expected_model": "穩定型",
     },
     {
         "description": "測試案例8：相同八字（伏吟大忌）",
         "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (50, 65),
-        "expected_model": "混合型",
+        "expected_model": "忌避型",
     },
     {
         "description": "測試案例9：六合解沖（子午沖遇丑合）",
         "bazi_data1": {"year": 1984, "month": 12, "day": 15, "hour": 2, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (60, 75),
-        "expected_model": "平衡型",
+        "expected_model": "磨合型",
     },
     {
         "description": "測試案例10：全面優質組合（無滿分，師傅級）",
@@ -150,70 +150,70 @@ ADMIN_TEST_CASES = [
         "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "中"},
         "bazi_data2": {"year": 2001, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "中"},
         "expected_range": (55, 75),
-        "expected_model": "平衡型",
+        "expected_model": "磨合型",
     },
     {
         "description": "測試案例12：高分但為供求型",
         "bazi_data1": {"year": 1980, "month": 3, "day": 15, "hour": 10, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 14, "gender": "女", "hour_confidence": "高"},
         "expected_range": (68, 78),
-        "expected_model": "供求型",
+        "expected_model": "穩定型",
     },
     {
         "description": "測試案例13：邊緣時辰不確定（子時邊界 + 喜用互補）",
         "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 23, "gender": "男", "hour_confidence": "低"},
         "bazi_data2": {"year": 2001, "month": 6, "day": 15, "hour": 0, "gender": "女", "hour_confidence": "低"},
         "expected_range": (55, 70),
-        "expected_model": "供求型",
+        "expected_model": "磨合型",
     },
     {
         "description": "測試案例14：經緯度差異 + 能量救應（香港 vs 北京）",
         "bazi_data1": {"year": 2005, "month": 4, "day": 4, "hour": 12, "gender": "男", "hour_confidence": "高", "longitude": 114.17},
         "bazi_data2": {"year": 2006, "month": 5, "day": 5, "hour": 12, "gender": "女", "hour_confidence": "高", "longitude": 116.4},
         "expected_range": (60, 72),
-        "expected_model": "供求型",
+        "expected_model": "穩定型",
     },
     {
         "description": "測試案例15：極端刑沖 + 無化解（多柱刑害）",
         "bazi_data1": {"year": 1990, "month": 3, "day": 3, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 9, "day": 3, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (25, 40),
-        "expected_model": "混合型",
+        "expected_model": "忌避型",
     },
     {
         "description": "測試案例16：時辰模糊 + 格局特殊（估算時辰）",
         "bazi_data1": {"year": 1990, "month": 6, "day": 16, "hour": 12, "gender": "男", "hour_confidence": "估算"},
         "bazi_data2": {"year": 1991, "month": 7, "day": 17, "hour": 12, "gender": "女", "hour_confidence": "估算"},
         "expected_range": (55, 68),
-        "expected_model": "混合型",
+        "expected_model": "磨合型",
     },
     {
         "description": "測試案例17：中等配對（一般緣分）",
         "bazi_data1": {"year": 1995, "month": 5, "day": 15, "hour": 14, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1996, "month": 8, "day": 20, "hour": 16, "gender": "女", "hour_confidence": "高"},
         "expected_range": (50, 65),
-        "expected_model": "混合型",
+        "expected_model": "磨合型",
     },
     {
         "description": "測試案例18：良好配對（有發展潛力）",
         "bazi_data1": {"year": 1988, "month": 12, "day": 25, "hour": 8, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1989, "month": 6, "day": 18, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (65, 78),
-        "expected_model": "平衡型",
+        "expected_model": "穩定型",
     },
     {
         "description": "測試案例19：低分警告（需要謹慎）",
         "bazi_data1": {"year": 1990, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 1990, "month": 8, "day": 14, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (40, 55),
-        "expected_model": "混合型",
+        "expected_model": "問題型",
     },
     {
         "description": "測試案例20：邊緣合格（剛好及格）",
         "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "高"},
         "bazi_data2": {"year": 2000, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "高"},
         "expected_range": (55, 70),
-        "expected_model": "混合型",
+        "expected_model": "磨合型",
     }
 ]
 
@@ -239,7 +239,7 @@ class AdminService:
     
     # ========2.1 測試功能開始 ========#
     async def run_admin_tests(self) -> Dict[str, Any]:
-        """運行管理員測試案例 - 採用極簡格式"""
+        """運行管理員測試案例 - 採用專業格式"""
         
         results = {
             'total': len(ADMIN_TEST_CASES),
@@ -248,15 +248,15 @@ class AdminService:
             'errors': 0,
             'success_rate': 0.0,
             'details': [],
-            'formatted_results': []  # 極簡格式結果
+            'formatted_results': []  # 專業格式結果
         }
         
         for i, test_case in enumerate(ADMIN_TEST_CASES, 1):
             test_result = await self._run_single_test(i, test_case)
             results['details'].append(test_result.__dict__)
             
-            # 生成極簡格式結果
-            formatted_result = self._format_single_test_result(test_result)
+            # 生成專業格式結果
+            formatted_result = self._format_single_test_result_pro(test_result)
             results['formatted_results'].append(formatted_result)
             
             if test_result.status == 'PASS':
@@ -272,9 +272,9 @@ class AdminService:
         return results
     
     async def _run_single_test(self, test_id: int, test_case: Dict) -> TestResult:
-        """運行單個測試案例 - 修正函數調用"""
+        """運行單個測試案例"""
         try:
-            # 提取出生時間信息用於顯示
+            # 提取出生時間信息
             bazi_data1 = test_case['bazi_data1']
             bazi_data2 = test_case['bazi_data2']
             
@@ -300,7 +300,7 @@ class AdminService:
             logger.info(f"測試案例 {test_id}: 計算八字1 - {year1}/{month1}/{day1} {hour1}:00, 性別: {gender1}, 信心度: {hour_confidence1}")
             logger.info(f"測試案例 {test_id}: 計算八字2 - {year2}/{month2}/{day2} {hour2}:00, 性別: {gender2}, 信心度: {hour_confidence2}")
             
-            # 修正：使用對外接口 calculate_bazi 而不是 ProfessionalBaziCalculator.calculate
+            # 修正：使用對外接口 calculate_bazi
             try:
                 bazi1 = calculate_bazi(
                     year=year1,
@@ -334,8 +334,12 @@ class AdminService:
             if not bazi2:
                 raise ValueError("八字2計算返回空數據")
             
-            logger.info(f"測試案例 {test_id}: 八字1計算完成 - {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}")
-            logger.info(f"測試案例 {test_id}: 八字2計算完成 - {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}")
+            # 獲取四柱用於顯示
+            pillars1 = f"{bazi1.get('year_pillar', '')}{bazi1.get('month_pillar', '')}{bazi1.get('day_pillar', '')}{bazi1.get('hour_pillar', '')}"
+            pillars2 = f"{bazi2.get('year_pillar', '')}{bazi2.get('month_pillar', '')}{bazi2.get('day_pillar', '')}{bazi2.get('hour_pillar', '')}"
+            
+            logger.info(f"測試案例 {test_id}: 八字1計算完成 - {pillars1}")
+            logger.info(f"測試案例 {test_id}: 八字2計算完成 - {pillars2}")
             
             # 配對計算 - 使用對外接口 calculate_match
             try:
@@ -362,8 +366,8 @@ class AdminService:
             expected_model = test_case.get('expected_model', '')
             model_match = model == expected_model
             
-            # 提取分數細項（用於極簡格式）
-            score_details = self._extract_score_details_correct(match_result)
+            # 提取計算細節
+            calculation_details = self._extract_calculation_details(match_result)
             
             # 生成詳細信息
             details = [
@@ -371,10 +375,6 @@ class AdminService:
                 f"模型: {model} (預期: {expected_model})",
                 f"評級: {match_result.get('rating', '未知')}"
             ]
-            
-            # 提取八字四柱用於顯示
-            pillars1 = f"{bazi1.get('year_pillar', '')}{bazi1.get('month_pillar', '')}{bazi1.get('day_pillar', '')}{bazi1.get('hour_pillar', '')}"
-            pillars2 = f"{bazi2.get('year_pillar', '')}{bazi2.get('month_pillar', '')}{bazi2.get('day_pillar', '')}{bazi2.get('hour_pillar', '')}"
             
             return TestResult(
                 test_id=test_id,
@@ -385,11 +385,11 @@ class AdminService:
                 model=model,
                 expected_model=expected_model,
                 model_match=model_match,
-                birth1=pillars1,
-                birth2=pillars2,
+                pillars1=pillars1,
+                pillars2=pillars2,
                 range_str=range_str,
                 details=details,
-                score_details=score_details
+                calculation_details=calculation_details
             )
             
         except Exception as e:
@@ -407,70 +407,69 @@ class AdminService:
                 range_str=f"{test_case['expected_range'][0]}-{test_case['expected_range'][1]}"
             )
     
-    def _extract_score_details_correct(self, match_result: Dict) -> str:
-        """從配對結果中正確提取分數細項 - 修復版本"""
+    def _extract_calculation_details(self, match_result: Dict) -> str:
+        """從配對結果中提取計算細節"""
         try:
-            module_scores = match_result.get('module_scores', {})
-            score_details = match_result.get('score_details', {})
+            ceiling = match_result.get('ceiling', 90)
+            ceiling_reason = match_result.get('ceiling_reason', '無硬忌')
+            pressure_score = match_result.get('pressure_score', 0)
+            rescue_percent = match_result.get('rescue_percent', 0)
+            structure_score = match_result.get('structure_score', 0)
+            shen_sha_score = match_result.get('shen_sha_score', 0)
             
-            # 基準分從score_details獲取，如無則使用50
-            base_score = score_details.get('base_score', 50)
+            # 計算實際刑沖
+            effective_pressure = pressure_score * (1 - rescue_percent)
             
-            # 提取各模組分數
-            energy = module_scores.get('energy_rescue', 0)
-            structure = module_scores.get('structure_core', 0)
-            shensha = module_scores.get('shen_sha_bonus', 0)
-            resolution = module_scores.get('resolution_bonus', 0)
-            personality = module_scores.get('personality_risk', 0)
-            pressure = module_scores.get('pressure_penalty', 0)
-            dayun = module_scores.get('dayun_risk', 0)
+            # 構建計算細節字符串
+            details_parts = []
             
-            # 計算正向加分和負向扣分
-            positive_bonus = energy + structure + shensha + resolution
-            negative_penalty = personality + pressure + dayun
+            # 日柱信息
+            if "六沖" in ceiling_reason:
+                details_parts.append(f"日柱：日支六沖（天花{ceiling}）")
+            elif "六害" in ceiling_reason:
+                details_parts.append(f"日柱：日支六害（天花{ceiling}）")
+            elif "伏吟" in ceiling_reason:
+                details_parts.append(f"日柱：伏吟（天花{ceiling}）")
+            elif "多重" in ceiling_reason:
+                details_parts.append(f"日柱：多重刑沖（天花{ceiling}）")
+            else:
+                details_parts.append(f"日柱：無硬忌（天花{ceiling}）")
             
-            # 構建細項字符串
-            details = []
+            # 刑沖信息
+            if pressure_score < 0:
+                if rescue_percent > 0:
+                    details_parts.append(f"刑沖：{abs(pressure_score):.1f} → 救應減{rescue_percent*100:.0f}%＝{abs(effective_pressure):.1f}")
+                else:
+                    details_parts.append(f"刑沖：{abs(pressure_score):.1f}")
+            else:
+                details_parts.append("刑沖：0")
             
-            # 基準分
-            details.append(f"基準分:{base_score}")
+            # 結構核心
+            if structure_score > 0:
+                details_parts.append(f"結構：＋{structure_score:.1f}")
+            else:
+                details_parts.append("結構：0")
             
-            # 正向加分
-            if positive_bonus > 0:
-                details.append(f"+{positive_bonus:.0f}")
+            # 輔助分
+            if shen_sha_score > 0:
+                details_parts.append(f"輔助：＋{shen_sha_score:.1f}")
+            else:
+                details_parts.append("輔助：0")
             
-            # 負向扣分
-            if negative_penalty < 0:
-                details.append(f"{negative_penalty:.0f}")
+            # 最終計算
+            raw_score = ceiling + effective_pressure + structure_score + shen_sha_score
+            mapped_score = match_result.get('score', 0)
             
-            # 詳細模組分數
-            mod_details = []
-            if energy != 0:
-                mod_details.append(f"能量:{energy:+.0f}")
-            if structure != 0:
-                mod_details.append(f"結構:{structure:+.0f}")
-            if shensha != 0:
-                mod_details.append(f"神煞:{shensha:+.0f}")
-            if resolution != 0:
-                mod_details.append(f"化解:{resolution:+.0f}")
-            if personality != 0:
-                mod_details.append(f"人格:{personality:+.0f}")
-            if pressure != 0:
-                mod_details.append(f"刑沖:{pressure:+.0f}")
-            if dayun != 0:
-                mod_details.append(f"大運:{dayun:+.0f}")
+            details_parts.append(f"最終：{ceiling}−{abs(effective_pressure):.1f}+{structure_score:.1f}+{shen_sha_score:.1f}={raw_score:.1f} → {mapped_score:.1f}")
             
-            if mod_details:
-                details.append("(" + " ".join(mod_details) + ")")
-            
-            return " ".join(details)
+            return ", ".join(details_parts)
             
         except Exception as e:
-            logger.error(f"提取分數細項失敗: {e}")
-            return "分數細項提取失敗"
+            logger.error(f"提取計算細節失敗: {e}")
+            return "計算細節提取失敗"
     
-    def _format_single_test_result(self, test_result: TestResult) -> str:
-        """格式化單個測試結果為極簡格式 - 已修復格式化問題"""
+    def _format_single_test_result_pro(self, test_result: TestResult) -> str:
+        """格式化單個測試結果為專業格式"""
         status_emoji = {
             'PASS': '✅',
             'FAIL': '❌',
@@ -484,14 +483,25 @@ class AdminService:
         else:
             test_type = test_result.description
         
-        # 修復：使用正確的四柱顯示
-        birth1_display = test_result.birth1[:8] if test_result.birth1 else "未知"
-        birth2_display = test_result.birth2[:8] if test_result.birth2 else "未知"
-        
-        # 極簡格式：包含兩人四柱、類型、分數和分數細項
-        formatted = f"{birth1_display} {birth2_display},{test_type},分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji} {test_result.score_details}"
+        # 專業格式：包含兩人四柱、類型、分數和計算細節
+        formatted = f"{test_result.test_id}. {test_result.pillars1} ↔ {test_result.pillars2},{test_type},分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji} {test_result.calculation_details}"
         
         return formatted
+    
+    def format_test_results_pro(self, results: Dict[str, Any]) -> str:
+        """格式化測試結果 - 專業格式"""
+        text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
+        text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} (成功率: {results['success_rate']:.1f}%)\n\n"
+        
+        # 詳細結果（專業格式）
+        for formatted_result in results['formatted_results']:
+            text += formatted_result + "\n"
+        
+        # 總結
+        text += f"\n🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤"
+        text += f" 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        
+        return text
     # ========2.1 測試功能結束 ========#
     
     # ========2.2 系統統計開始 ========#
@@ -711,7 +721,7 @@ class AdminService:
             return {'name': '數據庫讀寫', 'status': 'ERROR', 'message': f'讀寫測試失敗: {e}'}
     
     async def _test_bazi(self) -> Dict[str, Any]:
-        """測試八字計算 - 修正函數調用"""
+        """測試八字計算"""
         try:
             bazi = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
             if bazi:
@@ -723,7 +733,7 @@ class AdminService:
             return {'name': '八字計算', 'status': 'ERROR', 'message': f'計算失敗: {e}'}
     
     async def _test_match(self) -> Dict[str, Any]:
-        """測試配對計算 - 修正函數調用"""
+        """測試配對計算"""
         try:
             bazi1 = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
             bazi2 = calculate_bazi(1991, 2, 2, 13, '女', hour_confidence='高')
@@ -739,7 +749,7 @@ class AdminService:
             return {'name': '配對計算', 'status': 'ERROR', 'message': f'計算失敗: {e}'}
     
     async def _test_core_functionality(self) -> Dict[str, Any]:
-        """測試核心功能 - 修正函數調用"""
+        """測試核心功能"""
         try:
             bazi = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
             bazi2 = calculate_bazi(1991, 2, 2, 13, '女', hour_confidence='高')
@@ -756,8 +766,8 @@ class AdminService:
                 features.append("配對結果格式化")
             if match_result.get('relationship_model'):
                 features.append("關係模型分析")
-            if match_result.get('module_scores'):
-                features.append("模組評分系統")
+            if match_result.get('calculation_details'):
+                features.append("判斷流程計算")
             
             return {
                 'name': '核心功能', 
@@ -769,21 +779,6 @@ class AdminService:
     # ========2.3 一鍵快速測試結束 ========#
     
     # ========2.4 格式化功能開始 ========#
-    def format_test_results(self, results: Dict[str, Any]) -> str:
-        """格式化測試結果 - 極簡格式"""
-        text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
-        text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} (成功率: {results['success_rate']:.1f}%)\n"
-        
-        # 詳細結果（極簡格式）
-        for formatted_result in results['formatted_results']:
-            text += "#" + formatted_result + "\n"
-        
-        # 總結
-        text += f"\n🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤"
-        text += f" 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        
-        return text
-    
     def format_system_stats(self, stats: SystemStats) -> str:
         """格式化系統統計"""
         text = f"📈 系統統計報告\n"
@@ -805,7 +800,7 @@ class AdminService:
                 top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
             text += " ".join(top_texts) + "\n"
         
-        # 修復日期格式化：%Y-%m-d → %Y-%m-%d
+        # 修復日期格式化
         text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
@@ -838,58 +833,19 @@ class AdminService:
 # ========文件信息開始 ========#
 """
 文件: admin_service.py
-功能: 管理員服務模組，處理管理員專用功能
-
-引用文件: 
-- new_calculator.py (八字計算核心)
-
-被引用文件:
-- bot.py (主程序)
+功能: 管理員服務模組，處理管理員專用功能（判斷流程制版本）
 
 主要修改：
-1. 修正了所有調用ProfessionalBaziCalculator.calculate的地方，改為調用calculate_bazi函數
-2. 在_run_single_test、_test_bazi、_test_match和_test_core_functionality函數中修正了八字計算調用
-3. 添加了詳細的錯誤處理和日誌記錄
-4. 修復了 _format_single_test_result 方法中的格式化問題
-5. 修復了 format_system_stats 方法中的日期格式化錯誤
+1. 適配全新的判斷流程制評分引擎
+2. 測試結果輸出格式改為專業格式，包含詳細計算過程
+3. 修復了所有函數調用問題
+4. 更新了測試案例的預期模型
 
-修改記錄：
-2026-02-03 修正函數調用錯誤：
-1. 修正導入語句：使用calculate_bazi和calculate_match對外接口
-2. 修正_run_single_test函數中的調用方式：使用calculate_bazi而不是ProfessionalBaziCalculator.calculate
-3. 修正_test_bazi函數中的調用方式
-4. 修正_test_match函數中的調用方式
-5. 修正_test_core_functionality函數中的調用方式
-6. 修復 _format_single_test_result 方法中四柱顯示的問題
-7. 修復 format_system_stats 方法中的日期格式化錯誤（%Y-%m-d → %Y-%m-%d）
+測試結果格式示例：
+6. 乙丑戊子庚申壬午 ↔ 辛未癸巳乙丑丁亥,紅鸞天喜組合（神煞強輔助）,分數:58.0 (預期:75-85) ❌ 日柱：無硬忌（天花90）,刑沖：13 → 救應減20%＝10.4,結構：0,輔助：＋4.0, 最終：90−10.4+4.0=83.6 → 58
 
-問題原因：
-原錯誤信息：type object 'ProfessionalBaziCalculator' has no attribute 'calculate'
-原因：ProfessionalBaziCalculator類只有calculate_pro方法，沒有calculate方法
-解決：使用calculate_bazi函數，這是new_calculator.py提供的外部接口
+7. 丙寅庚寅戊寅甲寅 ↔ 壬申甲申丙申戊申,寅申沖 + 年齡差距大,分數:42.0 (預期:58-70) ❌ 日柱：寅申沖（天花60）,刑沖：29 → 減20%＝23.2, 結構：＋5, 輔助：0, 最終：60−23.2+5=41.8 → 42
 
-2026-02-03 第一次修正：
-1. 修正函數調用錯誤：ProfessionalBaziCalculator.calculate()不存在
-2. 使用new_calculator.py提供的對外接口calculate_bazi()
-3. 保持所有測試案例邏輯不變
-
-2026-02-03 第二次修正：
-1. 修復 _format_single_test_result 方法中的四柱顯示問題
-2. 修復 format_system_stats 方法中的日期格式化錯誤
+8. 庚午庚午庚午庚午 ↔ 庚午庚午庚午庚午,相同八字（伏吟大忌）,分數:35.0 (預期:50-65) ❌ 日柱：伏吟（天花60）,刑沖：33 → 減10%＝29.7, 結構：＋5, 輔助：0, 最終：60−29.7+5=35.3 → 35
 """
 # ========文件信息結束 ========#
-
-# ========目錄開始 ========#
-"""
-目錄:
-1.1 導入模組 - 導入所需庫和模組
-1.2 數據庫連接 - 獲取數據庫連接
-1.3 數據類 - TestResult和SystemStats數據類定義
-1.4 測試案例數據 - ADMIN_TEST_CASES和輔助函數
-1.5 AdminService類 - 主服務類
-  2.1 測試功能 - 運行管理員測試案例（極簡格式）
-  2.2 系統統計 - 獲取系統統計數據
-  2.3 一鍵快速測試 - 系統健康檢查
-  2.4 格式化功能 - 各種結果的格式化輸出
-"""
-# ========目錄結束 ========#

@@ -125,10 +125,7 @@ class ProfessionalConfig:
         '亥': [('壬', 0.7, 70), ('甲', 0.3, 30)]                    # 壬水70%,甲木30%
     }
     
-    # ========== 專業評分系統配置 ==========
-    BASE_SCORE = 50        # 基準分（專業調整）
-    
-    # 評分閾值（專業級）
+    # ========== 專業評級標準 ==========
     THRESHOLD_TERMINATION = 25        # 終止線
     THRESHOLD_STRONG_WARNING = 35     # 強烈警告
     THRESHOLD_WARNING = 45            # 警告
@@ -137,126 +134,6 @@ class ProfessionalConfig:
     THRESHOLD_EXCELLENT_MATCH = 75    # 優秀配對
     THRESHOLD_PERFECT_MATCH = 85      # 完美配對
     
-    # ========== 刑沖硬傷系統（專業強化） ==========
-    DAY_CLASH_HARD_CAP = 65           # 日支沖硬上限（調整）
-    DAY_HARM_HARD_CAP = 68            # 日支害硬上限
-    MULTIPLE_CLASH_HARD_CAP = 50      # 多重刑沖硬上限
-    
-    # ========== 專業模組分數上限 ==========
-    ENERGY_RESCUE_CAP = 40           # 能量救應上限（提高）
-    STRUCTURE_CORE_CAP = 35          # 結構核心上限（提高）
-    PERSONALITY_RISK_CAP = -25       # 人格風險下限
-    PRESSURE_PENALTY_CAP = -40       # 刑沖壓力下限（提高）
-    SHEN_SHA_BONUS_CAP = 20          # 神煞加持上限（提高）
-    RESOLUTION_BONUS_CAP = 15        # 化解加成上限（提高）
-    DAYUN_RISK_CAP = -15             # 大運風險下限
-    
-    TOTAL_POSITIVE_CAP = 60          # 總正向加分上限（提高）
-    TOTAL_NEGATIVE_CAP = -35         # 總負向扣分下限（提高）
-    
-    # ========== 能量救應專業配置 ==========
-    DEMAND_MATCH_BONUS_BASE = 15     # 需求匹配基礎分
-    CONCENTRATION_BOOST_THRESHOLD = 20  # 濃度加成閾值
-    CONCENTRATION_BOOST_FACTOR = 1.5    # 濃度加成係數
-    
-    WEAK_THRESHOLD = 25              # 身弱閾值
-    EXTREME_WEAK_BONUS = 15          # 極弱救應分數
-    
-    # ========== 結構核心專業配置 ==========
-    STEM_COMBINATION_FIVE_HARMONY = 20   # 天干五合（調整）
-    STEM_COMBINATION_GENERATION = 12     # 天干相生（提高）
-    STEM_COMBINATION_SAME = 8            # 天干相同（提高）
-    
-    BRANCH_COMBINATION_SIX_HARMONY = 15  # 地支六合（調整）
-    BRANCH_COMBINATION_THREE_HARMONY = 12 # 地支三合（調整）
-    BRANCH_COMBINATION_SAME = 10         # 地支相同（提高）
-    
-    # ========== 刑沖壓力專業配置（重新設計） ==========
-    # 分級刑沖懲罰：首個-12，第二個-8，第三個起每個-4
-    BRANCH_CLASH_FIRST = -12         # 第一個六沖懲罰
-    BRANCH_CLASH_SECOND = -8         # 第二個六沖懲罰
-    BRANCH_CLASH_ADDITIONAL = -4     # 額外六沖懲罰
-    
-    BRANCH_HARM_FIRST = -8           # 第一個六害懲罰
-    BRANCH_HARM_SECOND = -5          # 第二個六害懲罰
-    BRANCH_HARM_ADDITIONAL = -3      # 額外六害懲罰
-    
-    DAY_CLASH_PENALTY = -18          # 日支沖懲罰（調整）
-    DAY_HARM_PENALTY = -12           # 日支害懲罰（調整）
-    
-    # 救應係數配置
-    SIX_HARMONY_MITIGATION = 0.6     # 六合解沖：刑沖傷害減輕60%
-    THREE_HARMONY_MITIGATION = 0.4   # 三合解沖：刑沖傷害減輕40%
-    FIVE_HARMONY_MITIGATION = 0.3    # 五合解沖：刑沖傷害減輕30%
-    RESOLUTION_MITIGATION_FACTOR = 0.15  # 每1分化解分減輕15%刑沖傷害
-    MAX_MITIGATION = 0.85            # 最大減輕85%
-    
-    # ========== 人格風險專業配置 ==========
-    PERSONALITY_RISK_PATTERNS = {
-        "傷官見官": -12,      # 傷官見官
-        "官殺混雜": -10,      # 官殺混雜
-        "財星遇劫": -8,       # 財星遇劫
-        "羊刃坐財": -6,       # 羊刃坐財
-        "梟神奪食": -6,       # 梟神奪食
-        "比劫奪財": -8,       # 比劫奪財
-        "食傷制殺": 8,        # 食傷制殺（正向）
-        "財官相生": 10,       # 財官相生（正向）
-    }
-    
-    # ========== 專業神煞系統 ==========
-    SHEN_SHA_POSITIVE = {
-        "紅鸞": 6,            # 紅鸞星（提高）
-        "天喜": 5,            # 天喜星（提高）
-        "天乙貴人": 8,        # 天乙貴人（提高）
-        "文昌": 4,            # 文昌星（提高）
-        "天德": 5,            # 天德貴人（提高）
-        "月德": 5,            # 月德貴人（提高）
-        "福星": 4,            # 福星（提高）
-        "祿神": 5,            # 祿神（提高）
-    }
-    
-    SHEN_SHA_NEGATIVE = {
-        "羊刃": -5,           # 羊刃（調整）
-        "劫煞": -4,           # 劫煞（調整）
-        "亡神": -4,           # 亡神（調整）
-        "孤辰": -3,           # 孤辰（調整）
-        "寡宿": -3,           # 寡宿（調整）
-        "陰差陽錯": -5,       # 陰差陽錯（調整）
-        "孤鸞煞": -4,         # 孤鸞煞（調整）
-        "紅艷煞": -2,         # 紅艷煞（調整）
-    }
-    
-    SHEN_SHA_COMBO_BONUS = {
-        ("紅鸞", "天喜"): 8,               # 紅鸞天喜組合（提高）
-        ("天乙貴人", "天乙貴人"): 6,       # 雙天乙貴人（提高）
-        ("文昌", "天乙貴人"): 5,           # 文昌+天乙（提高）
-        ("天德", "月德"): 6,               # 天月二德（提高）
-    }
-    
-    # ========== 專業化解系統 ==========
-    RESOLUTION_PATTERNS = {
-        "殺印相生": 10,       # 殺印相生（提高）
-        "財官相生": 8,        # 財官相生（提高）
-        "傷官生財": 7,        # 傷官生財（提高）
-        "食傷配印": 7,        # 食傷配印（提高）
-        "官印相生": 8,        # 官印相生（提高）
-        "比劫幫身": 6,        # 比劫幫身（提高）
-    }
-    
-    # ========== 關係模型專業判定 ==========
-    BALANCED_MAX_DIFF = 10        # 平衡型最大差異
-    SUPPLY_MIN_DIFF = 15          # 供求型最小差異
-    COMPLEMENTARY_MIN_SCORE = 70  # 互補型最小分數
-    
-    # ========== 專業信心度系統 ==========
-    TIME_CONFIDENCE_LEVELS = {
-        '高': 1.00,     # 精確時間，無調整
-        '中': 0.95,     # 有輕微調整
-        '低': 0.90,     # 有明顯調整
-        '估算': 0.85,   # 估算時間
-    }
-    
-    # ========== 專業評級標準 ==========
     RATING_SCALE = [
         (THRESHOLD_PERFECT_MATCH, "極品仙緣", "天作之合，互相成就，幸福美滿"),
         (THRESHOLD_EXCELLENT_MATCH, "上等婚配", "明顯互補，幸福率高，可白頭偕老"),
@@ -287,7 +164,13 @@ class ProfessionalConfig:
     @classmethod
     def get_confidence_factor(cls, confidence: str) -> float:
         """獲取信心度因子"""
-        return cls.TIME_CONFIDENCE_LEVELS.get(confidence, 0.90)
+        TIME_CONFIDENCE_LEVELS = {
+            '高': 1.00,     # 精確時間，無調整
+            '中': 0.95,     # 有輕微調整
+            '低': 0.90,     # 有明顯調整
+            '估算': 0.85,   # 估算時間
+        }
+        return TIME_CONFIDENCE_LEVELS.get(confidence, 0.90)
 
 # 創建專業配置實例
 PC = ProfessionalConfig
@@ -1163,13 +1046,13 @@ class ProfessionalBaziCalculator:
         # 檢查紅鸞
         if hong_luan_branch in all_branches:
             shen_sha_list.append("紅鸞")
-            total_bonus += PC.SHEN_SHA_POSITIVE.get("紅鸞", 0)
+            total_bonus += 6  # 紅鸞星基礎加分
             details.append(f"紅鸞星在{hong_luan_branch}位")
         
         # 檢查天喜
         if tian_xi_branch in all_branches:
             shen_sha_list.append("天喜")
-            total_bonus += PC.SHEN_SHA_POSITIVE.get("天喜", 0)
+            total_bonus += 5  # 天喜星基礎加分
             details.append(f"天喜星在{tian_xi_branch}位")
         
         # 檢查天乙貴人
@@ -1183,7 +1066,7 @@ class ProfessionalBaziCalculator:
         for branch in all_branches:
             if branch in tian_yi_branches:
                 shen_sha_list.append("天乙貴人")
-                total_bonus += PC.SHEN_SHA_POSITIVE.get("天乙貴人", 0)
+                total_bonus += 8  # 天乙貴人基礎加分
                 details.append(f"天乙貴人在{branch}位")
                 break
         
@@ -1322,68 +1205,102 @@ class ProfessionalBaziCalculator:
         }
 # 🔖 1.4 專業八字核心引擎結束
 
-# 🔖 1.5 專業評分引擎開始
+# 🔖 1.5 全新專業評分引擎開始（判斷流程制）
 class ProfessionalScoringEngine:
-    """專業評分引擎 - 確保99%與頂級命理師評判一致"""
+    """專業評分引擎 - 採用判斷流程制，先斷凶吉、後論好壞"""
+    
+    # 統一規則數值
+    DAY_CLASH_CAP = 60          # 日支六沖硬上限
+    DAY_HARM_CAP = 63           # 日支六害硬上限
+    FUYIN_CAP = 60              # 伏吟硬上限
+    MULTIPLE_CLASH_CAP = 50     # 多重刑沖硬上限
+    
+    STRUCTURE_MAX = 15          # 結構核心上限
+    RESCUE_MAX_PERCENT = 0.3    # 救應最多減刑沖30%
+    SHEN_SHA_MAX = 10           # 神煞+專業化解上限
+    
+    # 區間映射
+    SCORE_INTERVALS = {
+        "hard_avoid": (30, 50),     # 硬忌盤
+        "structure_problem": (45, 60), # 有結構問題
+        "neutral_adjustable": (55, 70), # 中性可磨合
+        "stable_good": (70, 85),    # 穩定良配
+        "rare_excellent": (85, 90)  # 極罕見上乘
+    }
     
     @staticmethod
     def calculate_match_score_pro(bazi1: Dict, bazi2: Dict, 
                                 gender1: str, gender2: str,
                                 is_testpair: bool = False) -> Dict[str, Any]:
-        """專業配對評分主函數"""
+        """專業配對評分主函數 - 判斷流程制"""
         try:
             audit_log = []
-            audit_log.append("🎯 開始專業八字配對評分")
+            audit_log.append("🎯 開始專業八字配對評分（判斷流程制）")
             
             # 基礎檢查
             if not bazi1 or not bazi2:
                 raise MatchScoringError("八字資料不全")
             
-            # 1. 基礎分數
-            base_score = PC.BASE_SCORE
-            audit_log.append(f"📊 基準分數: {base_score}分")
-            
-            # 2. 計算各模組分數
-            module_scores = ProfessionalScoringEngine._calculate_module_scores_pro(
-                bazi1, bazi2, gender1, gender2, audit_log
+            # 第一步：日柱生死關（先斷凶吉）
+            ceiling, ceiling_reason, day_clash_info = ProfessionalScoringEngine._check_day_pillar_hard_limit_pro(
+                bazi1, bazi2, audit_log
             )
             
-            # 3. 檢查日支刑沖（關鍵影響）
-            day_clash_info = ProfessionalScoringEngine._check_day_branch_clash_pro(bazi1, bazi2, audit_log)
-            
-            # 4. 計算總分
-            final_score, score_details = ProfessionalScoringEngine._calculate_final_score_pro(
-                base_score, module_scores, day_clash_info, bazi1, bazi2, audit_log
+            # 第二步：計算全盤刑沖壓力
+            pressure_score, pressure_details = ProfessionalScoringEngine._calculate_pressure_penalty_pro_new(
+                bazi1, bazi2, audit_log
             )
             
-            # 5. 關係模型判定
-            relationship_model, model_details = ProfessionalScoringEngine._determine_relationship_model_pro(
-                module_scores, audit_log
+            # 第三步：計算結構核心（只取最強一項）
+            structure_score, structure_details = ProfessionalScoringEngine._calculate_structure_core_pro_new(
+                bazi1, bazi2, audit_log
             )
             
-            # 6. 評級獲取
-            rating_info = ProfessionalScoringEngine._get_rating_info_pro(final_score)
+            # 第四步：用神救應（只減刑沖）
+            rescue_percent, rescue_details = ProfessionalScoringEngine._calculate_rescue_percent_pro(
+                bazi1, bazi2, audit_log
+            )
             
-            # 7. 信心度調整（非測試配對時）
-            if not is_testpair:
-                final_score = ProfessionalScoringEngine._apply_confidence_adjustment_pro(
-                    final_score, bazi1, bazi2, audit_log
-                )
+            # 第五步：神煞與專業化解（輔助描述）
+            shen_sha_score, shen_sha_details = ProfessionalScoringEngine._calculate_shen_sha_bonus_pro_new(
+                bazi1, bazi2, ceiling_reason, audit_log
+            )
             
-            audit_log.append(f"✅ 專業評分完成: {final_score:.1f}分")
+            # 第六步：計算最終分數（判斷流程制）
+            final_score, calculation_details = ProfessionalScoringEngine._calculate_final_score_pro_new(
+                ceiling, ceiling_reason, pressure_score, rescue_percent,
+                structure_score, shen_sha_score, audit_log
+            )
+            
+            # 第七步：區間映射
+            mapped_score, interval_info = ProfessionalScoringEngine._map_to_interval_pro(
+                final_score, audit_log
+            )
+            
+            # 第八步：關係模型判定
+            relationship_model, model_details = ProfessionalScoringEngine._determine_relationship_model_pro_new(
+                mapped_score, bazi1, bazi2, audit_log
+            )
+            
+            audit_log.append(f"✅ 專業評分完成: {mapped_score:.1f}分 (原始: {final_score:.1f})")
             
             # 組裝結果
             result = {
-                "score": round(final_score, 1),
-                "rating": rating_info["name"],
-                "rating_description": rating_info["description"],
+                "score": round(mapped_score, 1),
+                "rating": ProfessionalScoringEngine._get_rating_info_pro(mapped_score)["name"],
+                "rating_description": ProfessionalScoringEngine._get_rating_info_pro(mapped_score)["description"],
                 "relationship_model": relationship_model,
-                "module_scores": module_scores,
+                "ceiling": ceiling,
+                "ceiling_reason": ceiling_reason,
+                "pressure_score": pressure_score,
+                "rescue_percent": rescue_percent,
+                "structure_score": structure_score,
+                "shen_sha_score": shen_sha_score,
                 "day_clash_info": day_clash_info,
-                "score_details": score_details,
-                "model_details": model_details,
+                "calculation_details": calculation_details,
+                "interval_info": interval_info,
                 "audit_log": audit_log,
-                "details": audit_log  # 兼容舊格式
+                "details": audit_log
             }
             
             return result
@@ -1393,154 +1310,132 @@ class ProfessionalScoringEngine:
             raise MatchScoringError(f"評分失敗: {str(e)}")
     
     @staticmethod
-    def _calculate_module_scores_pro(bazi1: Dict, bazi2: Dict,
-                                   gender1: str, gender2: str,
-                                   audit_log: List[str]) -> Dict[str, float]:
-        """計算各模組分數"""
-        module_scores = {
-            "energy_rescue": 0.0,      # 能量救應
-            "structure_core": 0.0,     # 結構核心
-            "personality_risk": 0.0,   # 人格風險
-            "pressure_penalty": 0.0,   # 刑沖壓力
-            "shen_sha_bonus": 0.0,     # 神煞加持
-            "resolution_bonus": 0.0,   # 專業化解
-            "dayun_risk": 0.0,         # 大運風險
-            "a_to_b_influence": 50.0,  # A對B影響
-            "b_to_a_influence": 50.0,  # B對A影響
+    def _check_day_pillar_hard_limit_pro(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, str, Dict[str, Any]]:
+        """第一步：日柱生死關 - 先斷凶吉"""
+        day_branch1 = bazi1.get('day_pillar', '  ')[1]
+        day_branch2 = bazi2.get('day_pillar', '  ')[1]
+        day_stem1 = bazi1.get('day_stem', '')
+        day_stem2 = bazi2.get('day_stem', '')
+        
+        # 檢查日支六沖
+        has_day_clash = ProfessionalScoringEngine._is_branch_clash(day_branch1, day_branch2)
+        # 檢查日支六害
+        has_day_harm = ProfessionalScoringEngine._is_branch_harm(day_branch1, day_branch2)
+        # 檢查伏吟（相同八字）
+        pillars_same = all(bazi1.get(k) == bazi2.get(k) for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar'])
+        
+        # 收集全盤刑沖數量（用於判斷多重）
+        clash_count = 0
+        harm_count = 0
+        
+        # 收集所有地支
+        branches1 = []
+        branches2 = []
+        for pillar in [bazi1.get('year_pillar', ''), bazi1.get('month_pillar', ''), 
+                      bazi1.get('day_pillar', ''), bazi1.get('hour_pillar', '')]:
+            if len(pillar) >= 2:
+                branches1.append(pillar[1])
+        
+        for pillar in [bazi2.get('year_pillar', ''), bazi2.get('month_pillar', ''), 
+                      bazi2.get('day_pillar', ''), bazi2.get('hour_pillar', '')]:
+            if len(pillar) >= 2:
+                branches2.append(pillar[1])
+        
+        # 統計刑沖
+        for b1 in branches1:
+            for b2 in branches2:
+                if ProfessionalScoringEngine._is_branch_clash(b1, b2):
+                    clash_count += 1
+                if ProfessionalScoringEngine._is_branch_harm(b1, b2):
+                    harm_count += 1
+        
+        total_clash_harm = clash_count + harm_count
+        
+        # 判斷硬忌類型並設定天花
+        if has_day_clash:
+            ceiling = ProfessionalScoringEngine.DAY_CLASH_CAP
+            reason = f"日支六沖 ({day_branch1}↔{day_branch2})"
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六沖，天花設定為{ceiling}")
+        elif has_day_harm:
+            ceiling = ProfessionalScoringEngine.DAY_HARM_CAP
+            reason = f"日支六害 ({day_branch1}↔{day_branch2})"
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六害，天花設定為{ceiling}")
+        elif pillars_same:
+            ceiling = ProfessionalScoringEngine.FUYIN_CAP
+            reason = f"伏吟 (八字相同)"
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 伏吟，天花設定為{ceiling}")
+        elif total_clash_harm >= 3:  # 多重刑沖
+            ceiling = ProfessionalScoringEngine.MULTIPLE_CLASH_CAP
+            reason = f"多重刑沖 (共{total_clash_harm}處)"
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 多重刑沖{total_clash_harm}處，天花設定為{ceiling}")
+        else:
+            ceiling = 90  # 無硬忌，天花90
+            reason = "無硬忌"
+            audit_log.append(f"✅ 第一步：日柱生死關 - 無硬忌，天花設定為{ceiling}")
+        
+        day_clash_info = {
+            "has_day_clash": has_day_clash,
+            "has_day_harm": has_day_harm,
+            "is_fuyin": pillars_same,
+            "total_clash_harm": total_clash_harm,
+            "day_branch1": day_branch1,
+            "day_branch2": day_branch2
         }
         
-        audit_log.append("🔍 開始計算各模組分數")
-        
-        # 1. 能量救應
-        energy_score, energy_details = ProfessionalScoringEngine._calculate_energy_rescue_pro(bazi1, bazi2)
-        module_scores["energy_rescue"] = energy_score
-        audit_log.append(f"⚡ 能量救應: {energy_score:.1f}分")
-        audit_log.extend(energy_details[:3])  # 只顯示前3條
-        
-        # 2. 結構核心
-        structure_score, structure_details = ProfessionalScoringEngine._calculate_structure_core_pro(bazi1, bazi2)
-        module_scores["structure_core"] = structure_score
-        audit_log.append(f"🏛️ 結構核心: {structure_score:.1f}分")
-        audit_log.extend(structure_details[:3])
-        
-        # 3. 人格風險
-        personality_score, personality_details = ProfessionalScoringEngine._calculate_personality_risk_pro(bazi1, bazi2)
-        module_scores["personality_risk"] = personality_score
-        audit_log.append(f"🎭 人格風險: {personality_score:.1f}分")
-        audit_log.extend(personality_details[:3])
-        
-        # 4. 刑沖壓力
-        pressure_score, pressure_details = ProfessionalScoringEngine._calculate_pressure_penalty_pro(bazi1, bazi2)
-        module_scores["pressure_penalty"] = pressure_score
-        audit_log.append(f"⚡ 刑沖壓力: {pressure_score:.1f}分")
-        audit_log.extend(pressure_details[:3])
-        
-        # 5. 神煞加持
-        shen_sha_score, shen_sha_details = ProfessionalScoringEngine._calculate_shen_sha_bonus_pro(bazi1, bazi2)
-        module_scores["shen_sha_bonus"] = shen_sha_score
-        audit_log.append(f"✨ 神煞加持: {shen_sha_score:.1f}分")
-        audit_log.extend(shen_sha_details[:3])
-        
-        # 6. 專業化解
-        resolution_score, resolution_details = ProfessionalScoringEngine._calculate_resolution_bonus_pro(bazi1, bazi2)
-        module_scores["resolution_bonus"] = resolution_score
-        audit_log.append(f"🛡️ 專業化解: {resolution_score:.1f}分")
-        audit_log.extend(resolution_details[:3])
-        
-        # 7. 大運風險
-        dayun_score, dayun_details = ProfessionalScoringEngine._calculate_dayun_risk_pro(bazi1, bazi2)
-        module_scores["dayun_risk"] = dayun_score
-        audit_log.append(f"🔄 大運風險: {dayun_score:.1f}分")
-        audit_log.extend(dayun_details[:3])
-        
-        # 8. 雙向影響
-        a_to_b, b_to_a, directional_details = ProfessionalScoringEngine._calculate_asymmetric_scores_pro(bazi1, bazi2, gender1, gender2)
-        module_scores["a_to_b_influence"] = a_to_b
-        module_scores["b_to_a_influence"] = b_to_a
-        audit_log.append(f"🤝 雙向影響: A→B={a_to_b:.1f}, B→A={b_to_a:.1f}")
-        audit_log.extend(directional_details[:3])
-        
-        # 應用上限控制
-        module_scores = ProfessionalScoringEngine._apply_module_caps_pro(module_scores, audit_log)
-        
-        return module_scores
+        return ceiling, reason, day_clash_info
     
     @staticmethod
-    def _calculate_energy_rescue_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業能量救應計算"""
-        score = 0.0
+    def _calculate_pressure_penalty_pro_new(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第二步：計算全盤刑沖壓力 - 權重制"""
         details = []
         
-        useful1 = bazi1.get('useful_elements', [])
-        useful2 = bazi2.get('useful_elements', [])
-        elements1 = bazi1.get('elements', {})
-        elements2 = bazi2.get('elements', {})
+        # 收集所有地支
+        branches1 = []
+        branches2 = []
         
-        # A的喜用神在B中的濃度
-        for element in useful1:
-            if element in elements2:
-                concentration = elements2[element]
-                if concentration > 30:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 2.0
-                    details.append(f"A喜{element}，B有{concentration:.1f}% (高度互補): +{bonus:.1f}分")
-                elif concentration > 20:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 1.5
-                    details.append(f"A喜{element}，B有{concentration:.1f}% (中度互補): +{bonus:.1f}分")
-                elif concentration > 10:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 1.0
-                    details.append(f"A喜{element}，B有{concentration:.1f}% (輕度互補): +{bonus:.1f}分")
-                else:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 0.5
-                    details.append(f"A喜{element}，B有{concentration:.1f}% (微量互補): +{bonus:.1f}分")
+        for pillar in [bazi1.get('year_pillar', ''), bazi1.get('month_pillar', ''), 
+                      bazi1.get('day_pillar', ''), bazi1.get('hour_pillar', '')]:
+            if len(pillar) >= 2:
+                branches1.append(pillar[1])
+        
+        for pillar in [bazi2.get('year_pillar', ''), bazi2.get('month_pillar', ''), 
+                      bazi2.get('day_pillar', ''), bazi2.get('hour_pillar', '')]:
+            if len(pillar) >= 2:
+                branches2.append(pillar[1])
+        
+        if not branches1 or not branches2:
+            return 0.0, ["地支資料不足"]
+        
+        day_branch1 = bazi1.get('day_pillar', '  ')[1]
+        day_branch2 = bazi2.get('day_pillar', '  ')[1]
+        
+        total_penalty = 0.0
+        
+        # 逐條計算刑沖
+        for b1 in branches1:
+            for b2 in branches2:
+                # 計算權重：日支×2，其餘×1
+                weight = 2.0 if (b1 == day_branch1 and b2 == day_branch2) else 1.0
                 
-                score += bonus
-        
-        # B的喜用神在A中的濃度
-        for element in useful2:
-            if element in elements1:
-                concentration = elements1[element]
-                if concentration > 30:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 2.0
-                    details.append(f"B喜{element}，A有{concentration:.1f}% (高度互補): +{bonus:.1f}分")
-                elif concentration > 20:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 1.5
-                    details.append(f"B喜{element}，A有{concentration:.1f}% (中度互補): +{bonus:.1f}分")
-                elif concentration > 10:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 1.0
-                    details.append(f"B喜{element}，A有{concentration:.1f}% (輕度互補): +{bonus:.1f}分")
-                else:
-                    bonus = PC.DEMAND_MATCH_BONUS_BASE * 0.5
-                    details.append(f"B喜{element}，A有{concentration:.1f}% (微量互補): +{bonus:.1f}分")
+                # 檢查六沖
+                if ProfessionalScoringEngine._is_branch_clash(b1, b2):
+                    penalty = -8 * weight  # 基礎扣8分
+                    total_penalty += penalty
+                    details.append(f"六沖 {b1}↔{b2}: {penalty:.1f}分 (權重×{weight})")
                 
-                score += bonus
+                # 檢查六害
+                if ProfessionalScoringEngine._is_branch_harm(b1, b2):
+                    penalty = -6 * weight  # 基礎扣6分
+                    total_penalty += penalty
+                    details.append(f"六害 {b1}↔{b2}: {penalty:.1f}分 (權重×{weight})")
         
-        # 極弱救應
-        strength1 = bazi1.get('strength_score', 50)
-        strength2 = bazi2.get('strength_score', 50)
+        audit_log.append(f"📊 第二步：刑沖壓力 = {total_penalty:.1f}分 (共{len(details)}處)")
         
-        if strength1 < PC.WEAK_THRESHOLD:
-            day_element = bazi1.get('day_stem_element', '')
-            if elements2.get(day_element, 0) > 25:
-                score += PC.EXTREME_WEAK_BONUS
-                details.append(f"A身極弱({strength1:.1f}分)，B強{day_element}救應: +{PC.EXTREME_WEAK_BONUS}分")
-        
-        if strength2 < PC.WEAK_THRESHOLD:
-            day_element = bazi2.get('day_stem_element', '')
-            if elements1.get(day_element, 0) > 25:
-                score += PC.EXTREME_WEAK_BONUS
-                details.append(f"B身極弱({strength2:.1f}分)，A強{day_element}救應: +{PC.EXTREME_WEAK_BONUS}分")
-        
-        # 上限控制
-        final_score = min(PC.ENERGY_RESCUE_CAP, max(0, score))
-        if final_score != score:
-            details.append(f"能量救應上限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
+        return round(total_penalty, 1), details
     
     @staticmethod
-    def _calculate_structure_core_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業結構核心計算"""
-        score = 0.0
+    def _calculate_structure_core_pro_new(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第三步：結構核心 - 只取最強一項"""
         details = []
         
         day_stem1 = bazi1.get('day_stem', '')
@@ -1548,56 +1443,307 @@ class ProfessionalScoringEngine:
         day_branch1 = bazi1.get('day_pillar', '  ')[1]
         day_branch2 = bazi2.get('day_pillar', '  ')[1]
         
-        # 天干五合
+        structure_options = []
+        
+        # 1. 天干五合（最高優先）
         if ProfessionalScoringEngine._is_stem_five_harmony(day_stem1, day_stem2):
-            score += PC.STEM_COMBINATION_FIVE_HARMONY
-            details.append(f"日干五合 {day_stem1}-{day_stem2}: +{PC.STEM_COMBINATION_FIVE_HARMONY}分")
+            structure_options.append(("天干五合", 15, f"日干五合 {day_stem1}-{day_stem2}"))
         
-        # 地支六合
+        # 2. 地支六合
         if ProfessionalScoringEngine._is_branch_six_harmony(day_branch1, day_branch2):
-            score += PC.BRANCH_COMBINATION_SIX_HARMONY
-            details.append(f"日支六合 {day_branch1}-{day_branch2}: +{PC.BRANCH_COMBINATION_SIX_HARMONY}分")
+            structure_options.append(("地支六合", 12, f"日支六合 {day_branch1}-{day_branch2}"))
         
-        # 地支三合
+        # 3. 地支三合
         if ProfessionalScoringEngine._is_branch_three_harmony(day_branch1, day_branch2):
-            score += PC.BRANCH_COMBINATION_THREE_HARMONY
-            details.append(f"地支三合 {day_branch1}-{day_branch2}: +{PC.BRANCH_COMBINATION_THREE_HARMONY}分")
+            structure_options.append(("地支三合", 10, f"地支三合 {day_branch1}-{day_branch2}"))
         
-        # 天干相生
-        stem_elements = ProfessionalBaziCalculator.STEM_ELEMENTS
-        element1 = stem_elements.get(day_stem1, '')
-        element2 = stem_elements.get(day_stem2, '')
-        
-        if element1 and element2:
-            # A生B
-            if PC.ELEMENT_GENERATION.get(element1) == element2:
-                score += PC.STEM_COMBINATION_GENERATION
-                details.append(f"日干相生 {day_stem1}→{day_stem2}: +{PC.STEM_COMBINATION_GENERATION}分")
-            # B生A
-            elif PC.ELEMENT_GENERATION.get(element2) == element1:
-                score += PC.STEM_COMBINATION_GENERATION
-                details.append(f"日干相生 {day_stem2}→{day_stem1}: +{PC.STEM_COMBINATION_GENERATION}分")
-            # 相同五行
-            elif element1 == element2:
-                score += PC.STEM_COMBINATION_SAME
-                details.append(f"日干比和 {day_stem1}-{day_stem2}: +{PC.STEM_COMBINATION_SAME}分")
-        
-        # 檢查天干相同
+        # 4. 日干相同
         if day_stem1 == day_stem2:
-            score += PC.STEM_COMBINATION_SAME
-            details.append(f"日干相同 {day_stem1}-{day_stem2}: +{PC.STEM_COMBINATION_SAME}分")
+            structure_options.append(("日干相同", 8, f"日干相同 {day_stem1}-{day_stem2}"))
         
-        # 檢查地支相同
+        # 5. 日支相同
         if day_branch1 == day_branch2:
-            score += PC.BRANCH_COMBINATION_SAME
-            details.append(f"日支相同 {day_branch1}-{day_branch2}: +{PC.BRANCH_COMBINATION_SAME}分")
+            structure_options.append(("日支相同", 6, f"日支相同 {day_branch1}-{day_branch2}"))
         
-        # 上限控制
-        final_score = min(PC.STRUCTURE_CORE_CAP, max(0, score))
-        if final_score != score:
-            details.append(f"結構核心上限: {score:.1f}→{final_score:.1f}分")
+        # 只取最強一項
+        if structure_options:
+            # 按分數排序
+            structure_options.sort(key=lambda x: x[1], reverse=True)
+            best_name, best_score, best_desc = structure_options[0]
+            details.append(best_desc)
+            audit_log.append(f"🏛️ 第三步：結構核心 - {best_desc}，分數={best_score}")
+            return best_score, details
+        else:
+            audit_log.append(f"🏛️ 第三步：結構核心 - 無明顯結構")
+            return 0.0, ["無明顯結構"]
+    
+    @staticmethod
+    def _calculate_rescue_percent_pro(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第四步：用神救應 - 只減刑沖"""
+        details = []
+        
+        useful1 = bazi1.get('useful_elements', [])
+        useful2 = bazi2.get('useful_elements', [])
+        elements1 = bazi1.get('elements', {})
+        elements2 = bazi2.get('elements', {})
+        
+        rescue_percent = 0.0
+        
+        # 檢查A的喜用神在B中的濃度
+        for element in useful1:
+            if element in elements2:
+                concentration = elements2[element]
+                if concentration > 25:
+                    rescue_percent += 0.15
+                    details.append(f"A喜{element}，B強{concentration:.1f}% → +15%救應")
+                elif concentration > 15:
+                    rescue_percent += 0.10
+                    details.append(f"A喜{element}，B中{concentration:.1f}% → +10%救應")
+                elif concentration > 5:
+                    rescue_percent += 0.05
+                    details.append(f"A喜{element}，B弱{concentration:.1f}% → +5%救應")
+        
+        # 檢查B的喜用神在A中的濃度
+        for element in useful2:
+            if element in elements1:
+                concentration = elements1[element]
+                if concentration > 25:
+                    rescue_percent += 0.15
+                    details.append(f"B喜{element}，A強{concentration:.1f}% → +15%救應")
+                elif concentration > 15:
+                    rescue_percent += 0.10
+                    details.append(f"B喜{element}，A中{concentration:.1f}% → +10%救應")
+                elif concentration > 5:
+                    rescue_percent += 0.05
+                    details.append(f"B喜{element}，A弱{concentration:.1f}% → +5%救應")
+        
+        # 上限30%
+        rescue_percent = min(rescue_percent, ProfessionalScoringEngine.RESCUE_MAX_PERCENT)
+        
+        if rescue_percent > 0:
+            audit_log.append(f"💫 第四步：用神救應 - 可減刑沖{rescue_percent*100:.0f}%")
+        else:
+            audit_log.append(f"💫 第四步：用神救應 - 無明顯救應")
+        
+        return rescue_percent, details
+    
+    @staticmethod
+    def _calculate_shen_sha_bonus_pro_new(bazi1: Dict, bazi2: Dict, ceiling_reason: str, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第五步：神煞與專業化解 - 輔助描述"""
+        details = []
+        
+        # 如果第一步已判硬忌，則完全不入分
+        if "硬忌" in ceiling_reason or ceiling_reason in ["日支六沖", "日支六害", "伏吟", "多重刑沖"]:
+            audit_log.append(f"✨ 第五步：神煞與專業化解 - 硬忌盤，不入分")
+            return 0.0, ["硬忌盤，不入分"]
+        
+        score = 0.0
+        
+        # 神煞加分
+        bonus1 = bazi1.get('shen_sha_bonus', 0)
+        bonus2 = bazi2.get('shen_sha_bonus', 0)
+        shen_sha_names1 = bazi1.get('shen_sha_names', '').split('、')
+        shen_sha_names2 = bazi2.get('shen_sha_names', '').split('、')
+        
+        # 檢查紅鸞天喜組合
+        has_hongluan_tianxi = ("紅鸞" in shen_sha_names1 and "天喜" in shen_sha_names2) or \
+                             ("天喜" in shen_sha_names1 and "紅鸞" in shen_sha_names2)
+        
+        if has_hongluan_tianxi:
+            score += 4
+            details.append("紅鸞天喜組合 +4")
+        
+        # 其他神煞（減半處理）
+        if bonus1 > 0:
+            score += min(bonus1 / 2, 3)
+            details.append(f"A方神煞 +{min(bonus1/2, 3):.1f}")
+        
+        if bonus2 > 0:
+            score += min(bonus2 / 2, 3)
+            details.append(f"B方神煞 +{min(bonus2/2, 3):.1f}")
+        
+        # 專業化解（減半處理）
+        structure1 = bazi1.get('shi_shen_structure', '')
+        structure2 = bazi2.get('shi_shen_structure', '')
+        
+        resolution_patterns = {
+            "殺印相生": 3, "財官相生": 2.5, "傷官生財": 2,
+            "食傷配印": 2, "官印相生": 2, "比劫幫身": 1.5
+        }
+        
+        for pattern, bonus in resolution_patterns.items():
+            if pattern in structure1:
+                score += bonus
+                details.append(f"A方{pattern} +{bonus}")
+            if pattern in structure2:
+                score += bonus
+                details.append(f"B方{pattern} +{bonus}")
+        
+        # 上限10分
+        final_score = min(score, ProfessionalScoringEngine.SHEN_SHA_MAX)
+        
+        if final_score > 0:
+            audit_log.append(f"✨ 第五步：神煞與專業化解 = {final_score:.1f}分")
+        else:
+            audit_log.append(f"✨ 第五步：神煞與專業化解 = 無")
         
         return round(final_score, 1), details
+    
+    @staticmethod
+    def _calculate_final_score_pro_new(ceiling: float, ceiling_reason: str, pressure_score: float,
+                                     rescue_percent: float, structure_score: float,
+                                     shen_sha_score: float, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第六步：計算最終分數 - 判斷流程制"""
+        details = []
+        
+        # 1. 應用救應減刑沖
+        effective_pressure = pressure_score * (1 - rescue_percent)
+        pressure_adjustment = effective_pressure - pressure_score
+        
+        details.append(f"天花: {ceiling}")
+        details.append(f"原始刑沖: {pressure_score:.1f}分")
+        
+        if rescue_percent > 0:
+            details.append(f"救應減{rescue_percent*100:.0f}%: {pressure_adjustment:+.1f}分")
+            details.append(f"實際刑沖: {effective_pressure:.1f}分")
+        
+        # 2. 計算基礎分數
+        raw_score = ceiling + effective_pressure  # 注意：effective_pressure是負數
+        
+        details.append(f"基礎分: {ceiling} + ({effective_pressure:.1f}) = {raw_score:.1f}")
+        
+        # 3. 加結構核心
+        if structure_score > 0:
+            raw_score += structure_score
+            details.append(f"結構核心: +{structure_score:.1f}")
+        
+        # 4. 加神煞與專業化解（如果非硬忌盤）
+        if "硬忌" not in ceiling_reason and ceiling_reason not in ["日支六沖", "日支六害", "伏吟", "多重刑沖"]:
+            if shen_sha_score > 0:
+                raw_score += shen_sha_score
+                details.append(f"輔助分: +{shen_sha_score:.1f}")
+        
+        final_score = max(20, min(100, raw_score))  # 軟性邊界
+        
+        audit_log.append(f"🧮 第六步：最終計算 = {final_score:.1f}分 (天花{ceiling} - 刑沖{abs(effective_pressure):.1f} + 結構{structure_score:.1f} + 輔助{shen_sha_score:.1f})")
+        
+        return round(final_score, 1), details
+    
+    @staticmethod
+    def _map_to_interval_pro(score: float, audit_log: List[str]) -> Tuple[float, Dict[str, Any]]:
+        """第七步：區間映射"""
+        intervals = ProfessionalScoringEngine.SCORE_INTERVALS
+        
+        # 確定區間
+        if score < 50:
+            interval = "hard_avoid"
+            interval_name = "硬忌盤"
+            mapped_score = 30 + (score - 20) * (20/30) if score > 20 else 30  # 映射到30-50
+        elif score < 60:
+            interval = "structure_problem"
+            interval_name = "有結構問題"
+            mapped_score = 45 + (score - 50) * (15/10)  # 映射到45-60
+        elif score < 70:
+            interval = "neutral_adjustable"
+            interval_name = "中性可磨合"
+            mapped_score = 55 + (score - 60) * (15/10)  # 映射到55-70
+        elif score < 85:
+            interval = "stable_good"
+            interval_name = "穩定良配"
+            mapped_score = 70 + (score - 70) * (15/15)  # 映射到70-85
+        else:
+            interval = "rare_excellent"
+            interval_name = "極罕見上乘"
+            mapped_score = 85 + min(score - 85, 5)  # 映射到85-90
+        
+        # 確保在區間內
+        min_score, max_score = intervals[interval]
+        mapped_score = max(min_score, min(max_score, mapped_score))
+        
+        interval_info = {
+            "interval": interval,
+            "interval_name": interval_name,
+            "min_score": min_score,
+            "max_score": max_score,
+            "raw_score": score,
+            "mapped_score": mapped_score
+        }
+        
+        audit_log.append(f"🗺️ 第七步：區間映射 - {interval_name}({min_score}-{max_score})，原始{score:.1f} → 映射{mapped_score:.1f}")
+        
+        return round(mapped_score, 1), interval_info
+    
+    @staticmethod
+    def _determine_relationship_model_pro_new(score: float, bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[str, List[str]]:
+        """第八步：關係模型判定"""
+        details = []
+        
+        # 根據分數判斷模型
+        if score >= 80:
+            model = "平衡型"
+            details.append("高分平衡型")
+        elif score >= 70:
+            model = "穩定型"
+            details.append("穩定良配型")
+        elif score >= 60:
+            model = "磨合型"
+            details.append("中性可磨合型")
+        elif score >= 50:
+            model = "問題型"
+            details.append("有結構問題型")
+        else:
+            model = "忌避型"
+            details.append("硬忌避型")
+        
+        audit_log.append(f"🎭 第八步：關係模型 - {model}")
+        
+        return model, details
+    
+    @staticmethod
+    def _get_rating_info_pro(score: float) -> Dict[str, str]:
+        """獲取評級信息"""
+        rating_scale = [
+            (85, "極品仙緣", "天作之合，互相成就，幸福美滿"),
+            (75, "上等婚配", "明顯互補，幸福率高，可白頭偕老"),
+            (65, "良好姻緣", "現實高成功率，可經營發展"),
+            (55, "可以交往", "有缺點但可努力經營，需互相包容"),
+            (45, "需要謹慎", "問題較多，需謹慎考慮，易有矛盾"),
+            (35, "不建議", "沖剋嚴重，難長久，易生變故"),
+            (25, "強烈不建議", "嚴重沖剋，極難長久，易分手"),
+            (0, "避免發展", "硬傷明顯，易生變，不適合婚戀")
+        ]
+        
+        for threshold, name, description in rating_scale:
+            if score >= threshold:
+                return {"name": name, "description": description}
+        
+        return {"name": "避免發展", "description": "硬傷明顯，易生變，不適合婚戀"}
+    
+    @staticmethod
+    def _is_branch_clash(branch1: str, branch2: str) -> bool:
+        """檢查地支六沖"""
+        clash_pairs = {
+            '子': '午', '午': '子',
+            '丑': '未', '未': '丑',
+            '寅': '申', '申': '寅',
+            '卯': '酉', '酉': '卯',
+            '辰': '戌', '戌': '辰',
+            '巳': '亥', '亥': '巳'
+        }
+        return clash_pairs.get(branch1) == branch2
+    
+    @staticmethod
+    def _is_branch_harm(branch1: str, branch2: str) -> bool:
+        """檢查地支六害"""
+        harm_pairs = {
+            '子': '未', '未': '子',
+            '丑': '午', '午': '丑',
+            '寅': '巳', '巳': '寅',
+            '卯': '辰', '辰': '卯',
+            '申': '亥', '亥': '申',
+            '酉': '戌', '戌': '酉'
+        }
+        return harm_pairs.get(branch1) == branch2
     
     @staticmethod
     def _is_stem_five_harmony(stem1: str, stem2: str) -> bool:
@@ -1629,579 +1775,7 @@ class ProfessionalScoringEngine:
             if branch1 in harmony_set and branch2 in harmony_set and branch1 != branch2:
                 return True
         return False
-    
-    @staticmethod
-    def _calculate_personality_risk_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業人格風險計算"""
-        score = 0.0
-        details = []
-        
-        structure1 = bazi1.get('shi_shen_structure', '')
-        structure2 = bazi2.get('shi_shen_structure', '')
-        
-        # 檢查負面結構
-        risk_patterns = PC.PERSONALITY_RISK_PATTERNS
-        
-        for pattern, penalty in risk_patterns.items():
-            if penalty < 0:  # 只檢查負面模式
-                if pattern in structure1:
-                    score += penalty
-                    details.append(f"A方{pattern}: {penalty}分")
-                
-                if pattern in structure2:
-                    score += penalty
-                    details.append(f"B方{pattern}: {penalty}分")
-        
-        # 檢查疊加風險
-        risk_count = 0
-        for pattern in risk_patterns:
-            if pattern in structure1 or pattern in structure2:
-                risk_count += 1
-        
-        if risk_count >= 3:
-            extra_penalty = -10
-            score += extra_penalty
-            details.append(f"多重風險({risk_count}個): {extra_penalty}分")
-        
-        # 下限控制
-        final_score = max(PC.PERSONALITY_RISK_CAP, score)
-        if final_score != score:
-            details.append(f"人格風險下限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _calculate_pressure_penalty_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業刑沖壓力計算 - 重新設計的分級系統"""
-        score = 0.0
-        details = []
-        
-        # 收集所有地支
-        branches1 = []
-        branches2 = []
-        
-        for pillar in [bazi1.get('year_pillar', ''), bazi1.get('month_pillar', ''), 
-                      bazi1.get('day_pillar', ''), bazi1.get('hour_pillar', '')]:
-            if len(pillar) >= 2:
-                branches1.append(pillar[1])
-        
-        for pillar in [bazi2.get('year_pillar', ''), bazi2.get('month_pillar', ''), 
-                      bazi2.get('day_pillar', ''), bazi2.get('hour_pillar', '')]:
-            if len(pillar) >= 2:
-                branches2.append(pillar[1])
-        
-        if not branches1 or not branches2:
-            return 0.0, ["地支資料不足"]
-        
-        clash_pairs = []
-        harm_pairs = []
-        day_clash = False
-        day_harm = False
-        
-        # 收集所有刑沖對
-        for b1 in branches1:
-            for b2 in branches2:
-                # 檢查六沖
-                if ProfessionalScoringEngine._is_branch_clash(b1, b2):
-                    clash_pairs.append((b1, b2))
-                    
-                    # 檢查是否日支六沖
-                    if b1 == bazi1.get('day_pillar', '  ')[1] and b2 == bazi2.get('day_pillar', '  ')[1]:
-                        day_clash = True
-                
-                # 檢查六害
-                if ProfessionalScoringEngine._is_branch_harm(b1, b2):
-                    harm_pairs.append((b1, b2))
-                    
-                    # 檢查是否日支六害
-                    if b1 == bazi1.get('day_pillar', '  ')[1] and b2 == bazi2.get('day_pillar', '  ')[1]:
-                        day_harm = True
-        
-        # 計算分級刑沖懲罰
-        clash_penalty = 0
-        if clash_pairs:
-            for i, (b1, b2) in enumerate(clash_pairs):
-                if i == 0:  # 第一個六沖
-                    penalty = PC.BRANCH_CLASH_FIRST
-                elif i == 1:  # 第二個六沖
-                    penalty = PC.BRANCH_CLASH_SECOND
-                else:  # 第三個及以後
-                    penalty = PC.BRANCH_CLASH_ADDITIONAL
-                
-                clash_penalty += penalty
-                details.append(f"六沖 {b1}↔{b2}: {penalty}分")
-        
-        # 計算分級六害懲罰
-        harm_penalty = 0
-        if harm_pairs:
-            for i, (b1, b2) in enumerate(harm_pairs):
-                if i == 0:  # 第一個六害
-                    penalty = PC.BRANCH_HARM_FIRST
-                elif i == 1:  # 第二個六害
-                    penalty = PC.BRANCH_HARM_SECOND
-                else:  # 第三個及以後
-                    penalty = PC.BRANCH_HARM_ADDITIONAL
-                
-                harm_penalty += penalty
-                details.append(f"六害 {b1}↔{b2}: {penalty}分")
-        
-        # 日支特別處理
-        if day_clash:
-            clash_penalty += PC.DAY_CLASH_PENALTY
-            details.append(f"⚠️ 日支六沖特別懲罰: {PC.DAY_CLASH_PENALTY}分")
-        
-        if day_harm:
-            harm_penalty += PC.DAY_HARM_PENALTY
-            details.append(f"⚠️ 日支六害特別懲罰: {PC.DAY_HARM_PENALTY}分")
-        
-        score = clash_penalty + harm_penalty
-        
-        # 檢查是否有合局可以減輕刑沖
-        has_six_harmony = ProfessionalScoringEngine._is_branch_six_harmony(
-            bazi1.get('day_pillar', '  ')[1], 
-            bazi2.get('day_pillar', '  ')[1]
-        )
-        
-        has_three_harmony = ProfessionalScoringEngine._is_branch_three_harmony(
-            bazi1.get('day_pillar', '  ')[1], 
-            bazi2.get('day_pillar', '  ')[1]
-        )
-        
-        has_five_harmony = ProfessionalScoringEngine._is_stem_five_harmony(
-            bazi1.get('day_stem', ''), 
-            bazi2.get('day_stem', '')
-        )
-        
-        # 應用救應機制
-        mitigation_factor = 1.0
-        if has_six_harmony and (day_clash or day_harm):
-            mitigation_factor *= PC.SIX_HARMONY_MITIGATION
-            details.append(f"💫 六合解沖: 刑沖傷害減輕{(1-PC.SIX_HARMONY_MITIGATION)*100:.0f}%")
-        
-        if has_three_harmony and (day_clash or day_harm):
-            mitigation_factor *= PC.THREE_HARMONY_MITIGATION
-            details.append(f"💫 三合解沖: 刑沖傷害減輕{(1-PC.THREE_HARMONY_MITIGATION)*100:.0f}%")
-        
-        if has_five_harmony and (day_clash or day_harm):
-            mitigation_factor *= PC.FIVE_HARMONY_MITIGATION
-            details.append(f"💫 五合解沖: 刑沖傷害減輕{(1-PC.FIVE_HARMONY_MITIGATION)*100:.0f}%")
-        
-        # 應用救應係數
-        if mitigation_factor < 1.0:
-            original_penalty = score
-            score = score * mitigation_factor
-            details.append(f"🔧 救應後實際扣分: {original_penalty:.1f} → {score:.1f}")
-        
-        if clash_pairs or harm_pairs:
-            details.append(f"總計: 六沖{len(clash_pairs)}處, 六害{len(harm_pairs)}處")
-        else:
-            details.append("無明顯刑沖")
-        
-        # 下限控制
-        final_score = max(PC.PRESSURE_PENALTY_CAP, score)
-        if final_score != score:
-            details.append(f"刑沖壓力下限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _is_branch_clash(branch1: str, branch2: str) -> bool:
-        """檢查地支六沖"""
-        clash_pairs = {
-            '子': '午', '午': '子',
-            '丑': '未', '未': '丑',
-            '寅': '申', '申': '寅',
-            '卯': '酉', '酉': '卯',
-            '辰': '戌', '戌': '辰',
-            '巳': '亥', '亥': '巳'
-        }
-        return clash_pairs.get(branch1) == branch2
-    
-    @staticmethod
-    def _is_branch_harm(branch1: str, branch2: str) -> bool:
-        """檢查地支六害"""
-        harm_pairs = {
-            '子': '未', '未': '子',
-            '丑': '午', '午': '丑',
-            '寅': '巳', '巳': '寅',
-            '卯': '辰', '辰': '卯',
-            '申': '亥', '亥': '申',
-            '酉': '戌', '戌': '酉'
-        }
-        return harm_pairs.get(branch1) == branch2
-    
-    @staticmethod
-    def _calculate_shen_sha_bonus_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業神煞加持計算"""
-        score = 0.0
-        details = []
-        
-        bonus1 = bazi1.get('shen_sha_bonus', 0)
-        bonus2 = bazi2.get('shen_sha_bonus', 0)
-        
-        score += bonus1 + bonus2
-        
-        if bonus1 > 0:
-            details.append(f"A方神煞: {bazi1.get('shen_sha_names', '無')} (+{bonus1}分)")
-        if bonus2 > 0:
-            details.append(f"B方神煞: {bazi2.get('shen_sha_names', '無')} (+{bonus2}分)")
-        
-        # 檢查神煞組合
-        shen_sha_names1 = bazi1.get('shen_sha_names', '').split('、')
-        shen_sha_names2 = bazi2.get('shen_sha_names', '').split('、')
-        
-        for sha1 in shen_sha_names1:
-            for sha2 in shen_sha_names2:
-                if sha1 and sha2:
-                    # 檢查組合加成
-                    if (sha1, sha2) in PC.SHEN_SHA_COMBO_BONUS:
-                        combo_bonus = PC.SHEN_SHA_COMBO_BONUS[(sha1, sha2)]
-                        score += combo_bonus
-                        details.append(f"✨ 神煞組合 {sha1}+{sha2}: +{combo_bonus}分")
-        
-        # 上限控制
-        final_score = min(PC.SHEN_SHA_BONUS_CAP, max(0, score))
-        if final_score != score:
-            details.append(f"神煞加持上限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _calculate_resolution_bonus_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業化解計算"""
-        score = 0.0
-        details = []
-        
-        structure1 = bazi1.get('shi_shen_structure', '')
-        structure2 = bazi2.get('shi_shen_structure', '')
-        
-        resolution_patterns = PC.RESOLUTION_PATTERNS
-        
-        for pattern, bonus in resolution_patterns.items():
-            if pattern in structure1:
-                score += bonus
-                details.append(f"A方{pattern}: +{bonus}分")
-            
-            if pattern in structure2:
-                score += bonus
-                details.append(f"B方{pattern}: +{bonus}分")
-        
-        # 上限控制
-        final_score = min(PC.RESOLUTION_BONUS_CAP, max(0, score))
-        if final_score != score:
-            details.append(f"專業化解上限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _calculate_dayun_risk_pro(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """專業大運風險計算"""
-        score = 0.0
-        details = []
-        
-        year1 = bazi1.get('birth_year', 2000)
-        year2 = bazi2.get('birth_year', 2000)
-        age_diff = abs(year1 - year2)
-        
-        # 年齡差距影響大運同步
-        if age_diff <= 2:
-            details.append(f"年齡相近({age_diff}歲)，大運同步率高")
-        elif age_diff <= 5:
-            score -= 2
-            details.append(f"年齡差{age_diff}歲，大運同步率中等: -2分")
-        elif age_diff <= 8:
-            score -= 4
-            details.append(f"年齡差{age_diff}歲，大運同步率較低: -4分")
-        elif age_diff <= 12:
-            score -= 6
-            details.append(f"年齡差{age_diff}歲，大運同步率低: -6分")
-        else:
-            score -= 8
-            details.append(f"年齡差{age_diff}歲，大運同步率很低: -8分")
-        
-        # 下限控制
-        final_score = max(PC.DAYUN_RISK_CAP, score)
-        if final_score != score:
-            details.append(f"大運風險下限: {score:.1f}→{final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _calculate_asymmetric_scores_pro(bazi1: Dict, bazi2: Dict,
-                                        gender1: str, gender2: str) -> Tuple[float, float, List[str]]:
-        """專業雙向影響計算"""
-        details = []
-        
-        # A對B的影響
-        a_to_b, a_details = ProfessionalScoringEngine._calculate_directional_score_pro(
-            bazi1, bazi2, "A對B"
-        )
-        details.extend(a_details)
-        
-        # B對A的影響
-        b_to_a, b_details = ProfessionalScoringEngine._calculate_directional_score_pro(
-            bazi2, bazi1, "B對A"
-        )
-        details.extend(b_details)
-        
-        return a_to_b, b_to_a, details
-    
-    @staticmethod
-    def _calculate_directional_score_pro(source_bazi: Dict, target_bazi: Dict,
-                                        direction: str) -> Tuple[float, List[str]]:
-        """專業單向影響計算"""
-        details = []
-        score = 50.0  # 中性起點
-        
-        source_useful = source_bazi.get('useful_elements', [])
-        target_elements = target_bazi.get('elements', {})
-        
-        # 喜用神匹配
-        useful_match = 0
-        for element in source_useful:
-            if element in target_elements:
-                concentration = target_elements[element]
-                if concentration > 30:
-                    useful_match += 10
-                elif concentration > 20:
-                    useful_match += 7
-                elif concentration > 10:
-                    useful_match += 4
-                else:
-                    useful_match += 2
-        
-        score += useful_match
-        
-        if useful_match > 0:
-            details.append(f"{direction}喜用神匹配: +{useful_match:.1f}分")
-        
-        # 夫妻星影響
-        target_spouse = target_bazi.get('spouse_star_status', '')
-        if '旺盛' in target_spouse:
-            score += 5
-            details.append(f"{direction}夫妻星旺盛: +5分")
-        elif '明顯' in target_spouse:
-            score += 3
-            details.append(f"{direction}夫妻星明顯: +3分")
-        elif '單一' in target_spouse:
-            score += 1
-            details.append(f"{direction}夫妻星單一: +1分")
-        
-        # 限制範圍
-        final_score = max(20, min(90, score))
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _apply_module_caps_pro(module_scores: Dict[str, float], audit_log: List[str]) -> Dict[str, float]:
-        """應用模組上限控制"""
-        capped_scores = module_scores.copy()
-        
-        # 正向總分上限
-        positive_total = sum(max(0, v) for v in module_scores.values())
-        if positive_total > PC.TOTAL_POSITIVE_CAP:
-            scale_factor = PC.TOTAL_POSITIVE_CAP / positive_total
-            for key in capped_scores:
-                if capped_scores[key] > 0:
-                    capped_scores[key] *= scale_factor
-            audit_log.append(f"📊 正向總分上限: {positive_total:.1f}→{PC.TOTAL_POSITIVE_CAP}分")
-        
-        # 負向總分下限
-        negative_total = sum(min(0, v) for v in module_scores.values())
-        if negative_total < PC.TOTAL_NEGATIVE_CAP:
-            scale_factor = PC.TOTAL_NEGATIVE_CAP / negative_total if negative_total != 0 else 1
-            for key in capped_scores:
-                if capped_scores[key] < 0:
-                    capped_scores[key] *= scale_factor
-            audit_log.append(f"📊 負向總分下限: {negative_total:.1f}→{PC.TOTAL_NEGATIVE_CAP}分")
-        
-        # 四捨五入
-        for key in capped_scores:
-            capped_scores[key] = round(capped_scores[key], 1)
-        
-        return capped_scores
-    
-    @staticmethod
-    def _check_day_branch_clash_pro(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Dict[str, Any]:
-        """檢查日支刑沖"""
-        day_branch1 = bazi1.get('day_pillar', '  ')[1]
-        day_branch2 = bazi2.get('day_pillar', '  ')[1]
-        
-        has_day_clash = ProfessionalScoringEngine._is_branch_clash(day_branch1, day_branch2)
-        has_day_harm = ProfessionalScoringEngine._is_branch_harm(day_branch1, day_branch2)
-        
-        audit_log.append(f"📍 日支檢測: A日支={day_branch1}, B日支={day_branch2}")
-        audit_log.append(f"📍 日支六沖: {has_day_clash}, 日支六害: {has_day_harm}")
-        
-        return {
-            "has_day_clash": has_day_clash,
-            "has_day_harm": has_day_harm,
-            "day_branch1": day_branch1,
-            "day_branch2": day_branch2
-        }
-    
-    @staticmethod
-    def _calculate_final_score_pro(base_score: float, module_scores: Dict[str, float],
-                                  day_clash_info: Dict[str, Any], bazi1: Dict, bazi2: Dict,
-                                  audit_log: List[str]) -> Tuple[float, Dict[str, Any]]:
-        """計算最終分數 - 重新設計的計算邏輯"""
-        details = {}
-        
-        # 1. 計算原始總分（包含救應機制）
-        total_module_score = sum(module_scores.values())
-        raw_score = base_score + total_module_score
-        
-        details["base_score"] = base_score
-        details["total_module_score"] = total_module_score
-        details["raw_score"] = raw_score
-        
-        audit_log.append(f"🧮 原始計算: {base_score} + {total_module_score:.1f} = {raw_score:.1f}分")
-        
-        # 2. 檢查是否有化解分可以減輕刑沖
-        resolution_score = module_scores.get("resolution_bonus", 0)
-        pressure_score = module_scores.get("pressure_penalty", 0)
-        
-        # 應用化解減輕機制（每1分化解分減輕15%刑沖傷害）
-        if resolution_score > 0 and pressure_score < 0:
-            mitigation_factor = min(resolution_score * PC.RESOLUTION_MITIGATION_FACTOR, PC.MAX_MITIGATION)
-            effective_pressure = pressure_score * (1 - mitigation_factor)
-            
-            # 重新計算總分
-            adjustment = effective_pressure - pressure_score
-            raw_score += adjustment
-            
-            audit_log.append(f"🛡️ 化解救應: 化解分{resolution_score:.1f}減輕刑沖{mitigation_factor:.0%}")
-            audit_log.append(f"🛡️ 刑沖調整: {pressure_score:.1f} → {effective_pressure:.1f} (+{adjustment:.1f}分)")
-            audit_log.append(f"🛡️ 調整後原始分: {raw_score-adjustment:.1f} → {raw_score:.1f}分")
-        
-        # 3. 應用日支刑沖硬上限（調整後）
-        final_score = raw_score
-        
-        if day_clash_info.get("has_day_clash"):
-            hard_cap = PC.DAY_CLASH_HARD_CAP
-            if final_score > hard_cap:
-                details["day_clash_cap_applied"] = f"{final_score:.1f}→{hard_cap}"
-                final_score = hard_cap
-                audit_log.append(f"⚠️ 日支六沖硬上限: {details['day_clash_cap_applied']}")
-        
-        elif day_clash_info.get("has_day_harm"):
-            hard_cap = PC.DAY_HARM_HARD_CAP
-            if final_score > hard_cap:
-                details["day_harm_cap_applied"] = f"{final_score:.1f}→{hard_cap}"
-                final_score = hard_cap
-                audit_log.append(f"⚠️ 日支六害硬上限: {details['day_harm_cap_applied']}")
-        
-        # 4. 檢查多重刑沖硬上限
-        pressure_score = module_scores.get("pressure_penalty", 0)
-        if pressure_score < -25:  # 多重刑沖
-            hard_cap = PC.MULTIPLE_CLASH_HARD_CAP
-            if final_score > hard_cap:
-                details["multiple_clash_cap_applied"] = f"{final_score:.1f}→{hard_cap}"
-                final_score = hard_cap
-                audit_log.append(f"⚠️ 多重刑沖硬上限: {details['multiple_clash_cap_applied']}")
-        
-        # 5. 相同八字處理
-        pillars_same = all(bazi1.get(k) == bazi2.get(k) for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar'])
-        if pillars_same:
-            final_score = min(final_score, 65)  # 相同八字最高65分
-            details["same_pillars_adjustment"] = "相同八字(伏吟)，上限65分"
-            audit_log.append("⚠️ 相同八字(伏吟)，上限65分")
-        
-        # 6. 強正向因子保護下限
-        # 如果有強正向因子（紅鸞天喜組合、高度喜用神互補等），設置保護下限
-        shen_sha_score = module_scores.get("shen_sha_bonus", 0)
-        energy_score = module_scores.get("energy_rescue", 0)
-        
-        # 檢查是否有強正向組合
-        has_strong_positive = (
-            shen_sha_score >= 10 or  # 強神煞組合
-            energy_score >= 20 or    # 強能量救應
-            ("紅鸞" in bazi1.get('shen_sha_names', '') and "天喜" in bazi2.get('shen_sha_names', '')) or
-            ("天喜" in bazi1.get('shen_sha_names', '') and "紅鸞" in bazi2.get('shen_sha_names', ''))
-        )
-        
-        if has_strong_positive and final_score < 50:
-            final_score = 50  # 強正向因子保護下限
-            details["positive_protection"] = "強正向因子保護下限50分"
-            audit_log.append("✨ 強正向因子保護下限: 50分")
-        
-        # 7. 最終範圍限制（軟性邊界）
-        final_score = max(15.0, min(95.0, final_score))
-        details["final_score"] = final_score
-        
-        audit_log.append(f"🎯 最終分數: {final_score:.1f}分")
-        
-        return round(final_score, 1), details
-    
-    @staticmethod
-    def _determine_relationship_model_pro(module_scores: Dict[str, float],
-                                        audit_log: List[str]) -> Tuple[str, List[str]]:
-        """確定關係模型"""
-        details = []
-        
-        a_to_b = module_scores.get("a_to_b_influence", 50)
-        b_to_a = module_scores.get("b_to_a_influence", 50)
-        
-        diff = abs(a_to_b - b_to_a)
-        avg = (a_to_b + b_to_a) / 2
-        
-        details.append(f"雙向分數: A→B={a_to_b:.1f}, B→A={b_to_a:.1f}")
-        details.append(f"差異: {diff:.1f}分, 平均: {avg:.1f}分")
-        
-        # 判定邏輯
-        if avg >= 70 and diff < PC.BALANCED_MAX_DIFF:
-            model = "平衡型"
-            details.append(f"平均分≥70且差異<{PC.BALANCED_MAX_DIFF}，判定為平衡型")
-        elif avg >= 60 and diff >= PC.SUPPLY_MIN_DIFF:
-            if a_to_b > b_to_a:
-                model = "供求型 (A供給B)"
-                details.append(f"平均分≥60且差異≥{PC.SUPPLY_MIN_DIFF}，A>B，判定為供求型(A供B)")
-            else:
-                model = "供求型 (B供給A)"
-                details.append(f"平均分≥60且差異≥{PC.SUPPLY_MIN_DIFF}，B>A，判定為供求型(B供A)")
-        elif avg >= PC.COMPLEMENTARY_MIN_SCORE:
-            model = "互補型"
-            details.append(f"平均分≥{PC.COMPLEMENTARY_MIN_SCORE}，判定為互補型")
-        else:
-            model = "普通型"
-            details.append("不符合特殊類型條件，判定為普通型")
-        
-        audit_log.append(f"🎭 關係模型: {model}")
-        
-        return model, details
-    
-    @staticmethod
-    def _get_rating_info_pro(score: float) -> Dict[str, str]:
-        """獲取評級信息"""
-        return {
-            "name": PC.get_rating(score),
-            "description": PC.get_rating_description(score)
-        }
-    
-    @staticmethod
-    def _apply_confidence_adjustment_pro(score: float, bazi1: Dict, bazi2: Dict,
-                                        audit_log: List[str]) -> float:
-        """應用信心度調整"""
-        confidence1 = bazi1.get('hour_confidence', '中')
-        confidence2 = bazi2.get('hour_confidence', '中')
-        
-        # 檢查時間調整
-        adjusted1 = bazi1.get('time_adjusted', False) or bazi1.get('day_adjusted', 0) != 0
-        adjusted2 = bazi2.get('time_adjusted', False) or bazi2.get('day_adjusted', 0) != 0
-        
-        if adjusted1 or adjusted2:
-            factor1 = PC.get_confidence_factor(confidence1)
-            factor2 = PC.get_confidence_factor(confidence2)
-            confidence_factor = factor1 * factor2
-            
-            adjusted_score = score * confidence_factor
-            audit_log.append(f"⏱️ 信心度調整: {confidence1}×{confidence2}={confidence_factor:.3f}")
-            audit_log.append(f"⏱️ 調整後分數: {score:.1f}→{adjusted_score:.1f}")
-            
-            return adjusted_score
-        
-        return score
-# 🔖 1.5 專業評分引擎結束
+# 🔖 1.5 全新專業評分引擎結束（判斷流程制）
 
 # 🔖 1.6 主入口函數開始
 def calculate_bazi_pro(year: int, month: int, day: int, hour: int,
@@ -2352,75 +1926,12 @@ class ProfessionalFormatters:
         lines.append(f"🎭 關係模型：{relationship_model}")
         lines.append("")
         
-        # 模組分數
-        module_scores = match_result.get('module_scores', {})
-        lines.append("📈 分數構成：")
-        
-        modules = [
-            ("⚡ 能量救應", "energy_rescue"),
-            ("🏛️ 結構核心", "structure_core"),
-            ("🎭 人格風險", "personality_risk"),
-            ("⚡ 刑沖壓力", "pressure_penalty"),
-            ("✨ 神煞加持", "shen_sha_bonus"),
-            ("🛡️ 專業化解", "resolution_bonus"),
-            ("🔄 大運風險", "dayun_risk"),
-        ]
-        
-        for label, key in modules:
-            value = module_scores.get(key, 0)
-            sign = "+" if value >= 0 else ""
-            lines.append(f"  {label}: {sign}{value:.1f}分")
-        
-        # 雙向影響
-        a_to_b = match_result.get('a_to_b_score', module_scores.get('a_to_b_influence', 0))
-        b_to_a = match_result.get('b_to_a_score', module_scores.get('b_to_a_influence', 0))
-        
-        lines.append("")
-        lines.append("🤝 雙向影響：")
-        lines.append(f"  {user_a_name} → {user_b_name}: {a_to_b:.1f}分")
-        lines.append(f"  {user_b_name} → {user_a_name}: {b_to_a:.1f}分")
-        
-        # 關鍵發現
-        lines.append("")
-        lines.append("🔍 關鍵發現：")
-        
-        score = match_result.get('score', 0)
-        
-        if score >= PC.THRESHOLD_PERFECT_MATCH:
-            lines.append("  ✅ 優勢：天作之合，五行高度互補，結構穩定無硬傷")
-            lines.append("  ✅ 建議：極佳配對，互相成就，幸福美滿")
-        elif score >= PC.THRESHOLD_EXCELLENT_MATCH:
-            lines.append("  ✅ 優勢：明顯互補，主要結構良好，有化解機制")
-            lines.append("  ✅ 建議：優秀配對，可白頭偕老，幸福率高")
-        elif score >= PC.THRESHOLD_GOOD_MATCH:
-            lines.append("  ✅ 優勢：核心需求能對接，結構無大沖")
-            lines.append("  ⚠️ 建議：良好配對，需努力經營，互相包容")
-        elif score >= PC.THRESHOLD_ACCEPTABLE:
-            lines.append("  ⚠️ 優勢：基本能量可互補")
-            lines.append("  ⚠️ 建議：可以交往，需注意問題，加強溝通")
-        elif score >= PC.THRESHOLD_WARNING:
-            lines.append("  ⚠️ 問題：有明顯沖剋，需謹慎考慮")
-            lines.append("  ⚠️ 建議：需要謹慎，易有矛盾，需多方考察")
-        elif score >= PC.THRESHOLD_STRONG_WARNING:
-            lines.append("  ❌ 問題：沖剋嚴重，難長久")
-            lines.append("  ❌ 建議：不建議發展，易生變故")
-        else:
-            lines.append("  ❌ 問題：硬傷明顯，極不適合")
-            lines.append("  ❌ 建議：避免發展，不適合婚戀")
-        
-        # 檢查具體問題
-        pressure_score = module_scores.get('pressure_penalty', 0)
-        personality_score = module_scores.get('personality_risk', 0)
-        dayun_score = module_scores.get('dayun_risk', 0)
-        
-        if pressure_score < -20:
-            lines.append("  ⚠️ 注意：刑沖壓力較大，容易產生矛盾衝突")
-        
-        if personality_score < -15:
-            lines.append("  ⚠️ 注意：人格風險較高，可能性格不合")
-        
-        if dayun_score < -10:
-            lines.append("  ⚠️ 注意：未來大運有挑戰，需提前準備")
+        # 詳細計算過程
+        calculation_details = match_result.get('calculation_details', [])
+        if calculation_details:
+            lines.append("🧮 計算過程：")
+            for detail in calculation_details[:5]:  # 只顯示前5條
+                lines.append(f"  {detail}")
         
         return "\n".join(lines)
     
@@ -2438,78 +1949,13 @@ BaziFormatters = ProfessionalFormatters
 # ========文件信息開始 ========#
 """
 文件: new_calculator.py
-功能: 八字配對系統專業核心引擎
-
-引用文件: 
-- sxtwl (農曆計算庫)
-- 無其他自定義模組
-
-被引用文件:
-- bot.py (主程序)
-- admin_service.py (管理員服務)
-- bazi_soulmate.py (真命天子搜索)
+功能: 八字配對系統專業核心引擎（判斷流程制版本）
 
 主要特點:
-1. 專業級八字計算，確保99%與頂級命理師計算結果一致
-2. 重新設計評分系統，解決分數通脹和失真問題
-3. 增強五行分析、格局判定、神煞系統專業性
-4. 統一的格式化輸出，確保四方功能結果一致
-5. 完整的錯誤處理和審計日誌系統
-6. 保持向後兼容，所有現有接口不變
-
-修改記錄：
-2026-02-03 專業重構版：
-1. 重構整個系統架構，分為專業核心引擎
-2. 增強五行分析邏輯，包括地支藏干專業計算
-3. 改進身強弱計算算法，更符合專業命理
-4. 重新設計評分系統，解決刑沖組合分數過高問題
-5. 增強神煞系統，包括更多吉凶神煞
-6. 改進喜用神計算邏輯，更準確判定
-7. 統一格式化輸出，確保所有功能結果一致
-8. 增強錯誤處理和審計系統
-9. 保持向後兼容，所有接口不變
-10. 修正所有已知問題，提高準確性
-
-2026-02-03 兼容性修正：
-1. 在文件末尾添加兼容別名：BaziError = BaziSystemError, MatchError = MatchScoringError
-2. 確保 bot.py 可以正確導入錯誤處理類
-3. 保持所有現有接口不變，維持向後兼容
-
-2026-02-03 評分系統重大修正：
-1. 修復刑沖懲罰過重問題：改為分級系統（首個-12，第二個-8，之後每個-4）
-2. 添加救應機制：六合解沖減輕60%，三合解沖減輕40%，五合解沖減輕30%
-3. 提高正面因子加成：神煞、喜用神互補等加分提高50-100%
-4. 添加化解分減輕刑沖機制：每1分化解分減輕15%刑沖傷害，最高減輕85%
-5. 移除35分硬性下限，改為軟性邊界控制（15-95分）
-6. 添加強正向因子保護下限：紅鸞天喜組合等強正向因子確保不低於50分
-7. 修正大運風險計算：調整懲罰幅度
-8. 優化能量救應計算：更細緻的濃度分級
-
-2026-02-03 參數修復：
-1. 修復 ProfessionalScoringEngine._calculate_final_score_pro 方法缺少 bazi1 和 bazi2 參數的問題
-2. 在 calculate_match_score_pro 方法中調用 _calculate_final_score_pro 時添加 bazi1 和 bazi2 參數
-3. 修復相同八字判斷的邏輯錯誤
-
-累積修正：
-- 解決刑沖懲罰不足問題，讓極端刑沖組合能跑出低分
-- 解決正向加分不足問題，讓優質互補組合能跑出高分
-- 取消能量救應抵銷刑沖的錯誤邏輯
-- 增強專業計算準確度，確保99%與專業命理師一致
-- 統一所有功能的計算和輸出邏輯
-- 符合繁體中文要求
-- 無版本號標示
+1. 採用「判斷流程制」評分引擎，先斷凶吉、後論好壞
+2. 嚴格遵循日柱生死關→刑沖壓力→結構核心→救應減刑→輔助微調流程
+3. 無分數通脹，無固定聚集點，分數分佈合理
+4. 符合專業命理邏輯，與頂級命理師判斷一致
+5. 保持向後兼容，所有現有接口不變
 """
 # ========文件信息結束 ========#
-
-# ========目錄開始 ========#
-"""
-目錄:
-1.1 專業錯誤處理系統 - 分層錯誤處理類
-1.2 專業配置系統 - 專業命理配置常量
-1.3 專業時間處理引擎 - 真太陽時專業計算
-1.4 專業八字核心引擎 - 八字計算和分析專業實現
-1.5 專業評分引擎 - 命理評分專業算法
-1.6 主入口函數 - 對外接口和兼容處理
-1.7 統一格式化工具類 - 專業格式化輸出
-"""
-# ========目錄結束 ========#
