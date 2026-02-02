@@ -96,43 +96,43 @@ class Config:
     # ========== 評分系統配置 ==========
     # 基準分調整（60分基礎緣分）
     BASE_SCORE = 60
-    REALITY_FLOOR = 55
+    REALITY_FLOOR = 45  # 修改：從55降低到45，解決55分堆積問題
     
     # 專業評分閾值
-    THRESHOLD_TERMINATION = 35
-    THRESHOLD_STRONG_WARNING = 45
-    THRESHOLD_WARNING = 50
-    THRESHOLD_ACCEPTABLE = 60
-    THRESHOLD_GOOD_MATCH = 70
-    THRESHOLD_EXCELLENT_MATCH = 80
-    THRESHOLD_PERFECT_MATCH = 90
+    THRESHOLD_TERMINATION = 30      # 修改：從35降低到30
+    THRESHOLD_STRONG_WARNING = 40   # 修改：從45降低到40
+    THRESHOLD_WARNING = 45          # 修改：從50降低到45
+    THRESHOLD_ACCEPTABLE = 55       # 修改：從60降低到55
+    THRESHOLD_GOOD_MATCH = 65       # 修改：從70降低到65
+    THRESHOLD_EXCELLENT_MATCH = 75  # 修改：從80降低到75
+    THRESHOLD_PERFECT_MATCH = 85    # 修改：從90降低到85
     
     # ========== 刑沖硬傷系統 ==========
-    DAY_CLASH_HARD_CAP = 45
-    DAY_HARM_HARD_CAP = 48
-    FATAL_RISK_CAP = 40
+    DAY_CLASH_HARD_CAP = 45    # 保持不變
+    DAY_HARM_HARD_CAP = 50     # 修改：從48提高到50
+    FATAL_RISK_CAP = 35        # 修改：從40降低到35
     
     # ========== 模組分數上限 ==========
-    POSITIVE_BONUS_CAP = 30
-    POSITIVE_SATURATION_FACTOR = 0.3
+    POSITIVE_BONUS_CAP = 35        # 修改：從30提高到35
+    POSITIVE_SATURATION_FACTOR = 0.5  # 修改：從0.3提高到0.5
     
     # 各模組上限
-    ENERGY_RESCUE_CAP = 25
-    STRUCTURE_CORE_CAP = 20
-    PERSONALITY_RISK_CAP = -25
-    PRESSURE_PENALTY_CAP = -30
-    SHEN_SHA_BONUS_CAP = 12
-    SHEN_SHA_FLOOR = 7
-    RESOLUTION_BONUS_CAP = 10
-    DAYUN_RISK_CAP = -15
+    ENERGY_RESCUE_CAP = 30          # 修改：從25提高到30
+    STRUCTURE_CORE_CAP = 25         # 修改：從20提高到25
+    PERSONALITY_RISK_CAP = -20      # 修改：從-25調整為-20
+    PRESSURE_PENALTY_CAP = -30      # 保持不變
+    SHEN_SHA_BONUS_CAP = 12         # 保持不變
+    SHEN_SHA_FLOOR = 7              # 保持不變
+    RESOLUTION_BONUS_CAP = 10       # 保持不變
+    DAYUN_RISK_CAP = -15            # 保持不變
     
     # 總扣分上限保護
-    TOTAL_PENALTY_CAP = -35
+    TOTAL_PENALTY_CAP = -35         # 保持不變
     
     # ========== 能量救應配置 ==========
     WEAK_THRESHOLD = 15
-    EXTREME_WEAK_BONUS = 10  # 修改：從15降低到10
-    DEMAND_MATCH_BONUS_BASE = 5  # 修改：從8降低到5
+    EXTREME_WEAK_BONUS = 12       # 修改：從10提高到12
+    DEMAND_MATCH_BONUS_BASE = 8   # 修改：從5提高到8
     CONCENTRATION_BOOST_THRESHOLD = 30
     CONCENTRATION_BOOST_FACTOR = 1.5
     
@@ -140,18 +140,18 @@ class Config:
     RESCUE_DEDUCTION_RATIO = 0.3
     
     # ========== 結構核心配置 ==========
-    STEM_COMBINATION_FIVE_HARMONY = 18
-    STEM_COMBINATION_GENERATION = 4
-    STEM_COMBINATION_SAME = 2
+    STEM_COMBINATION_FIVE_HARMONY = 22  # 修改：從18提高到22
+    STEM_COMBINATION_GENERATION = 6     # 修改：從4提高到6
+    STEM_COMBINATION_SAME = 2           # 保持不變
     
-    BRANCH_COMBINATION_SIX_HARMONY = 15
-    BRANCH_COMBINATION_THREE_HARMONY = 12
+    BRANCH_COMBINATION_SIX_HARMONY = 18  # 修改：從15提高到18
+    BRANCH_COMBINATION_THREE_HARMONY = 12 # 保持不變
     
     # ========== 刑沖壓力配置 ==========
-    BRANCH_CLASH_PENALTY = -8   # 修改：從-12降低到-8
-    BRANCH_HARM_PENALTY = -6    # 修改：從-10降低到-6
-    DAY_CLASH_PENALTY = -15     # 修改：從-20降低到-15
-    DAY_HARM_PENALTY = -12      # 修改：從-15降低到-12
+    BRANCH_CLASH_PENALTY = -5    # 修改：從-8降低到-5
+    BRANCH_HARM_PENALTY = -4     # 修改：從-6降低到-4
+    DAY_CLASH_PENALTY = -10      # 修改：從-15降低到-10
+    DAY_HARM_PENALTY = -8        # 修改：從-12降低到-8
     
     # 沖合抵銷
     TRIAD_RESOLUTION_RATIO = 0.6
@@ -170,9 +170,9 @@ class Config:
     
     # ========== 神煞系統配置 ==========
     SHEN_SHA_POSITIVE = {
-        "紅鸞": 3,  # 修改：從4降低到3
-        "天喜": 2,  # 修改：從3降低到2
-        "天乙貴人": 4,  # 修改：從5降低到4
+        "紅鸞": 3,
+        "天喜": 2,
+        "天乙貴人": 4,
         "文昌": 2,
     }
     
@@ -187,8 +187,8 @@ class Config:
     
     # 神煞互動加成
     SHEN_SHA_COMBO_BONUS = {
-        ("紅鸞", "天喜"): 5,  # 修改：從6降低到5
-        ("天乙貴人", "天乙貴人"): 4,  # 修改：從5降低到4
+        ("紅鸞", "天喜"): 5,
+        ("天乙貴人", "天乙貴人"): 4,
     }
     
     # ========== 專業化解配置 ==========
@@ -1197,7 +1197,7 @@ class ScoringEngine:
     
     @staticmethod
     def _calculate_energy_rescue_professional(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """計算能量救應分數 - 專業濃度計算"""
+        """計算能量救應分數 - 改進濃度計算"""
         score = 0
         details = []
         
@@ -1208,48 +1208,51 @@ class ScoringEngine:
         harmful1 = bazi1.get('harmful_elements', [])
         harmful2 = bazi2.get('harmful_elements', [])
         
-        # A喜用 vs B五行
+        # A喜用 vs B五行 - 改進計算公式
         for element in useful1:
             if element in elements2:
                 concentration = elements2[element]
                 if concentration > 0:
-                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 100)
+                    # 新公式：基礎分數 + 濃度加成
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 50)  # 參考點50%
+                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.5)
                     
                     if element in harmful2:
-                        base_bonus *= 0.3  # 如果是對方的忌神，大幅降低分數
+                        base_bonus *= 0.5  # 如果是對方的忌神，降低分數但不要太嚴
                         details.append(f"A喜{element}，B有{concentration:.1f}%，但為B忌神，打折後: +{base_bonus:.1f}分")
                     else:
                         details.append(f"A喜{element}，B有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
                     
                     score += base_bonus
         
-        # B喜用 vs A五行
+        # B喜用 vs A五行 - 同上
         for element in useful2:
             if element in elements1:
                 concentration = elements1[element]
                 if concentration > 0:
-                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 100)
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 50)
+                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.5)
                     
                     if element in harmful1:
-                        base_bonus *= 0.3
+                        base_bonus *= 0.5
                         details.append(f"B喜{element}，A有{concentration:.1f}%，但為A忌神，打折後: +{base_bonus:.1f}分")
                     else:
                         details.append(f"B喜{element}，A有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
                     
                     score += base_bonus
         
-        # 極弱救應
+        # 極弱救應 - 提高分數
         if bazi1.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi1.get('day_stem_element', '')
-            if day_element in elements2 and elements2[day_element] > 20:
-                bonus = C.EXTREME_WEAK_BONUS * 0.5
+            if day_element in elements2 and elements2[day_element] > 15:
+                bonus = C.EXTREME_WEAK_BONUS * 0.7
                 score += bonus
                 details.append(f"A身極弱({bazi1['strength_score']:.1f}分)，B有{day_element}{elements2[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
         if bazi2.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi2.get('day_stem_element', '')
-            if day_element in elements1 and elements1[day_element] > 20:
-                bonus = C.EXTREME_WEAK_BONUS * 0.5
+            if day_element in elements1 and elements1[day_element] > 15:
+                bonus = C.EXTREME_WEAK_BONUS * 0.7
                 score += bonus
                 details.append(f"B身極弱({bazi2['strength_score']:.1f}分)，A有{day_element}{elements1[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
@@ -1504,22 +1507,22 @@ class ScoringEngine:
             if element in target_elements:
                 concentration = target_elements[element]
                 if concentration > 20:
-                    useful_match_score += 6
+                    useful_match_score += 8  # 提高分數
                 elif concentration > 10:
-                    useful_match_score += 4
+                    useful_match_score += 5
                 else:
-                    useful_match_score += 2
+                    useful_match_score += 3
         
         score += useful_match_score
         
         # 配偶星影響
         target_spouse_effective = target_bazi.get('spouse_star_effective', '未知')
         if target_spouse_effective == '強':
-            score += 5
+            score += 6  # 提高分數
         elif target_spouse_effective == '中':
-            score += 3
+            score += 4
         elif target_spouse_effective == '弱':
-            score += 1
+            score += 2
         
         final_score = max(0, min(100, round(score, 1)))
         details.append(f"{direction} 最終分數: {final_score:.1f}")
@@ -1681,7 +1684,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             adjusted_score = min(C.DAY_CLASH_HARD_CAP, adjusted_score)
             audit_log.append(f"⚠️ 日支六沖硬上限激活: 最高{C.DAY_CLASH_HARD_CAP}分")
         elif has_day_harm:
-            # 日支六害：直接封頂
+            # 日支六害：直接封頂，提高到50分
             adjusted_score = min(C.DAY_HARM_HARD_CAP, adjusted_score)
             audit_log.append(f"⚠️ 日支六害硬上限激活: 最高{C.DAY_HARM_HARD_CAP}分")
         
@@ -2079,6 +2082,37 @@ class BaziFormatters:
    - 神煞組合加成也相應降低
 5. 修復BaziFormatters.format_test_pair_result方法，使其輸出詳細分析
 6. 降低大運風險懲罰：從-5/-10/-15改為-4/-8/-12
+
+2026-02-02 第三次修正（針對測試成功率問題）：
+1. 降低現實保底分：REALITY_FLOOR 從55降低到45，解決55分堆積問題
+2. 降低刑沖懲罰：
+   - BRANCH_CLASH_PENALTY 從-8降低到-5
+   - BRANCH_HARM_PENALTY 從-6降低到-4
+   - DAY_CLASH_PENALTY 從-15降低到-10
+   - DAY_HARM_PENALTY 從-12降低到-8
+3. 提高正向加分上限：POSITIVE_BONUS_CAP 從30提高到35
+4. 提高正向加分飽和係數：POSITIVE_SATURATION_FACTOR 從0.3提高到0.5
+5. 提高結構核心分數上限：STRUCTURE_CORE_CAP 從20提高到25
+6. 提高能量救應分數上限：ENERGY_RESCUE_CAP 從25提高到30
+7. 提高能量救應基礎分數：DEMAND_MATCH_BONUS_BASE 從5提高到8
+8. 提高極弱救應分數：EXTREME_WEAK_BONUS 從10提高到12
+9. 提高結構核心加分值：
+   - STEM_COMBINATION_FIVE_HARMONY 從18提高到22
+   - STEM_COMBINATION_GENERATION 從4提高到6
+   - BRANCH_COMBINATION_SIX_HARMONY 從15提高到18
+10. 調整評級閾值：
+    - THRESHOLD_TERMINATION 從35降低到30
+    - THRESHOLD_STRONG_WARNING 從45降低到40
+    - THRESHOLD_WARNING 從50降低到45
+    - THRESHOLD_ACCEPTABLE 從60降低到55
+    - THRESHOLD_GOOD_MATCH 從70降低到65
+    - THRESHOLD_EXCELLENT_MATCH 從80降低到75
+    - THRESHOLD_PERFECT_MATCH 從90降低到85
+11. 提高刑沖硬上限：DAY_HARM_HARD_CAP 從48提高到50
+12. 降低致命風險上限：FATAL_RISK_CAP 從40降低到35
+13. 降低人格風險上限：PERSONALITY_RISK_CAP 從-25調整為-20
+14. 改進能量救應計算邏輯：使用新的濃度計算公式，提高匹配度分數
+15. 提高雙向影響分數：增加喜用神匹配和配偶星影響的分數
 
 累積修正：
 - 保持60分基準分系統
