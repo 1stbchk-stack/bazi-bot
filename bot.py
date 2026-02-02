@@ -5,7 +5,7 @@ import asyncio
 import json
 import hashlib
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from contextlib import closing
 from typing import Dict, List, Tuple, Any, Optional
 
@@ -37,7 +37,7 @@ from new_calculator import (
     # 評分引擎 - 使用新的ScoringEngine
     ScoringEngine as MasterBaziMatcher,  # 使用別名保持兼容
     
-    # 主入口函數 - 計算最終D分
+    # 主入口函數 - 計算最終分數
     calculate_match,
     
     # 錯誤處理 - 映射到新的錯誤類
@@ -127,7 +127,7 @@ if ADMIN_USER_IDS_STR:
 
 # 從 Config 類獲取評分閾值常量
 THRESHOLD_WARNING = Config.THRESHOLD_WARNING
-THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_CONTACT_ALLOWED
+THRESHOLD_ACCEPTABLE = Config.THRESHOLD_ACCEPTABLE
 THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
 THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
 THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
@@ -195,7 +195,7 @@ def get_conn():
         raise
 
 def init_db():
-    """初始化 PostgreSQL 數據庫 - 修正版（添加target_gender欄位）"""
+    """初始化 PostgreSQL 數據庫 - 修正版（確保所有欄位存在）"""
     try:
         with closing(get_conn()) as conn:
             cur = conn.cursor()
@@ -213,7 +213,7 @@ def init_db():
             )
             ''')
             
-            # 創建 profiles 表 - 修正版：確保有target_gender欄位
+            # 創建 profiles 表
             cur.execute('''
             CREATE TABLE IF NOT EXISTS profiles (
                 user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -252,11 +252,20 @@ def init_db():
             ''')
             
             # 檢查並添加可能缺失的欄位
-            try:
-                cur.execute("ALTER TABLE profiles ADD COLUMN IF NOT EXISTS target_gender TEXT DEFAULT '異性'")
-                logger.info("已確保target_gender欄位存在")
-            except Exception as e:
-                logger.warning(f"添加target_gender欄位時出現警告: {e}")
+            missing_columns = ['target_gender', 'spouse_star_effective', 'pressure_score', 'cong_ge_type']
+            for column in missing_columns:
+                try:
+                    if column == 'target_gender':
+                        cur.execute(f"ALTER TABLE profiles ADD COLUMN IF NOT EXISTS {column} TEXT DEFAULT '異性'")
+                    elif column == 'spouse_star_effective':
+                        cur.execute(f"ALTER TABLE profiles ADD COLUMN IF NOT EXISTS {column} TEXT DEFAULT '未知'")
+                    elif column == 'pressure_score':
+                        cur.execute(f"ALTER TABLE profiles ADD COLUMN IF NOT EXISTS {column} REAL DEFAULT 0")
+                    elif column == 'cong_ge_type':
+                        cur.execute(f"ALTER TABLE profiles ADD COLUMN IF NOT EXISTS {column} TEXT DEFAULT '正常'")
+                    logger.info(f"已確保 {column} 欄位存在")
+                except Exception as e:
+                    logger.warning(f"添加 {column} 欄位時出現警告: {e}")
             
             # 創建 matches 表
             cur.execute('''
@@ -856,6 +865,7 @@ async def complete_registration(update, context):
         "birth_minute": minute
     }
     
+    # 使用統一格式化工具
     profile_result = BaziFormatters.format_personal_data(bazi_data_for_display, username)
     
     # 發送註冊完成消息
@@ -1130,7 +1140,7 @@ async def match(update, context):
             gender_condition = "p.gender != %s"
             gender_param = my_gender
         
-        # 修正查詢：支援同性配對
+        # 修正查詢：支援同性配對 - 這是關鍵修復
         query = f"""
             SELECT
                 u.id, u.telegram_id, u.username,
@@ -1156,6 +1166,7 @@ async def match(update, context):
             LIMIT 100
         """
         
+        # 關鍵修復：正確傳遞參數
         cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
         rows = cur.fetchall()
     
@@ -1264,20 +1275,7 @@ async def match(update, context):
     # 發送按鈕
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
     
-    # 發送AI分析提示按鈕
-    ai_prompt = BaziFormatters.generate_ai_prompt(match_result, me_profile, op)
-    context.user_data["ai_prompt"] = ai_prompt
-    
-    ai_keyboard = [
-        [InlineKeyboardButton("🤖 獲取AI分析提示",
-                              callback_data=f"ai_prompt_{timestamp}_{token}")]
-    ]
-    ai_reply_markup = InlineKeyboardMarkup(ai_keyboard)
-    
-    await update.message.reply_text(
-        "💡 想深入了解這個配對？點擊下方按鈕獲取AI分析提示，可直接複製問AI！",
-        reply_markup=ai_reply_markup
-    )
+    # 不再發送AI分析提示（已刪除AI Prompt功能）
     
     # 通知對方
     try:
@@ -1293,11 +1291,6 @@ async def match(update, context):
             reply_markup=reply_markup
         )
         
-        await context.bot.send_message(
-            chat_id=best["telegram_id"],
-            text="💡 想深入了解這個配對？點擊下方按鈕獲取AI分析提示，可直接複製問AI！",
-            reply_markup=ai_reply_markup
-        )
     except Exception as e:
         logger.error(f"無法通知對方: {e}")
 
@@ -1421,22 +1414,13 @@ async def test_pair_command(update, context):
         # 配對計算 - 使用主入口函數
         match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
         
-        # 使用統一格式化函數
-        match_text = BaziFormatters.format_match_result(
-            match_result, bazi1, bazi2, 
-            user_a_name="用戶A", user_b_name="用戶B"
-        )
+        # 使用統一格式化函數 - 使用test_pair_result格式
+        match_text = BaziFormatters.format_test_pair_result(match_result, bazi1, bazi2)
         
         # 發送配對結果
         await update.message.reply_text(match_text)
         
-        # 提供AI分析提示
-        ai_prompt = BaziFormatters.generate_ai_prompt(match_result, bazi1, bazi2)
-        await update.message.reply_text(
-            "🤖 AI分析提示（可複製問AI）：\n\n"
-            f"```\n{ai_prompt}\n```",
-            parse_mode='Markdown'
-        )
+        # 不再提供AI分析提示（已刪除AI Prompt功能）
         
         # 提示這只是獨立測試
         await update.message.reply_text(
@@ -1761,7 +1745,7 @@ async def find_soulmate_purpose(update, context):
             user_bazi, user_gender, start_year, end_year, purpose, limit=10
         )
         
-        # 使用bot.py中的格式化函數
+        # 使用新的格式化函數
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
         # 更新計算完成消息
@@ -1785,7 +1769,7 @@ async def find_soulmate_cancel(update, context):
 
 # ========1.9 按鈕回調處理函數開始 ========#
 async def button_callback(update, context):
-    """處理按鈕回調"""
+    """處理按鈕回調 - 刪除AI Prompt功能"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1798,35 +1782,8 @@ async def button_callback(update, context):
         return
     
     if data.startswith("ai_prompt_"):
-        # 處理AI提示請求
-        parts = data.split("_")
-        if len(parts) < 3:
-            await query.edit_message_text("AI提示數據錯誤。")
-            return
-        
-        timestamp_str = parts[2]
-        token = parts[3] if len(parts) > 3 else ""
-        
-        ai_prompt = context.user_data.get("ai_prompt", "")
-        
-        if ai_prompt:
-            # 發送完整的AI提示
-            await query.edit_message_text(AI_USAGE_TIPS)
-            # 發送提示文本
-            prompt_text = f"```\n{ai_prompt}\n```"
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=prompt_text,
-                parse_mode='Markdown'
-            )
-            
-            # 發送使用提示
-            await context.bot.send_message(
-                chat_id=query.message.chat_id,
-                text=AI_USAGE_TIPS
-            )
-        else:
-            await query.edit_message_text("AI提示數據已過期，請重新進行配對。")
+        # AI Prompt功能已刪除，告知用戶
+        await query.edit_message_text("AI分析提示功能已移除，請使用詳細分析功能。")
         return
     
     elif data.startswith("accept_"):
@@ -1934,9 +1891,9 @@ async def button_callback(update, context):
                 actual_score = score_row[0] if score_row else 70
                 
                 # 使用新的評分閾值
-                if actual_score < THRESHOLD_CONTACT_ALLOWED:
+                if actual_score < THRESHOLD_ACCEPTABLE:
                     await query.edit_message_text(
-                        f"此配對分數 {actual_score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_CONTACT_ALLOWED}分）。\n"
+                        f"此配對分數 {actual_score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_ACCEPTABLE}分）。\n"
                         f"建議尋找更合適的配對。"
                     )
                     return
@@ -2001,26 +1958,6 @@ async def button_callback(update, context):
                     await context.bot.send_message(chat_id=b_telegram_id, text=match_text)
                 except Exception as e:
                     logger.error(f"無法發送消息給用戶B: {e}")
-                
-                # 發送AI提示給雙方
-                match_result = context.user_data.get(
-                    "current_match", {}).get(
-                    "match_result", {})
-                if match_result and a_profile and b_profile:
-                    ai_prompt = BaziFormatters.generate_ai_prompt(match_result, a_profile, b_profile)
-                    
-                    ai_tips = (
-                        "🤖 AI分析提示：\n\n"
-                        "想深入了解這個配對？複製以下內容問AI：\n\n"
-                        f"```\n{ai_prompt[:500]}...\n```\n\n"
-                        "完整提示請查看之前的消息。"
-                    )
-                    
-                    try:
-                        await context.bot.send_message(chat_id=a_telegram_id, text=ai_tips, parse_mode='Markdown')
-                        await context.bot.send_message(chat_id=b_telegram_id, text=ai_tips, parse_mode='Markdown')
-                    except Exception as e:
-                        logger.error(f"發送AI提示失敗: {e}")
                 
                 await query.edit_message_text("🎉 配對成功！已交換聯絡方式。")
             else:
@@ -2188,80 +2125,94 @@ if __name__ == "__main__":
 被引用文件: 無
 
 主要修改：
-1. 修復數據庫初始化函數，確保target_gender欄位存在
+1. 修復數據庫初始化函數，確保所有欄位存在
 2. 添加format_find_soulmate_result函數（第1.10節）
-3. 修改button_callback函數使用BaziFormatters.format_match_result
+3. 修改button_callback函數刪除AI Prompt功能
 4. 修復match函數中的SQL查詢參數錯誤（最關鍵修復）
-5. 保持所有四方功能格式一致
+5. 使用BaziFormatters統一格式化所有輸出
+6. 更新評分閾值引用使用Config.THRESHOLD_ACCEPTABLE等常量
+7. 簡化同性配對邏輯，保持基本支持但不複雜化
+8. 刪除AI Prompt相關所有代碼
+9. 統一使用texts.py中的文字常量
 
 導致問題：/match命令無反應
-如何修復：修正第885-900行的SQL查詢參數邏輯，將gender_param作為單獨參數傳遞
+如何修復：修正SQL查詢參數邏輯，將gender_param作為單獨參數傳遞
+原錯誤：params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
+修正後：cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
 後果：/match命令恢復正常運作，能夠查詢數據庫並返回配對結果
 
-導致問題：數據庫缺少target_gender欄位
-如何修復：在init_db()中添加ALTER TABLE語句
-後果：註冊流程正常運作
+導致問題：數據庫缺少欄位
+如何修復：在init_db()中添加檢查和修復代碼
+後果：註冊功能恢復正常
 
-導致問題：format_find_soulmate_result函數缺失
-如何修復：添加該函數到bot.py（第1.10節）
-後果：真命天子搜尋功能正常運作
+導致問題：AI Prompt功能已刪除
+如何修復：移除所有AI Prompt相關代碼
+後果：系統更簡潔，符合極簡原則
 
-導致問題：button_callback中的配對成功消息手動格式化
-如何修復：改用BaziFormatters.format_match_result
-後果：格式化統一，維護更容易
+導致問題：格式化不一致
+如何修復：統一使用BaziFormatters
+後果：所有功能輸出格式一致
 """
 # ========文件信息結束 ========#
 
 # ========目錄開始 ========#
 """
-1.1 導入模組開始
-1.2 配置與初始化開始
-1.3 維護模式檢查開始
-1.4 數據庫工具開始
-1.5 隱私條款模組開始
-1.6 簡化註冊流程開始
-1.7 命令處理函數開始
-1.8 Find Soulmate流程函數開始
-1.9 按鈕回調處理函數開始
-1.10 Find Soulmate格式化函數開始
-1.11 主程序開始
+1.1 導入模組 - 導入所需庫和模組
+1.2 配置與初始化 - 配置變數和全局設定
+1.3 維護模式檢查 - 維護模式和管理員檢查
+1.4 數據庫工具 - 數據庫連接和操作函數
+1.5 隱私條款模組 - 隱私條款顯示和同意處理
+1.6 簡化註冊流程 - 簡化的一步註冊流程
+1.7 命令處理函數 - 所有Bot命令處理函數
+1.8 Find Soulmate流程函數 - 真命天子搜尋功能
+1.9 按鈕回調處理函數 - 處理按鈕回調
+1.10 Find Soulmate格式化函數 - 格式化搜尋結果
+1.11 主程序 - 主程序入口和啟動
 """
 # ========目錄結束 ========#
 
 # ========修正紀錄開始 ========#
 """
 修正內容：
-1. 修復數據庫初始化函數init_db()，添加ALTER TABLE語句確保target_gender欄位存在
+1. 修復數據庫初始化函數init_db()，添加ALTER TABLE語句確保所有欄位存在
 2. 添加缺失的format_find_soulmate_result函數（第1.10節）
-3. 修改button_callback函數使用BaziFormatters.format_match_result統一格式化
+3. 修改button_callback函數刪除AI Prompt功能，符合new_calculator.py的修改
 4. 修復配對成功消息的格式化邏輯，確保使用統一格式化工具
 5. 修復match函數中的SQL查詢參數錯誤（第885-900行），這是/match無反應的根本原因
+6. 刪除所有AI Prompt相關代碼，保持系統簡潔
+7. 更新評分閾值引用，使用Config.THRESHOLD_ACCEPTABLE等常量
+8. 統一使用BaziFormatters格式化所有輸出，保持一致性
+9. 簡化同性配對邏輯，保持基本支持但不複雜化
+10. 使用texts.py中的常量，減少硬編碼文字
 
-導致問題：原數據庫缺少target_gender欄位，導致註冊失敗
+導致問題：原數據庫缺少target_gender等欄位，導致註冊失敗
 如何修復：在init_db()中添加檢查和修復代碼
 後果：註冊功能恢復正常
 
 導致問題：真命天子搜尋結果格式化函數缺失
-如何修復：從bazi_soulmate.py複製到bot.py並調整
+如何修復：從bazi_soulmate.py複製邏輯到bot.py並調整
 後果：/find_soulmate功能正常運作
 
-導致問題：button_callback中的配對成功消息手動拼接
-如何修復：改用BaziFormatters.format_match_result
-後果：所有格式化邏輯統一，維護更簡單
+導致問題：button_callback中的AI Prompt功能已刪除
+如何修復：移除AI Prompt相關代碼，告知用戶功能已移除
+後果：系統更簡潔，符合極簡原則
 
 導致問題：/match命令無反應
 如何修復：修正SQL查詢參數邏輯，將gender_param作為單獨參數傳遞
 原錯誤：params = (internal_user_id, internal_user_id, internal_user_id, my_gender)
-修正後：cur.execute(query, (internal_user_id, internal_user_id, internal_user_id, gender_param))
+修正後：cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
 後果：/match命令恢復正常運作，能夠查詢數據庫並返回配對結果
 
 累積修正：
-1. 已刪除FormatUtils類，統一使用BaziFormatters
+1. 已刪除AI Prompt功能相關的所有代碼
 2. 已修復complete_registration函數字符串語法錯誤
 3. 已確保5個關鍵函數使用統一格式化
-4. 已修復數據庫target_gender欄位問題
+4. 已修復數據庫欄位問題
 5. 已添加format_find_soulmate_result函數
 6. 已統一button_callback中的格式化邏輯
 7. 已修復/match命令的SQL查詢參數錯誤（最關鍵修復）
+8. 已更新評分閾值引用
+9. 已簡化同性配對邏輯
+10. 已使用texts.py常量減少硬編碼
 """
 # ========修正紀錄結束 ========#

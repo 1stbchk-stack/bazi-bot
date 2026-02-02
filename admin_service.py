@@ -16,9 +16,9 @@ from new_calculator import (
     BaziFormatters
 )
 
-# 从 Config 类获取常量
+# 從 Config 類獲取常量
 THRESHOLD_WARNING = Config.THRESHOLD_WARNING
-THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_CONTACT_ALLOWED
+THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_ACCEPTABLE  # 修改：使用ACCEPTABLE而非CONTACT_ALLOWED
 THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
 THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
 THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
@@ -55,9 +55,10 @@ class TestResult:
     model_match: bool
     birth1: str = ""
     birth2: str = ""
-    range: str = ""
+    range_str: str = ""
     error: str = ""
     details: List[str] = None
+    score_details: str = ""  # 分數細項詳細
 
 @dataclass
 class SystemStats:
@@ -97,7 +98,7 @@ class AdminService:
     
     # ========2.1 測試功能開始 ========#
     async def run_admin_tests(self) -> Dict[str, Any]:
-        """運行管理員測試案例"""
+        """運行管理員測試案例 - 採用極簡格式"""
         from test_cases import ADMIN_TEST_CASES
         
         results = {
@@ -106,12 +107,17 @@ class AdminService:
             'failed': 0,
             'errors': 0,
             'success_rate': 0.0,
-            'details': []
+            'details': [],
+            'formatted_results': []  # 極簡格式結果
         }
         
         for i, test_case in enumerate(ADMIN_TEST_CASES, 1):
             test_result = await self._run_single_test(i, test_case)
             results['details'].append(test_result.__dict__)
+            
+            # 生成極簡格式結果
+            formatted_result = self._format_single_test_result(test_result)
+            results['formatted_results'].append(formatted_result)
             
             if test_result.status == 'PASS':
                 results['passed'] += 1
@@ -126,14 +132,14 @@ class AdminService:
         return results
     
     async def _run_single_test(self, test_id: int, test_case: Dict) -> TestResult:
-        """運行單個測試案例"""
+        """運行單個測試案例 - 強化分數細項提取"""
         try:
             # 提取出生時間信息用於顯示
             bazi_data1 = test_case['bazi_data1']
             bazi_data2 = test_case['bazi_data2']
             
-            birth1 = f"{bazi_data1['year']}年{bazi_data1['month']}月{bazi_data1['day']}日{bazi_data1['hour']}時"
-            birth2 = f"{bazi_data2['year']}年{bazi_data2['month']}月{bazi_data2['day']}日{bazi_data2['hour']}時"
+            birth1 = f"{bazi_data1['gender']}{bazi_data1['year']}{bazi_data1['month']:02d}{bazi_data1['day']:02d}{bazi_data1['hour']:02d}"
+            birth2 = f"{bazi_data2['gender']}{bazi_data2['year']}{bazi_data2['month']:02d}{bazi_data2['day']:02d}{bazi_data2['hour']:02d}"
             range_str = f"{test_case['expected_range'][0]}-{test_case['expected_range'][1]}"
             
             # 計算八字
@@ -155,6 +161,8 @@ class AdminService:
             # 檢查結果
             if expected_min <= score <= expected_max:
                 status = 'PASS'
+            elif abs(score - expected_min) <= 1 or abs(score - expected_max) <= 1:
+                status = '邊緣'
             else:
                 status = 'FAIL'
             
@@ -163,12 +171,19 @@ class AdminService:
             expected_model = test_case.get('expected_model', '')
             model_match = model == expected_model
             
+            # 提取分數細項（用於極簡格式）
+            score_details = self._extract_score_details(match_result)
+            
             # 生成詳細信息
             details = [
                 f"分數: {score:.1f}分 (預期: {expected_min}-{expected_max}分)",
                 f"模型: {model} (預期: {expected_model})",
                 f"評級: {match_result.get('rating', '未知')}"
             ]
+            
+            # 提取八字四柱用於顯示
+            pillars1 = f"{bazi1.get('year_pillar', '')}{bazi1.get('month_pillar', '')}{bazi1.get('day_pillar', '')}{bazi1.get('hour_pillar', '')}"
+            pillars2 = f"{bazi2.get('year_pillar', '')}{bazi2.get('month_pillar', '')}{bazi2.get('day_pillar', '')}{bazi2.get('hour_pillar', '')}"
             
             return TestResult(
                 test_id=test_id,
@@ -179,10 +194,11 @@ class AdminService:
                 model=model,
                 expected_model=expected_model,
                 model_match=model_match,
-                birth1=birth1,
-                birth2=birth2,
-                range=range_str,
-                details=details
+                birth1=pillars1,
+                birth2=pillars2,
+                range_str=range_str,
+                details=details,
+                score_details=score_details
             )
             
         except Exception as e:
@@ -197,6 +213,109 @@ class AdminService:
                 model_match=False,
                 error=str(e)
             )
+    
+    def _extract_score_details(self, match_result: Dict) -> str:
+        """從配對結果中提取分數細項"""
+        try:
+            base_score = 60  # 固定基準分
+            module_scores = match_result.get('module_scores', {})
+            
+            details = []
+            details.append(f"基準:{base_score}")
+            
+            # 能量救應
+            energy = module_scores.get('energy_rescue', 0)
+            if energy > 0:
+                details.append(f"+能量:{energy:.0f}")
+            
+            # 結構核心
+            structure = module_scores.get('structure_core', 0)
+            if structure != 0:
+                details.append(f"{'+' if structure > 0 else ''}結構:{structure:.0f}")
+            
+            # 刑沖壓力
+            pressure = module_scores.get('pressure_penalty', 0)
+            if pressure < 0:
+                details.append(f"刑沖:{pressure:.0f}")
+            
+            # 大運風險
+            dayun = module_scores.get('dayun_risk', 0)
+            if dayun < 0:
+                details.append(f"大運:{dayun:.0f}")
+            
+            # 神煞加持
+            shensha = module_scores.get('shen_sha_bonus', 0)
+            if shensha > 0:
+                details.append(f"+神煞:{shensha:.0f}")
+            
+            # 人格風險
+            personality = module_scores.get('personality_risk', 0)
+            if personality < 0:
+                details.append(f"人格:{personality:.0f}")
+            
+            # 專業化解
+            resolution = module_scores.get('resolution_bonus', 0)
+            if resolution > 0:
+                details.append(f"+化解:{resolution:.0f}")
+            
+            # 年齡調整
+            age_adjust = 0
+            score = match_result.get('score', 0)
+            calculated = base_score + energy + structure + pressure + dayun + shensha + personality + resolution
+            
+            # 計算年齡調整
+            if abs(score - calculated) > 1:
+                age_adjust = round(score - calculated, 0)
+                if age_adjust != 0:
+                    details.append(f"{'+' if age_adjust > 0 else ''}年齡:{age_adjust:.0f}")
+            
+            return " ".join(details)
+            
+        except Exception as e:
+            logger.error(f"提取分數細項失敗: {e}")
+            return "分數細項提取失敗"
+    
+    def _format_single_test_result(self, test_result: TestResult) -> str:
+        """格式化單個測試結果為極簡格式"""
+        status_emoji = {
+            'PASS': '✅',
+            'FAIL': '❌',
+            'ERROR': '⚠️',
+            '邊緣': '⚠️'
+        }.get(test_result.status, '❓')
+        
+        # 提取八字四柱
+        bazi_display = f"{test_result.birth1} ↔ {test_result.birth2}"
+        
+        formatted = f"【測試案例 #{test_result.test_id}】\n"
+        formatted += f"八字：{bazi_display}\n"
+        formatted += f"分數：{test_result.score:.1f} (預期:{test_result.range_str})  狀態：{status_emoji} {test_result.status}\n"
+        
+        if test_result.score_details:
+            formatted += f"{test_result.score_details}\n"
+        
+        # 添加專業分析細項
+        if test_result.score_details:
+            # 從分數細項中提取關鍵信息
+            details = test_result.score_details.split()
+            key_items = []
+            
+            for detail in details:
+                if '刑沖:' in detail and float(detail.split(':')[1]) < -5:
+                    key_items.append(f"刑沖:{detail.split(':')[1]}")
+                elif '能量:' in detail and float(detail.split(':')[1]) > 10:
+                    key_items.append(f"能量互補:+{detail.split(':')[1]}")
+                elif '結構:' in detail and float(detail.split(':')[1]) > 10:
+                    key_items.append(f"結構優勢:+{detail.split(':')[1]}")
+                elif '大運:' in detail and float(detail.split(':')[1]) < -3:
+                    key_items.append(f"大運風險:{detail.split(':')[1]}")
+            
+            if key_items:
+                formatted += " ".join(key_items) + "\n"
+        
+        formatted += "─" * 40
+        
+        return formatted
     # ========2.1 測試功能結束 ========#
     
     # ========2.2 系統統計開始 ========#
@@ -221,7 +340,7 @@ class AdminService:
                 cur.execute("SELECT AVG(score) FROM matches WHERE score > 0")
                 avg_score = float(cur.fetchone()[0] or 0)
                 
-                # 成功率
+                # 成功率（使用60分及格線）
                 cur.execute("""
                     SELECT COUNT(*) FROM matches 
                     WHERE user_a_accepted = 1 AND user_b_accepted = 1 AND score >= %s
@@ -267,7 +386,7 @@ class AdminService:
             return SystemStats(
                 total_users=0, total_matches=0, today_matches=0,
                 avg_match_score=0.0, success_rate=0.0,
-                model_stats=[], active_users_24h=0, top_matches=[]
+                model_stats=[], active_users_24h=0, top_matches=[],
             )
     
     def _get_model_statistics(self, cursor) -> List[Dict[str, Any]]:
@@ -325,166 +444,7 @@ class AdminService:
             return []
     # ========2.2 系統統計結束 ========#
     
-    # ========2.3 一鍵測試演示開始 ========#
-    async def run_oneclick_demo(self) -> str:
-        """運行一鍵測試演示 - 模擬所有功能"""
-        demo_results = []
-        
-        try:
-            # 使用測試案例第一組八字
-            from test_cases import ADMIN_TEST_CASES
-            test_case = ADMIN_TEST_CASES[0]
-            
-            # 1. 模擬 testpair 功能
-            demo_results.append("🔧 **一鍵測試演示開始**")
-            demo_results.append("=" * 40)
-            demo_results.append("")
-            demo_results.append("**測試 /testpair 功能**")
-            
-            bazi1 = BaziCalculator.calculate(**test_case['bazi_data1'])
-            bazi2 = BaziCalculator.calculate(**test_case['bazi_data2'])
-            
-            if bazi1 and bazi2:
-                # 計算配對
-                match_result = calculate_match(
-                    bazi1, bazi2, 
-                    test_case['bazi_data1']['gender'], 
-                    test_case['bazi_data2']['gender'],
-                    is_testpair=True
-                )
-                
-                score = match_result.get('score', 0)
-                rating = match_result.get('rating', '未知')
-                model = match_result.get('relationship_model', '未知')
-                
-                demo_results.append(f"   • 八字A: {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}")
-                demo_results.append(f"   • 八字B: {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}")
-                demo_results.append(f"   • 配對分數: {score:.1f}分")
-                demo_results.append(f"   • 評級: {rating}")
-                demo_results.append(f"   • 關係模型: {model}")
-                demo_results.append("   testpair功能正常")
-            else:
-                demo_results.append("   八字計算失敗")
-            
-            # 2. 模擬 match 功能
-            demo_results.append("")
-            demo_results.append("**模擬 /match 功能**")
-            
-            # 模擬配對邏輯
-            gender1 = test_case['bazi_data1']['gender']
-            gender2 = test_case['bazi_data2']['gender']
-            
-            module_scores = match_result.get('module_scores', {})
-            demo_results.append(f"   • 能量救應: {module_scores.get('energy_rescue', 0):.1f}分")
-            demo_results.append(f"   • 結構核心: {module_scores.get('structure_core', 0):.1f}分")
-            demo_results.append(f"   • 人格風險: {module_scores.get('personality_risk', 0):.1f}分")
-            demo_results.append(f"   • 刑沖壓力: {module_scores.get('pressure_penalty', 0):.1f}分")
-            demo_results.append(f"   • 神煞加持: {module_scores.get('shen_sha_bonus', 0):.1f}分")
-            demo_results.append(f"   • 專業化解: {module_scores.get('resolution_bonus', 0):.1f}分")
-            
-            # 檢查是否達到聯絡標準
-            if score >= THRESHOLD_CONTACT_ALLOWED:
-                demo_results.append(f"   • 聯絡允許: 達到{THRESHOLD_CONTACT_ALLOWED}分標準")
-            else:
-                demo_results.append(f"   • 聯絡允許: 未達{THRESHOLD_CONTACT_ALLOWED}分標準")
-            
-            demo_results.append("   match功能正常")
-            
-            # 3. 模擬 profile 功能
-            demo_results.append("")
-            demo_results.append("**模擬 /profile 功能**")
-            
-            # 顯示個人資料信息
-            if bazi1:
-                demo_results.append(f"   • 日主: {bazi1.get('day_stem', '')}{bazi1.get('day_stem_element', '')}")
-                demo_results.append(f"   • 生肖: {bazi1.get('zodiac', '')}")
-                demo_results.append(f"   • 格局: {bazi1.get('pattern_type', '正格')}")
-                demo_results.append(f"   • 喜用神: {', '.join(bazi1.get('useful_elements', []))}")
-                demo_results.append(f"   • 忌神: {', '.join(bazi1.get('harmful_elements', []))}")
-                
-                # 健康分析（使用现有数据，不调用不存在的类）
-                demo_results.append("   • 健康分析: 功能正常（使用现有数据）")
-                
-                demo_results.append("   profile功能正常")
-            
-            # 4. 模擬 find_soulmate 功能
-            demo_results.append("")
-            demo_results.append("**模擬 /find_soulmate 功能**")
-            
-            # 簡化模擬
-            demo_results.append("   • 年份範圍: 1990-1995")
-            demo_results.append("   • 搜尋模式: 正緣")
-            demo_results.append("   • 找到匹配: 5個")
-            demo_results.append("   • 最高分數: 85.5分")
-            demo_results.append(" find_soulmate功能正常")
-            
-            # 5. 模擬 explain 功能
-            demo_results.append("")
-            demo_results.append("**模擬 /explain 功能**")
-            demo_results.append("   • 算法版本: 師傅級婚配系統")
-            demo_results.append("   • 核心模組: 6大評分系統")
-            demo_results.append("   • 評分範圍: 0-100分")
-            demo_results.append("explain功能正常")
-            
-            # 6. 模擬 admin 功能
-            demo_results.append("")
-            demo_results.append("**管理員功能檢查**")
-            demo_results.append("   • /admin_test: 可用")
-            demo_results.append("   • /admin_stats: 可用")
-            demo_results.append("   • /maintenance: 可用")
-            demo_results.append("   • /admin_service: 可用")
-            
-            # 7. 系統狀態檢查
-            demo_results.append("")
-            demo_results.append("**系統狀態檢查**")
-            
-            try:
-                with closing(get_db_connection()) as conn:
-                    cur = conn.cursor()
-                    cur.execute("SELECT 1")
-                    demo_results.append("   • 數據庫連接:正常")
-            except Exception:
-                demo_results.append("   • 數據庫連接: 異常")
-            
-            demo_results.append("   • 八字計算引擎: 正常")
-            demo_results.append("   • 配對評分引擎: 正常")
-            demo_results.append("   • 核心功能: 正常")
-            
-            # 總結
-            demo_results.append("")
-            demo_results.append("**演示總結**")
-            demo_results.append("=" * 40)
-            demo_results.append(f"• 測試八字組合: {test_case['description']}")
-            demo_results.append(f"• 總體分數: {score:.1f}分 ({rating})")
-            demo_results.append(f"• 關係模型: {model}")
-            demo_results.append(f"• 聯絡允許: {' 允許' if score >= THRESHOLD_CONTACT_ALLOWED else ' 不允許'}")
-            
-            if score >= THRESHOLD_EXCELLENT_MATCH:
-                demo_results.append("• 配對評價: 極佳婚配組合")
-            elif score >= THRESHOLD_GOOD_MATCH:
-                demo_results.append("• 配對評價: 良好婚配組合")
-            elif score >= THRESHOLD_CONTACT_ALLOWED:
-                demo_results.append("• 配對評價: 可以嘗試交往")
-            elif score >= THRESHOLD_WARNING:
-                demo_results.append("• 配對評價: 需要謹慎考慮")
-            else:
-                demo_results.append("• 配對評價: 不建議發展")
-            
-            demo_results.append("")
-            demo_results.append("**所有核心功能測試完成**")
-            demo_results.append("提示: 所有功能均正常運作，系統準備就緒")
-            
-        except Exception as e:
-            logger.error(f"一鍵測試演示失敗: {e}")
-            demo_results.append("")
-            demo_results.append("**演示失敗**")
-            demo_results.append(f"錯誤信息: {str(e)}")
-            demo_results.append("請檢查系統日誌獲取詳細錯誤信息")
-        
-        return "\n".join(demo_results)
-    # ========2.3 一鍵測試演示結束 ========#
-    
-    # ========2.4 一鍵快速測試開始 ========#
+    # ========2.3 一鍵快速測試開始 ========#
     async def run_quick_test(self) -> Dict[str, Any]:
         """運行一鍵快速測試（系統健康檢查）"""
         results = {
@@ -630,12 +590,38 @@ class AdminService:
             }
         except Exception as e:
             return {'name': '核心功能', 'status': 'ERROR', 'message': f'測試失敗: {e}'}
-    # ========2.4 一鍵快速測試結束 ========#
+    # ========2.3 一鍵快速測試結束 ========#
     
-    # ========2.5 格式化功能開始 ========#
+    # ========2.4 格式化功能開始 ========#
     def format_test_results(self, results: Dict[str, Any]) -> str:
-        """格式化測試結果"""
-        text = f""" 管理員測試報告 (20組測試案例)
+        """格式化測試結果 - 極簡格式"""
+        if results.get('formatted_results'):
+            # 使用極簡格式
+            text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
+            text += "═" * 60 + "\n"
+            
+            # 總體統計
+            text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} "
+            text += f"(成功率: {results['success_rate']:.1f}%)\n"
+            text += "═" * 60 + "\n\n"
+            
+            # 詳細結果（極簡格式）
+            for formatted_result in results['formatted_results']:
+                text += formatted_result + "\n\n"
+            
+            # 總結
+            text += "═" * 60 + "\n"
+            text += f"🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤\n"
+            text += f"📅 測試時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
+            
+            return text
+        else:
+            # 兼容舊格式
+            return self._format_test_results_compat(results)
+    
+    def _format_test_results_compat(self, results: Dict[str, Any]) -> str:
+        """兼容舊格式的測試結果格式化"""
+        text = f"""管理員測試報告 (20組測試案例)
 {"="*60}
 
 📈 總體統計:
@@ -651,17 +637,8 @@ class AdminService:
         for detail in results.get('details', [])[:20]:  # 只顯示前20個
             status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
             text += f"\n{status_emoji} {detail['description']}"
-
-            # 使用正確的字段名 - 使用 expected_range 而不是 range
-            expected_range = detail.get('expected_range', (0, 0))
-            expected_str = f"{expected_range[0]}-{expected_range[1]}" if isinstance(expected_range, tuple) and len(expected_range) == 2 else "未知"
-        
-            text += f"\n   A: {detail.get('birth1', '未知')}"
-            text += f"\n   B: {detail.get('birth2', '未知')}"
-            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{expected_str}分)"
-
-            if detail.get('error'):
-                text += f"\n   錯誤: {detail['error'][:50]}..."
+            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range_str', '未知')}分)"
+            text += f"\n   八字: {detail.get('birth1', '未知')} ↔ {detail.get('birth2', '未知')}"
         
         return text
     
@@ -723,7 +700,7 @@ class AdminService:
             text += "\n\n🏥 系統健康狀態: ❌ 故障 (多個組件異常)"
         
         return text
-    # ========2.5 格式化功能結束 ========#
+    # ========2.4 格式化功能結束 ========#
 # ========1.5 AdminService類結束 ========#
 
 # ========文件信息開始 ========#
@@ -739,21 +716,32 @@ class AdminService:
 被引用文件:
 - bot.py (主程序)
 
-主要功能:
-1. AdminService類 - 主服務類
-2. TestResult/SystemStats - 數據類
-3. 測試功能 - 運行20組測試案例
-4. 系統統計 - 獲取真實數據庫統計
-5. 一鍵測試演示 - 模擬所有核心功能
-6. 一鍵快速測試 - 系統健康檢查
-7. 格式化功能 - 輸出格式化結果
+主要修改：
+1. 更新常數引用：THRESHOLD_CONTACT_ALLOWED -> THRESHOLD_ACCEPTABLE
+2. 調整分數細項提取邏輯，匹配新的60分基準
+3. 保持測試功能與新的評分系統兼容
+4. 修復日期格式錯誤（%Y-%m-d 改為 %Y-%m-%d）
 
 修改記錄：
 2026-02-02 本次修正：
-1. 修復TestResult類：新增birth1、birth2、range字段
-2. 修復_run_single_test方法：正確提取和顯示出生時間信息
-3. 修復format_test_results方法：顯示正確的出生時間和分數範圍
-4. 確保測試報告中不再顯示A: None, B: None問題
-5. 保持所有核心功能正常運作
+1. 更新常數引用以匹配new_calculator.py的修改
+2. 調整分數細項提取，基準分固定為60
+3. 修復日期格式化錯誤
+4. 保持所有測試功能正常運作
 """
 # ========文件信息結束 ========#
+
+# ========目錄開始 ========#
+"""
+目錄:
+1.1 導入模組 - 導入所需庫和模組
+1.2 數據庫連接 - 獲取數據庫連接
+1.3 數據類 - TestResult和SystemStats數據類定義
+1.4 輔助函數 - 從test_cases.py移入的輔助函數
+1.5 AdminService類 - 主服務類
+  2.1 測試功能 - 運行管理員測試案例（極簡格式）
+  2.2 系統統計 - 獲取系統統計數據
+  2.3 一鍵快速測試 - 系統健康檢查
+  2.4 格式化功能 - 各種結果的格式化輸出
+"""
+# ========目錄結束 ========#

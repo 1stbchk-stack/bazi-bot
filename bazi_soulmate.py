@@ -9,7 +9,6 @@ from typing import Dict, List, Any, Optional
 from new_calculator import (
     BaziCalculator,
     calculate_match,
-    ScoringEngine,
     Config
 )
 
@@ -66,7 +65,7 @@ class SoulmateFinder:
     
     @staticmethod
     def pre_filter(user_bazi, target_bazi, user_gender, target_gender):
-        """第一階段：Pre-filter (43,800 ➔ 1,200 組)"""
+        """第一階段：Pre-filter"""
         
         # 1. 五行通關優先
         user_useful = user_bazi.get('useful_elements', [])
@@ -84,11 +83,11 @@ class SoulmateFinder:
             return False, "五行不通關"
         
         # 2. 格局放寬
-        target_pattern = target_bazi.get('cong_ge_type', 'normal')
-        user_pattern = user_bazi.get('cong_ge_type', 'normal')
+        target_pattern = target_bazi.get('pattern_type', '正格')
+        user_pattern = user_bazi.get('pattern_type', '正格')
         
         # 允許正常格局配正常/從格/專旺
-        compatible_patterns = ['normal', '從木格', '從火格', '從土格', '從金格', '從水格', '專旺木格', '專旺火格', '專旺土格', '專旺金格', '專旺水格']
+        compatible_patterns = ['正格', '從格', '專旺格']
         
         if target_pattern not in compatible_patterns:
             return False, "格局不兼容"
@@ -103,32 +102,22 @@ class SoulmateFinder:
         user_day_branch = user_day_pillar[1] if len(user_day_pillar) >= 2 else ''
         target_day_branch = target_day_pillar[1] if len(target_day_pillar) >= 2 else ''
         
-        # 檢查地支六沖 - 使用ScoringEngine的常量
+        # 檢查地支六沖
         from new_calculator import ScoringEngine
-        branch_pair = tuple(sorted([user_day_branch, target_day_branch]))
-        if hasattr(ScoringEngine, 'BRANCH_SIX_CLASHES'):
-            if branch_pair in ScoringEngine.BRANCH_SIX_CLASHES:
-                # 檢查是否有解藥（六合）
-                has_remedy = False
-                if hasattr(ScoringEngine, 'BRANCH_SIX_COMBINATIONS'):
-                    for b1 in [user_day_branch]:
-                        for b2 in [target_day_branch]:
-                            if tuple(sorted([b1, b2])) in ScoringEngine.BRANCH_SIX_COMBINATIONS:
-                                has_remedy = True
-                                break
-                
-                if not has_remedy:
-                    return False, "日柱六沖無解"
-        
-        # 神煞預篩（加分但不篩選）
-        target_shen_sha = target_bazi.get('shen_sha_names', '無')
-        has_good_shen_sha = any(s in target_shen_sha for s in ['紅鸞', '天喜', '天乙貴人'])
+        if ScoringEngine.is_clash(user_day_branch, target_day_branch):
+            # 檢查是否有解藥（六合）
+            has_remedy = False
+            if ScoringEngine.is_branch_harmony(user_day_branch, target_day_branch):
+                has_remedy = True
+            
+            if not has_remedy:
+                return False, "日柱六沖無解"
         
         return True, "通過預篩"
     
     @staticmethod
     def structure_check(user_bazi, target_bazi, user_gender, target_gender):
-        """第二階段：Structure Check (1,200 ➔ 400 組)"""
+        """第二階段：Structure Check"""
         
         # 1. 大運門檻（簡化）
         target_birth_year = target_bazi.get('birth_year', 2000)
@@ -167,7 +156,7 @@ class SoulmateFinder:
         
         base_score = match_result.get('score', 50)
         
-        # 1. 大運預算加分
+        # 1. 大運預算加分（ChatGPT建議：不超過±5分）
         target_birth_year = target_bazi.get('birth_year', 2000)
         luck_periods = SoulmateFinder.calculate_luck_period(
             target_birth_year, target_bazi.get('birth_month', 1), 
@@ -178,21 +167,21 @@ class SoulmateFinder:
         if len(luck_periods) > 2:
             marriage_luck = luck_periods[2]
             if marriage_luck.get('favorable', False):
-                luck_bonus += 8
+                luck_bonus = min(5, luck_bonus + 3)  # 不超過5分
         
         # 2. 化解係數實裝
-        resolution_factor = match_result.get('resolution_info', {}).get('factor', 1.0)
-        if resolution_factor != 1.0:
-            # 應用化解系數
-            base_score = base_score * resolution_factor
+        resolution_factor = 1.0
+        module_scores = match_result.get('module_scores', {})
+        resolution_bonus = module_scores.get('resolution_bonus', 0)
+        if resolution_bonus > 0:
+            resolution_factor = 1.0 + (resolution_bonus / 100)
         
         # 3. 目的權重調節
-        final_score = base_score + luck_bonus
+        final_score = base_score * resolution_factor + luck_bonus
         
         # 根據目的調整
         if purpose == "正緣":
             # 正緣模式：配偶承載*0.4 + 日柱*0.3 + 性格*0.2 + 氣勢*0.1
-            module_scores = match_result.get('module_scores', {})
             weighted_score = (
                 module_scores.get('energy_rescue', 0) * 0.4 +
                 module_scores.get('structure_core', 0) * 0.3 +
@@ -204,7 +193,7 @@ class SoulmateFinder:
             # 合夥模式：喜用互補*0.5 + 氣勢*0.3 + 日柱*0.2
             final_score = final_score * 0.9  # 合夥分數稍低
         
-        return min(100, max(0, final_score)), match_result
+        return min(98, max(10, final_score)), match_result
     
     @staticmethod
     def find_top_matches(user_bazi, user_gender, start_year, end_year, purpose="正緣", limit=10):
@@ -347,10 +336,17 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 被引用文件: bot.py (主程序)
 
 主要修改：
-1. 保持原有功能不變
-2. 修復format_find_soulmate_result函數返回類型為單一字符串
-3. 沒有使用個人資料格式化，只返回簡要信息
-4. 與bot.py中的格式化函數兼容
+1. 更新格局類型引用：cong_ge_type -> pattern_type
+2. 調整大運影響分數，遵守ChatGPT建議（不超過±5分）
+3. 調整最終分數範圍為10-98分
+4. 移除對ScoringEngine常量的直接引用，改用方法調用
+
+修改記錄：
+2026-02-02 本次修正：
+1. 更新格局類型字段名稱
+2. 遵守大運影響上限（±5分）
+3. 調整分數範圍限制
+4. 修復ScoringEngine常量引用問題
 """
 # ========文件信息結束 ========#
 
@@ -359,18 +355,3 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 1.6 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
 """
 # ========目錄結束 ========#
-
-# ========修正紀錄開始 ========#
-"""
-修正內容：
-1. 修復format_find_soulmate_result函數返回類型為單一字符串（原返回List[str]）
-2. 調整格式化輸出為單一消息格式
-3. 確保與bot.py中的調用兼容
-
-導致問題：原函數返回列表，但bot.py期待單一字符串
-如何修復：修改返回類型為單一字符串，合併所有部分
-後果：真命天子搜尋結果以單一消息發送，與其他功能一致
-
-檢查結果：此文件沒有使用個人資料格式化，不需要修改BaziFormatters相關內容
-"""
-# ========修正紀錄結束 ========#
