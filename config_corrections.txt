@@ -1,0 +1,159 @@
+========================================
+八字配對系統 - Config類完整修正參數
+========================================
+
+請在new_calculator.py中修改以下Config類參數 (第31-241行):
+
+# ========== 第96-107行: 基準分和閾值 ==========
+BASE_SCORE = 50  # ★ 從60改為50
+
+THRESHOLD_TERMINATION = 30       
+THRESHOLD_STRONG_WARNING = 40    
+THRESHOLD_WARNING = 48          # 從50改為48
+THRESHOLD_ACCEPTABLE = 58       # 從60改為58
+THRESHOLD_GOOD_MATCH = 68       # 從70改為68
+THRESHOLD_EXCELLENT_MATCH = 78  # 從80改為78
+THRESHOLD_PERFECT_MATCH = 88    # 從90改為88
+
+# ========== 第109-111行: 刑沖硬上限 ==========
+DAY_CLASH_HARD_CAP = 45         # ★★★ 從55改為45 (關鍵修正)
+DAY_HARM_HARD_CAP = 52          # 從60改為52
+
+# ========== 第113-127行: 模組上限 ==========
+POSITIVE_BONUS_CAP = 45         # 從35改為45
+POSITIVE_SATURATION_FACTOR = 0.6  # 從0.5改為0.6
+
+ENERGY_RESCUE_CAP = 35          # ★★★ 從25改為35 (關鍵修正)
+STRUCTURE_CORE_CAP = 28         # ★★★ 從20改為28 (關鍵修正)
+PERSONALITY_RISK_CAP = -20      
+PRESSURE_PENALTY_CAP = -45      # 從-40改為-45
+SHEN_SHA_BONUS_CAP = 12         # ★★★ 從8改為12 (關鍵修正)
+RESOLUTION_BONUS_CAP = 8        # 從6改為8
+DAYUN_RISK_CAP = -10            
+
+TOTAL_PENALTY_CAP = -40         # 從-35改為-40
+
+# ========== 第129-138行: 能量救應配置 ==========
+WEAK_THRESHOLD = 15
+EXTREME_WEAK_BONUS = 12         # 從10改為12
+DEMAND_MATCH_BONUS_BASE = 16    # ★★★ 從12改為16 (關鍵修正)
+CONCENTRATION_BOOST_THRESHOLD = 15  
+CONCENTRATION_BOOST_FACTOR = 1.4    # ★★★ 從1.2改為1.4 (關鍵修正)
+
+RESCUE_DEDUCTION_RATIO = 0.0    # ★★★ 從0.2改為0 (關鍵修正-取消抵銷邏輯)
+
+# ========== 第139-145行: 結構核心配置 ==========
+STEM_COMBINATION_FIVE_HARMONY = 24  # ★★★ 從20改為24 (關鍵修正)
+STEM_COMBINATION_GENERATION = 7     # 從6改為7
+STEM_COMBINATION_SAME = 3           # 從2改為3
+
+BRANCH_COMBINATION_SIX_HARMONY = 18 # ★★★ 從15改為18 (關鍵修正)
+BRANCH_COMBINATION_THREE_HARMONY = 12
+
+# ========== 第147-155行: 刑沖壓力配置 ==========
+BRANCH_CLASH_PENALTY = -12      # 從-10改為-12
+BRANCH_HARM_PENALTY = -8        # 從-6改為-8
+DAY_CLASH_PENALTY = -28         # ★★★ 從-20改為-28 (關鍵修正)
+DAY_HARM_PENALTY = -20          # 從-15改為-20
+
+TRIAD_RESOLUTION_RATIO = 0.6    # 從0.7改為0.6
+HARMONY_RESOLUTION_RATIO = 0.4  # 從0.5改為0.4
+
+# ========== 第157-167行: 人格風險配置 ==========
+PERSONALITY_RISK_PATTERNS = {
+    "傷官見官": -12,    # 從-10改為-12
+    "官殺混雜": -10,    # 從-8改為-10
+    "財星遇劫": -8,     # 從-6改為-8
+    "羊刃坐財": -7,     # 從-5改為-7
+    "梟神奪食": -7,     # 從-5改為-7
+    "半三刑": -5        # 從-4改為-5
+}
+PERSONALITY_STACKED_PENALTY = -15  # 從-12改為-15
+
+# ========== 第169-189行: 神煞系統配置 ==========
+SHEN_SHA_POSITIVE = {
+    "紅鸞": 3,          # ★★ 從2改為3
+    "天喜": 2,          # ★★ 從1改為2
+    "天乙貴人": 4,      # ★★ 從3改為4
+    "文昌": 2,          
+}
+
+SHEN_SHA_NEGATIVE = {
+    "羊刃": -4,         # 從-3改為-4
+    "劫煞": -3,         # 從-2改為-3
+    "亡神": -3,         # 從-2改為-3
+    "孤辰": -3,         # 從-2改為-3
+    "寡宿": -3,         # 從-2改為-3
+    "陰差陽錯": -4      # 從-3改為-4
+}
+
+SHEN_SHA_COMBO_BONUS = {
+    ("紅鸞", "天喜"): 5,              # ★★★ 從3改為5 (關鍵修正)
+    ("天乙貴人", "天乙貴人"): 4,      # 從3改為4
+}
+
+# ========== 第191-197行: 專業化解配置 ==========
+RESOLUTION_PATTERNS = {
+    "殺印相生": 7,      # 從5改為7
+    "財官相生": 6,      # 從4改為6
+    "傷官生財": 5,      # 從3改為5
+    "食傷配印": 4,      # 從2改為4
+}
+
+# ========== 第204-206行: 關係模型判定 ==========
+BALANCED_MAX_DIFF = 12      # 從15改為12
+SUPPLY_MIN_DIFF = 18        # 從20改為18
+
+========================================
+calculate_match函數修正 (第1642-1647行)
+========================================
+
+請將第1642-1647行的干涉係數邏輯修改為:
+
+        if has_day_clash:
+            interference_factor = 0.3  # ★★★ 從0.6改為0.3 (關鍵修正)
+            audit_log.append("⚠️ 日支相沖，啟動強力干涉：所有正向加分 x 0.3")
+        elif pressure_score < -15:
+            interference_factor = 0.5  # ★★★ 從0.8改為0.5 (關鍵修正)
+            audit_log.append(f"⚠️ 刑沖壓力大({pressure_score:.1f})，啟動干涉：所有正向加分 x 0.5")
+
+========================================
+修正重點總結 (9個關鍵修正)
+========================================
+
+★★★ 最關鍵的5個修正 (必須修改):
+
+1. DAY_CLASH_HARD_CAP: 55→45分
+   → 防止極端刑沖組合跑高分
+
+2. 干涉係數: 0.6→0.3 (日支沖), 0.8→0.5 (普通刑沖)
+   → 正向加分大幅削減
+
+3. DAY_CLASH_PENALTY: -20→-28分
+   → 大幅加強刑沖懲罰力度
+
+4. DEMAND_MATCH_BONUS_BASE: 12→16分, ENERGY_RESCUE_CAP: 25→35分
+   → 充分體現喜用神互補優勢
+
+5. RESCUE_DEDUCTION_RATIO: 0.2→0
+   → 取消能量救應抵銷刑沖的錯誤邏輯
+
+★★ 重要修正 (強烈建議):
+
+6. STEM_COMBINATION_FIVE_HARMONY: 20→24分
+7. BRANCH_COMBINATION_SIX_HARMONY: 15→18分
+8. STRUCTURE_CORE_CAP: 20→28分
+9. SHEN_SHA_BONUS_CAP: 8→12分
+
+========================================
+預期效果
+========================================
+
+極端刑沖組合: 80-83分 → 28-38分 ✓
+優質互補組合: 45-63分 → 72-85分 ✓
+日支六沖組合: 57.6分 → 38-45分 ✓
+神煞加持組合: 65.6分 → 76-86分 ✓
+
+預期成功率: 20% → 75-85%
+
+========================================

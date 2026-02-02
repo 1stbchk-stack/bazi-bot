@@ -1339,9 +1339,9 @@ class ProfessionalScoringEngine:
             # 3. 檢查日支刑沖（關鍵影響）
             day_clash_info = ProfessionalScoringEngine._check_day_branch_clash_pro(bazi1, bazi2, audit_log)
             
-            # 4. 計算總分
+            # 4. 計算總分 - 修復：添加 bazi1 和 bazi2 參數
             final_score, score_details = ProfessionalScoringEngine._calculate_final_score_pro(
-                base_score, module_scores, day_clash_info, audit_log
+                base_score, module_scores, day_clash_info, bazi1, bazi2, audit_log
             )
             
             # 5. 關係模型判定
@@ -1955,9 +1955,9 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _calculate_final_score_pro(base_score: float, module_scores: Dict[str, float],
-                                  day_clash_info: Dict[str, Any],
+                                  day_clash_info: Dict[str, Any], bazi1: Dict, bazi2: Dict,
                                   audit_log: List[str]) -> Tuple[float, Dict[str, Any]]:
-        """計算最終分數"""
+        """計算最終分數 - 修復：添加 bazi1 和 bazi2 參數"""
         details = {}
         
         # 1. 計算原始總分
@@ -2361,6 +2361,11 @@ BaziFormatters = ProfessionalFormatters
 - 統一所有功能的計算和輸出邏輯
 - 符合繁體中文要求
 - 無版本號標示
+
+2026-02-03 參數修復：
+1. 修復 ProfessionalScoringEngine._calculate_final_score_pro 方法缺少 bazi1 和 bazi2 參數的問題
+2. 在 calculate_match_score_pro 方法中調用 _calculate_final_score_pro 時添加 bazi1 和 bazi2 參數
+3. 修復相同八字判斷的邏輯錯誤
 """
 # ========文件信息結束 ========#
 

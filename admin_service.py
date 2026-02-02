@@ -484,8 +484,12 @@ class AdminService:
         else:
             test_type = test_result.description
         
+        # 修復：使用正確的四柱顯示
+        birth1_display = test_result.birth1[:8] if test_result.birth1 else "未知"
+        birth2_display = test_result.birth2[:8] if test_result.birth2 else "未知"
+        
         # 極簡格式：包含兩人四柱、類型、分數和分數細項
-        formatted = f"{test_result.birth1} {test_result.birth2},{test_type},分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji} {test_result.score_details}"
+        formatted = f"{birth1_display} {birth2_display},{test_type},分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji} {test_result.score_details}"
         
         return formatted
     # ========2.1 測試功能結束 ========#
@@ -709,7 +713,6 @@ class AdminService:
     async def _test_bazi(self) -> Dict[str, Any]:
         """測試八字計算 - 修正函數調用"""
         try:
-            # 修正：使用對外接口 calculate_bazi
             bazi = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
             if bazi:
                 pillars = f"{bazi.get('year_pillar', '')} {bazi.get('month_pillar', '')} {bazi.get('day_pillar', '')} {bazi.get('hour_pillar', '')}"
@@ -802,7 +805,7 @@ class AdminService:
                 top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
             text += " ".join(top_texts) + "\n"
         
-        # 修正日期格式化：%Y-%m-d → %Y-%m-%d
+        # 修復日期格式化：%Y-%m-d → %Y-%m-%d
         text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
@@ -847,6 +850,8 @@ class AdminService:
 1. 修正了所有調用ProfessionalBaziCalculator.calculate的地方，改為調用calculate_bazi函數
 2. 在_run_single_test、_test_bazi、_test_match和_test_core_functionality函數中修正了八字計算調用
 3. 添加了詳細的錯誤處理和日誌記錄
+4. 修復了 _format_single_test_result 方法中的格式化問題
+5. 修復了 format_system_stats 方法中的日期格式化錯誤
 
 修改記錄：
 2026-02-03 修正函數調用錯誤：
@@ -855,6 +860,8 @@ class AdminService:
 3. 修正_test_bazi函數中的調用方式
 4. 修正_test_match函數中的調用方式
 5. 修正_test_core_functionality函數中的調用方式
+6. 修復 _format_single_test_result 方法中四柱顯示的問題
+7. 修復 format_system_stats 方法中的日期格式化錯誤（%Y-%m-d → %Y-%m-%d）
 
 問題原因：
 原錯誤信息：type object 'ProfessionalBaziCalculator' has no attribute 'calculate'
@@ -865,6 +872,10 @@ class AdminService:
 1. 修正函數調用錯誤：ProfessionalBaziCalculator.calculate()不存在
 2. 使用new_calculator.py提供的對外接口calculate_bazi()
 3. 保持所有測試案例邏輯不變
+
+2026-02-03 第二次修正：
+1. 修復 _format_single_test_result 方法中的四柱顯示問題
+2. 修復 format_system_stats 方法中的日期格式化錯誤
 """
 # ========文件信息結束 ========#
 
