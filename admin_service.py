@@ -612,7 +612,7 @@ class AdminService:
             # 總結
             text += "═" * 60 + "\n"
             text += f"🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤\n"
-            text += f"📅 測試時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
+            text += f"📅 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
             
             return text
         else:

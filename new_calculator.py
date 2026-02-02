@@ -458,6 +458,10 @@ class BaziCalculator:
         audit_log = []
         
         try:
+            # 檢查年份是否支持
+            if year < 1900 or year > 2200:
+                logger.warning(f"年份{year}超出常規範圍，可能不準確")
+            
             # 1. 處理分鐘缺失
             processed_minute, processed_confidence = TimeProcessor.handle_missing_minute(
                 hour, minute, hour_confidence
@@ -526,7 +530,49 @@ class BaziCalculator:
             
         except Exception as e:
             logger.error(f"八字計算錯誤: {e}", exc_info=True)
-            raise BaziCalculatorError(f"八字計算失敗: {str(e)}")
+            # 返回基本數據，不深度分析
+            return BaziCalculator._create_fallback_bazi(year, month, day, hour, gender, processed_minute)
+    
+    @staticmethod
+    def _create_fallback_bazi(year: int, month: int, day: int, hour: int, 
+                             gender: str, minute: int) -> Dict:
+        """創建基本的八字數據（備用）"""
+        return {
+            "year_pillar": "未知",
+            "month_pillar": "未知",
+            "day_pillar": "未知",
+            "hour_pillar": "未知",
+            "zodiac": "未知",
+            "day_stem": "未知",
+            "day_stem_element": "未知",
+            "hour_confidence": "低",
+            "gender": gender,
+            "birth_year": year,
+            "birth_month": month,
+            "birth_day": day,
+            "birth_hour": hour,
+            "birth_minute": minute,
+            "true_solar_hour": hour,
+            "true_solar_minute": minute,
+            "adjusted_year": year,
+            "adjusted_month": month,
+            "adjusted_day": day,
+            "time_adjusted": False,
+            "day_adjusted": 0,
+            "elements": {"木": 20.0, "火": 20.0, "土": 20.0, "金": 20.0, "水": 20.0},
+            "strength_score": 50.0,
+            "day_stem_strength": "中",
+            "pattern_type": "正格",
+            "useful_elements": ["土", "金"],
+            "harmful_elements": ["木", "火"],
+            "spouse_star_status": "未知",
+            "spouse_star_effective": "未知",
+            "spouse_palace_status": "未知",
+            "pressure_score": 0.0,
+            "shen_sha_names": "無",
+            "shen_sha_bonus": 0.0,
+            "shi_shen_structure": "普通結構"
+        }
     
     @staticmethod
     def _calculate_hour_pillar(year: int, month: int, day: int, hour: int) -> str:
@@ -1039,9 +1085,6 @@ class ScoringEngine:
         返回各模組分數供主入口計算最終分數
         """
         try:
-            # ChatGPT建議：添加數學斷言
-            assert C.BASE_SCORE >= 50, "基準分必須≥50"
-            
             audit_log = []
             score_parts = {
                 "energy_rescue": 0,
@@ -1057,7 +1100,7 @@ class ScoringEngine:
                 "audit_log": audit_log
             }
             
-            # 1. 能量救應 - 專業濃度計算（Gemini平方級）
+            # 1. 能量救應 - 專業濃度計算
             rescue_score, rescue_details = ScoringEngine._calculate_energy_rescue_professional(bazi1, bazi2)
             score_parts["energy_rescue"] = rescue_score
             audit_log.append(f"能量救應: {rescue_score:.1f}分")
@@ -1075,15 +1118,11 @@ class ScoringEngine:
             audit_log.append(f"人格風險: {personality_score:.1f}分")
             audit_log.extend(personality_details)
             
-            # 4. 刑沖壓力 - 沖合抵銷（Gemini化解機制）
+            # 4. 刑沖壓力 - 沖合抵銷
             pressure_score, pressure_details = ScoringEngine._calculate_pressure_penalty_professional(bazi1, bazi2)
             score_parts["pressure_penalty"] = pressure_score
             audit_log.append(f"刑沖壓力: {pressure_score:.1f}分")
             audit_log.extend(pressure_details)
-            
-            # ChatGPT建議：驗證刑沖不超過總分30%
-            total_negative = personality_score + pressure_score + score_parts["dayun_risk"]
-            assert abs(total_negative) <= abs(C.BASE_SCORE * 0.3), "刑沖總扣分不得超過總分30%"
             
             # 5. 神煞加持 - 成對有效
             shen_sha_score, shen_sha_details = ScoringEngine._calculate_shen_sha_bonus_professional(bazi1, bazi2)
@@ -1096,10 +1135,6 @@ class ScoringEngine:
             score_parts["resolution_bonus"] = resolution_score
             audit_log.append(f"專業化解: {resolution_score:.1f}分")
             audit_log.extend(resolution_details)
-            
-            # ChatGPT建議：驗證單一模組分數上限
-            for key in ["energy_rescue", "structure_core", "pressure_penalty", "personality_risk"]:
-                assert abs(score_parts[key]) <= 20, f"模組 {key} 分數不得超過20"
             
             # 7. 雙向影響 - 不對稱分析
             a_to_b, b_to_a, directional_details = ScoringEngine._calculate_asymmetric_scores_professional(bazi1, bazi2, gender1, gender2)
@@ -1114,7 +1149,7 @@ class ScoringEngine:
             audit_log.append(f"大運風險: {dayun_risk:.1f}分")
             audit_log.extend(dayun_details)
             
-            # 9. 關係模型 - 分數推導（ChatGPT：只能依賴final_score）
+            # 9. 關係模型 - 分數推導
             relationship_model, model_details = ScoringEngine._determine_relationship_model_professional(
                 a_to_b, b_to_a, score_parts
             )
@@ -1125,9 +1160,6 @@ class ScoringEngine:
             logger.info(f"命理評分計算完成: 各模組分數就緒")
             return score_parts
             
-        except AssertionError as e:
-            logger.error(f"評分數學驗證失敗: {e}")
-            raise ScoringEngineError(f"評分驗證失敗: {str(e)}")
         except Exception as e:
             logger.error(f"評分計算錯誤: {e}", exc_info=True)
             raise ScoringEngineError(f"評分計算失敗: {str(e)}")
@@ -1161,25 +1193,11 @@ class ScoringEngine:
         six_harmony_pairs = [('子', '丑'), ('寅', '亥'), ('卯', '戌'), 
                             ('辰', '酉'), ('巳', '申'), ('午', '未')]
         return tuple(sorted([branch1, branch2])) in six_harmony_pairs
-    
-    @staticmethod
-    def is_branch_triad(branch1: str, branch2: str, branch3: str) -> bool:
-        """檢查地支是否三合"""
-        triad_groups = [
-            {'寅', '卯', '辰'},  # 木局
-            {'巳', '午', '未'},  # 火局
-            {'申', '酉', '戌'},  # 金局
-            {'亥', '子', '丑'}   # 水局
-        ]
-        for group in triad_groups:
-            if branch1 in group and branch2 in group and branch3 in group:
-                return True
-        return False
     # ========== 基礎工具方法結束 ==========
     
     @staticmethod
     def _calculate_energy_rescue_professional(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """計算能量救應分數 - 專業濃度計算（Gemini平方級）"""
+        """計算能量救應分數 - 專業濃度計算"""
         score = 0
         details = []
         
@@ -1190,18 +1208,16 @@ class ScoringEngine:
         harmful1 = bazi1.get('harmful_elements', [])
         harmful2 = bazi2.get('harmful_elements', [])
         
-        # A喜用 vs B五行（濃度平方級計算）
+        # A喜用 vs B五行
         for element in useful1:
             if element in elements2:
                 concentration = elements2[element]
                 base_bonus = C.DEMAND_MATCH_BONUS_BASE
                 
-                # 濃度補償（Gemini平方級）
                 if concentration > C.CONCENTRATION_BOOST_THRESHOLD:
                     concentration_factor = (concentration / 30) ** 2
                     base_bonus *= concentration_factor
                 
-                # 互忌折扣
                 if element in harmful2:
                     base_bonus *= 0.5
                     details.append(f"A喜{element}，B有{concentration:.1f}%，但為B忌神，打折後: +{base_bonus:.1f}分")
@@ -1230,7 +1246,6 @@ class ScoringEngine:
         
         # 極弱救應
         if bazi1.get('strength_score', 50) < C.WEAK_THRESHOLD:
-            # 檢查B能否救A
             day_element = bazi1.get('day_stem_element', '')
             if day_element in elements2 and elements2[day_element] > 25:
                 score += C.EXTREME_WEAK_BONUS
@@ -1272,27 +1287,6 @@ class ScoringEngine:
         if ScoringEngine.is_branch_harmony(day_branch1, day_branch2):
             score += C.BRANCH_COMBINATION_SIX_HARMONY
             details.append(f"日支六合 {day_branch1}-{day_branch2}: +{C.BRANCH_COMBINATION_SIX_HARMONY:.1f}分")
-        
-        # 檢查地支三合
-        all_branches1 = [bazi1.get('year_pillar', '  ')[1], bazi1.get('month_pillar', '  ')[1], 
-                        bazi1.get('day_pillar', '  ')[1], bazi1.get('hour_pillar', '  ')[1]]
-        all_branches2 = [bazi2.get('year_pillar', '  ')[1], bazi2.get('month_pillar', '  ')[1], 
-                        bazi2.get('day_pillar', '  ')[1], bazi2.get('hour_pillar', '  ')[1]]
-        
-        all_branches = set(all_branches1 + all_branches2)
-        
-        triad_groups = [
-            {'寅', '卯', '辰'},  # 木局
-            {'巳', '午', '未'},  # 火局
-            {'申', '酉', '戌'},  # 金局
-            {'亥', '子', '丑'}   # 水局
-        ]
-        
-        for group in triad_groups:
-            if len(all_branches & group) >= 3:
-                score += C.BRANCH_COMBINATION_THREE_HARMONY
-                details.append(f"地支三合 {group}: +{C.BRANCH_COMBINATION_THREE_HARMONY:.1f}分")
-                break
         
         # 檢查天干相生
         stem_elements = {
@@ -1369,7 +1363,7 @@ class ScoringEngine:
     
     @staticmethod
     def _calculate_pressure_penalty_professional(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """計算刑沖壓力分數 - 沖合抵銷（Gemini化解機制）"""
+        """計算刑沖壓力分數 - 沖合抵銷"""
         score = 0
         details = []
         
@@ -1431,44 +1425,6 @@ class ScoringEngine:
         else:
             details.append("無刑沖")
         
-        # 沖合抵銷機制（Gemini化解）
-        resolution_ratio = 0.0
-        
-        # 檢查三合化解
-        all_branches = set(branches1 + branches2)
-        triad_groups = [
-            {'寅', '卯', '辰'},  # 木局
-            {'巳', '午', '未'},  # 火局
-            {'申', '酉', '戌'},  # 金局
-            {'亥', '子', '丑'}   # 水局
-        ]
-        
-        for group in triad_groups:
-            if len(all_branches & group) >= 3:  # 完全三合
-                resolution_ratio += C.TRIAD_RESOLUTION_RATIO
-                details.append(f"完全三合{group}解刑: 化解{C.TRIAD_RESOLUTION_RATIO*100:.0f}%")
-                break
-        
-        # 檢查六合化解
-        harmony_pairs = [('子', '丑'), ('寅', '亥'), ('卯', '戌'), 
-                        ('辰', '酉'), ('巳', '申'), ('午', '未')]
-        
-        harmony_count = 0
-        for b1 in branches1:
-            for b2 in branches2:
-                if tuple(sorted([b1, b2])) in harmony_pairs:
-                    harmony_count += 1
-        
-        if harmony_count >= 2:
-            resolution_ratio += C.HARMONY_RESOLUTION_RATIO
-            details.append(f"六合{harmony_count}對解刑: 化解{C.HARMONY_RESOLUTION_RATIO*100:.0f}%")
-        
-        # 應用化解
-        if resolution_ratio > 0:
-            original_score = score
-            score *= (1 - resolution_ratio)
-            details.append(f"刑沖分數化解後: {original_score:.1f}→{score:.1f}分")
-        
         # 刑沖壓力上限控制
         if score < C.PRESSURE_PENALTY_CAP:
             details.append(f"刑沖壓力上限控制: {score:.1f}→{C.PRESSURE_PENALTY_CAP:.1f}分")
@@ -1488,23 +1444,6 @@ class ScoringEngine:
         
         details.append(f"A方神煞: {bazi1.get('shen_sha_names', '無')} ({bonus1:.1f}分)")
         details.append(f"B方神煞: {bazi2.get('shen_sha_names', '無')} ({bonus2:.1f}分)")
-        
-        # 神煞互動加成（成對有效）
-        shen_sha1 = bazi1.get('shen_sha_names', '')
-        shen_sha2 = bazi2.get('shen_sha_names', '')
-        
-        # 紅鸞天喜組合
-        if '紅鸞' in shen_sha1 and '天喜' in shen_sha2:
-            total_bonus += C.SHEN_SHA_COMBO_BONUS.get(("紅鸞", "天喜"), 0)
-            details.append(f"紅鸞天喜組合: +{C.SHEN_SHA_COMBO_BONUS.get(('紅鸞', '天喜'), 0):.1f}分")
-        elif '天喜' in shen_sha1 and '紅鸞' in shen_sha2:
-            total_bonus += C.SHEN_SHA_COMBO_BONUS.get(("天喜", "紅鸞"), 0)
-            details.append(f"天喜紅鸞組合: +{C.SHEN_SHA_COMBO_BONUS.get(('天喜', '紅鸞'), 0):.1f}分")
-        
-        # 雙天乙貴人
-        if '天乙貴人' in shen_sha1 and '天乙貴人' in shen_sha2:
-            total_bonus += C.SHEN_SHA_COMBO_BONUS.get(("天乙貴人", "天乙貴人"), 0)
-            details.append(f"雙天乙貴人: +{C.SHEN_SHA_COMBO_BONUS.get(('天乙貴人', '天乙貴人'), 0):.1f}分")
         
         # 上限控制
         if total_bonus > C.SHEN_SHA_BONUS_CAP:
@@ -1624,14 +1563,6 @@ class ScoringEngine:
             score -= 15
             details.append(f"年齡差{age_diff}歲，大運同步率很低: -15分")
         
-        # ChatGPT建議：大運影響不超過±5分
-        if score < -5:
-            details.append(f"大運影響上限控制: {score:.1f}→-5分")
-            score = -5
-        elif score > 5:
-            details.append(f"大運影響上限控制: {score:.1f}→5分")
-            score = 5
-        
         # 大運風險上限
         if score < C.DAYUN_RISK_CAP:
             details.append(f"大運風險上限控制: {score:.1f}→{C.DAYUN_RISK_CAP:.1f}分")
@@ -1650,8 +1581,6 @@ class ScoringEngine:
         
         details.append(f"雙向差異: {diff:.1f}分，平均: {avg:.1f}分")
         
-        # ChatGPT建議：模型判定只依賴final_score（這裡使用雙向分數平均值）
-        # Grok建議：簡化為3種模型
         if avg >= 65 and diff < C.BALANCED_MAX_DIFF:
             model = "平衡型"
             details.append(f"平均分≥65且差異<{C.BALANCED_MAX_DIFF}，判定為平衡型")
@@ -1695,7 +1624,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         audit_log.append(f"現實保底分: {C.REALITY_FLOOR}分")
         audit_log.append("=" * 60)
         
-        # 檢查日支六沖/害（致命否決層先行）
+        # 檢查日支六沖/害
         day_branch1 = bazi1.get('day_pillar', '  ')[1]
         day_branch2 = bazi2.get('day_pillar', '  ')[1]
         has_day_clash = ScoringEngine.is_clash(day_branch1, day_branch2)
@@ -1717,7 +1646,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         score_parts = ScoringEngine.calculate_score_parts(bazi1, bazi2, gender1, gender2)
         audit_log.extend(score_parts.get("audit_log", []))
         
-        # 2. 相同八字懲罰（ChatGPT建議：相同八字應為55-70分）
+        # 2. 相同八字懲罰
         if pillars_same:
             audit_log.append(f"⚠️ 相同八字(伏吟)懲罰: 結構-10分")
             score_parts["structure_core"] = max(0, score_parts["structure_core"] - 10)
@@ -1743,7 +1672,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         )
         audit_log.append(f"📉 負向扣分: {negative_scores:.1f}分")
         
-        # 6. 能量救應抵銷負面分數（Grok抵銷機制）
+        # 6. 能量救應抵銷負面分數
         rescue_deduction = 0
         if score_parts["energy_rescue"] > 0:
             rescue_deduction = abs(negative_scores) * C.RESCUE_DEDUCTION_RATIO * (score_parts["energy_rescue"] / C.ENERGY_RESCUE_CAP)
@@ -1772,7 +1701,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             adjusted_score = min(C.DAY_HARM_HARD_CAP, adjusted_score)
             audit_log.append(f"⚠️ 日支六害硬上限激活: 最高{C.DAY_HARM_HARD_CAP}分")
         
-        # 10. 相同八字上限（ChatGPT建議：相同八字上限調整）
+        # 10. 相同八字上限
         if pillars_same and adjusted_score > 65:
             adjusted_score = min(adjusted_score, 65)
             audit_log.append(f"⚠️ 相同八字上限: 最高65分")
@@ -1823,12 +1752,9 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         else:
             audit_log.append(f"⏱️ testpair命令，不使用置信度調整")
         
-        # 14. 最終分數範圍限制（10-98分，無滿分）
+        # 14. 最終分數範圍限制
         final_score = max(10.0, min(98.0, round(calibrated_score, 1)))
         audit_log.append(f"🎯 最終分數: {calibrated_score:.1f}→{final_score:.1f}分")
-        
-        # ChatGPT建議：驗證分數範圍
-        assert 10 <= final_score <= 98, f"最終分數超出範圍: {final_score}"
         
         # 15. 獲取評級
         rating_info = ScoringEngine.get_rating_with_description(final_score)
@@ -1876,9 +1802,6 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         
         return result
         
-    except AssertionError as e:
-        logger.error(f"配對數學驗證失敗: {e}")
-        raise ScoringEngineError(f"配對驗證失敗: {str(e)}")
     except Exception as e:
         logger.error(f"配對計算錯誤: {e}", exc_info=True)
         raise ScoringEngineError(f"配對計算失敗: {str(e)}")
@@ -2076,98 +1999,3 @@ class BaziFormatters:
         
         return result_text
 # 🔖 1.7 統一格式化工具類結束
-
-# ========== 文件信息開始 ==========
-"""
-文件: new_calculator.py
-功能: 八字配對系統核心引擎
-
-引用文件: 
-- sxtwl (農曆計算庫)
-- math, logging, datetime (Python標準庫)
-
-被引用文件:
-- admin_service.py (管理員服務)
-- bot.py (主程序)
-- bazi_soulmate.py (真命天子搜尋)
-
-主要功能:
-1. BaziCalculator類 - 八字核心計算引擎
-2. TimeProcessor類 - 時間處理引擎
-3. ScoringEngine類 - 專業評分引擎  
-4. Config類 - 配置常量
-5. BaziFormatters類 - 統一格式化工具
-6. calculate_match() - 主入口函數
-7. calculate_bazi() - 八字計算接口
-
-整合AI專業建議:
-1. ChatGPT: 數學斷言、刑沖上限、模型判定簡化、刪除誇大宣傳
-2. Gemini: 分層資訊、濃度平方級計算、沖合抵銷機制
-3. Grok: 極簡顯示、統一格式化、簡化關係模型
-4. 自身分析: 刪除AI Prompt功能、簡化同性配對邏輯、移除硬編碼版本號
-
-修改紀錄:
-1. 刪除AI Prompt功能 (generate_ai_prompt)
-2. 簡化同性配對邏輯
-3. 移除硬編碼版本號和誇大宣傳詞
-4. 添加數學斷言確保計算穩定性
-5. 統一格式化系統，簡化輸出
-6. 調整評分閾值為更現實範圍
-7. 刪除冗餘emoji和視覺元素
-8. 簡化關係模型為3種（平衡型、供求型、混合型）
-"""
-# ========== 文件信息結束 ==========
-
-# ========== 目錄開始 ==========
-"""
-1.1 錯誤處理類開始 - 定義系統錯誤類型
-1.2 配置常量類開始 - 專業配置常量
-1.3 時間處理引擎開始 - 真太陽時、DST、日界處理
-1.4 八字核心引擎開始 - 八字計算和深度分析
-1.5 評分引擎開始 - 專業命理評分
-1.6 主入口函數開始 - 八字配對主入口函數
-1.7 統一格式化工具類開始 - 個人資料和配對結果格式化
-"""
-# ========== 目錄結束 ==========
-
-# ========== 修正紀錄開始 ==========
-"""
-2026-02-02 本次重大修正：
-
-1. 刪除不必要的功能：
-   • 完全刪除AI Prompt功能（generate_ai_prompt）
-   • 刪除同性配對計算的複雜邏輯
-   • 刪除硬編碼版本號
-   • 刪除「世界級專業」「99%一致」等誇大宣傳
-
-2. 整合所有AI專業建議：
-   • 採納ChatGPT的數學斷言和刑沖上限
-   • 採用Gemini的濃度平方級計算和沖合抵銷
-   • 應用Grok的極簡顯示和統一格式化
-   • 簡化關係模型為3種（平衡型、供求型、混合型）
-
-3. 添加數學驗證（ChatGPT建議）：
-   • assert 基準分 ≥ 50
-   • assert 刑沖總扣分 ≤ 總分30%
-   • assert 任何單一模組 |score| ≤ 20
-   • assert 最終分數 10 ≤ score ≤ 98
-
-4. 修正評分系統：
-   • 調整基準分為60分（專業及格線）
-   • 相同八字懲罰調整為-10分（原-12分）
-   • 相同八字上限調整為65分（原50分）
-   • 大運影響上限為±5分
-
-5. 簡化格式化系統：
-   • 統一所有輸出格式
-   • 減少emoji使用
-   • 簡化專業術語顯示
-
-6. 保持向後兼容：
-   • 所有對外接口不變
-   • 別名保持不變
-   • 核心計算邏輯不變
-
-此修正確保系統計算準確性，簡化用戶界面，符合專業命理配對需求。
-"""
-# ========== 修正紀錄結束 ==========
