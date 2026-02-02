@@ -358,9 +358,10 @@ class AdminService:
         """從配對結果中正確提取分數細項 - 修復版本"""
         try:
             module_scores = match_result.get('module_scores', {})
+            debug_info = match_result.get('debug_info', {})
             
-            # 基準分固定為60
-            base_score = 60
+            # 基準分從debug_info獲取，如無則使用60
+            base_score = debug_info.get('base_score', 60)
             
             # 提取各模組分數
             energy = module_scores.get('energy_rescue', 0)
@@ -374,9 +375,6 @@ class AdminService:
             # 計算正向加分和負向扣分
             positive_bonus = energy + structure + shensha + resolution
             negative_penalty = personality + pressure + dayun
-            
-            # 計算總分
-            total_score = base_score + positive_bonus + negative_penalty
             
             # 構建細項字符串
             details = []
@@ -427,11 +425,11 @@ class AdminService:
             '邊緣': '⚠️'
         }.get(test_result.status, '❓')
         
-        # 極簡格式：一行顯示所有信息
-        formatted = f"#{test_result.test_id:02d} 分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji}"
+        # 提取類型名稱（從description中提取）
+        test_type = test_result.description.split("：")[1] if "：" in test_result.description else test_result.description
         
-        if test_result.score_details:
-            formatted += f" {test_result.score_details}"
+        # 極簡格式：包含兩人四柱、類型、分數和分數細項
+        formatted = f"{test_result.birth1} {test_result.birth2},{test_type},分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji} {test_result.score_details}"
         
         return formatted
     # ========2.1 測試功能結束 ========#
@@ -718,7 +716,7 @@ class AdminService:
         
         # 詳細結果（極簡格式）
         for formatted_result in results['formatted_results']:
-            text += formatted_result + "\n"
+            text += "#" + formatted_result + "\n"
         
         # 總結
         text += f"\n🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤"
@@ -789,28 +787,28 @@ class AdminService:
 
 主要修改：
 1. 整合test_cases.py中的測試案例數據
-2. 修復格式化顯示問題，移除分隔線和空行
-3. 簡化測試結果顯示格式
+2. 修復格式化顯示問題，改進測試結果顯示格式
+3. 修改測試結果顯示格式，包含兩人四柱和類型
 4. 保持所有測試功能與新的評分系統兼容
 
 修改記錄：
-2026-02-02 第一次修正：
-1. 將ADMIN_TEST_CASES直接包含在文件中，移除對test_cases.py的依賴
-2. 修復_format_single_test_result()方法，移除分隔線和空行
-3. 簡化format_test_results()輸出格式
-4. 修復分數細項提取邏輯，確保顯示正確
-5. 所有顯示改為緊湊格式，無空行和分隔線
+2026-02-02 第三次修正：
+1. 修改_test_run_single_test方法，正確提取八字四柱
+2. 修改_format_single_test_result方法，顯示兩人四柱和類型
+3. 修改format_test_results方法，在每行結果前加#號
+4. 修正分數細項提取邏輯，從debug_info獲取基準分
+5. 保持測試結果格式緊湊，符合要求格式
 
 2026-02-02 第二次修正：
 1. 修復分數細項提取邏輯：重寫_extract_score_details_correct方法
-2. 正確顯示基準分和模組分數：基準分固定為60分
+2. 正確顯示基準分和模組分數：基準分從debug_info獲取
 3. 修正分數細項格式：顯示基準分、正向加分、負向扣分
 4. 修正模組分數顯示：正確顯示正負號
-5. 保持測試結果格式緊湊，無空行
+5. 保持測試結果格式緊湊
 
 累積修正：
 - 更新常數引用以匹配new_calculator.py的修改
-- 調整分數細項提取，基準分固定為60
+- 調整分數細項提取，基準分從debug_info獲取
 - 修復日期格式化錯誤
 - 保持所有測試功能正常運作
 - 符合繁體中文要求

@@ -94,119 +94,116 @@ class Config:
     TOMB_BRANCHES = {'木': '未', '火': '戌', '土': '戌', '金': '丑', '水': '辰'}
     
     # ========== 評分系統配置 ==========
-    # 基準分調整（55分基礎緣分） - 降低基準分，留出分數空間
-    BASE_SCORE = 55
-    REALITY_FLOOR = 35  # 降低保底分，讓大凶組合顯現
+    # 基準分調整（60分基礎緣分）
+    BASE_SCORE = 60
     
     # 專業評分閾值 - 重新調整閾值
     THRESHOLD_TERMINATION = 30      # 保持不變
     THRESHOLD_STRONG_WARNING = 40   # 保持不變
-    THRESHOLD_WARNING = 45          # 保持不變
-    THRESHOLD_ACCEPTABLE = 55       # 提升門檻
-    THRESHOLD_GOOD_MATCH = 70       # 提升門檻
-    THRESHOLD_EXCELLENT_MATCH = 80  # 提升門檻
-    THRESHOLD_PERFECT_MATCH = 90    # 提升門檻
+    THRESHOLD_WARNING = 50          # 調整
+    THRESHOLD_ACCEPTABLE = 60       # 調整
+    THRESHOLD_GOOD_MATCH = 70       # 調整
+    THRESHOLD_EXCELLENT_MATCH = 80  # 調整
+    THRESHOLD_PERFECT_MATCH = 90    # 調整
     
     # ========== 刑沖硬傷系統 ==========
-    DAY_CLASH_HARD_CAP = 45         # 日支沖硬上限
-    DAY_HARM_HARD_CAP = 50          # 日支害硬上限
-    FATAL_RISK_CAP = 30             # 致命風險上限
+    DAY_CLASH_HARD_CAP = 55         # 日支沖硬上限（原45）
+    DAY_HARM_HARD_CAP = 60          # 日支害硬上限（原50）
     
     # ========== 模組分數上限 ==========
-    POSITIVE_BONUS_CAP = 45         # 提高上限，讓優質組合能跑出高分
-    POSITIVE_SATURATION_FACTOR = 0.6  # 提高飽和係數
+    POSITIVE_BONUS_CAP = 35         # 降低上限（原45）
+    POSITIVE_SATURATION_FACTOR = 0.5  # 降低飽和係數（原0.6）
     
     # 各模組上限
-    ENERGY_RESCUE_CAP = 35          # 大幅提高能量救應權重
-    STRUCTURE_CORE_CAP = 30         # 提高結構核心權重
-    PERSONALITY_RISK_CAP = -25      # 加深人格風險扣分
-    PRESSURE_PENALTY_CAP = -40      # 允許更大刑沖扣分
-    SHEN_SHA_BONUS_CAP = 15         # 提高神煞上限
-    SHEN_SHA_FLOOR = 0              # 刪除神煞保底分 - 關鍵修改
-    RESOLUTION_BONUS_CAP = 10       # 保持不變
-    DAYUN_RISK_CAP = -15            # 保持不變
+    ENERGY_RESCUE_CAP = 25          # 降低能量救應權重（原35）
+    STRUCTURE_CORE_CAP = 20         # 降低結構核心權重（原30）
+    PERSONALITY_RISK_CAP = -20      # 調整人格風險扣分（原-25）
+    PRESSURE_PENALTY_CAP = -40      # 保持不變
+    SHEN_SHA_BONUS_CAP = 8          # 降低神煞上限（原15）
+    RESOLUTION_BONUS_CAP = 6        # 降低化解上限（原10）
+    DAYUN_RISK_CAP = -10            # 降低大運風險上限（原-15）
     
     # 總扣分上限保護
-    TOTAL_PENALTY_CAP = -35         # 調整總扣分上限
+    TOTAL_PENALTY_CAP = -35         # 保持不變
     
     # ========== 能量救應配置 ==========
     WEAK_THRESHOLD = 15
-    EXTREME_WEAK_BONUS = 15         # 提高極弱救應分數
-    DEMAND_MATCH_BONUS_BASE = 18    # 大幅提高基礎分數 - 關鍵修改
-    CONCENTRATION_BOOST_THRESHOLD = 20  # 降低濃度閾值
-    CONCENTRATION_BOOST_FACTOR = 1.5    # 提高加成係數
+    EXTREME_WEAK_BONUS = 10         # 降低極弱救應分數（原15）
+    DEMAND_MATCH_BONUS_BASE = 12    # 大幅降低基礎分數（原18）
+    CONCENTRATION_BOOST_THRESHOLD = 15  # 調整濃度閾值（原20）
+    CONCENTRATION_BOOST_FACTOR = 1.2    # 降低加成係數（原1.5）
     
     # 能量抵銷比例
-    RESCUE_DEDUCTION_RATIO = 0.3    # 調整抵銷比例
+    RESCUE_DEDUCTION_RATIO = 0.2    # 降低抵銷比例（原0.3）
     
     # ========== 結構核心配置 ==========
-    STEM_COMBINATION_FIVE_HARMONY = 25  # 提高天合分數
-    STEM_COMBINATION_GENERATION = 6     # 提高相生分數
-    STEM_COMBINATION_SAME = 2           # 提高比和分數
+    STEM_COMBINATION_FIVE_HARMONY = 20  # 降低天合分數（原25）
+    STEM_COMBINATION_GENERATION = 6     # 保持不變
+    STEM_COMBINATION_SAME = 2           # 保持不變
     
-    BRANCH_COMBINATION_SIX_HARMONY = 20  # 提高地合分數
+    BRANCH_COMBINATION_SIX_HARMONY = 15  # 降低地合分數（原20）
     BRANCH_COMBINATION_THREE_HARMONY = 12 # 保持不變
     
     # ========== 刑沖壓力配置 ==========
-    BRANCH_CLASH_PENALTY = -12      # 加重六沖懲罰
-    BRANCH_HARM_PENALTY = -8        # 加重六害懲罰
-    DAY_CLASH_PENALTY = -25         # 大幅加重日支沖懲罰 - 關鍵修改
-    DAY_HARM_PENALTY = -18          # 大幅加重日支害懲罰 - 關鍵修改
+    BRANCH_CLASH_PENALTY = -10      # 調整六沖懲罰（原-12）
+    BRANCH_HARM_PENALTY = -6        # 調整六害懲罰（原-8）
+    DAY_CLASH_PENALTY = -20         # 調整日支沖懲罰（原-25）
+    DAY_HARM_PENALTY = -15          # 調整日支害懲罰（原-18）
     
     # 沖合抵銷
-    TRIAD_RESOLUTION_RATIO = 0.7    # 提高三合解沖能力
-    HARMONY_RESOLUTION_RATIO = 0.5  # 提高六合解沖能力
+    TRIAD_RESOLUTION_RATIO = 0.7    # 保持不變
+    HARMONY_RESOLUTION_RATIO = 0.5  # 保持不變
     
     # ========== 人格風險配置 ==========
     PERSONALITY_RISK_PATTERNS = {
-        "傷官見官": -15,
-        "官殺混雜": -12,
-        "財星遇劫": -10,
-        "羊刃坐財": -8,
-        "梟神奪食": -8,
-        "半三刑": -6
+        "傷官見官": -10,    # 調整（原-15）
+        "官殺混雜": -8,     # 調整（原-12）
+        "財星遇劫": -6,     # 調整（原-10）
+        "羊刃坐財": -5,     # 調整（原-8）
+        "梟神奪食": -5,     # 調整（原-8）
+        "半三刑": -4        # 調整（原-6）
     }
-    PERSONALITY_STACKED_PENALTY = -12  # 調整疊加懲罰
+    PERSONALITY_STACKED_PENALTY = -12  # 保持不變
     
     # ========== 神煞系統配置 ==========
     SHEN_SHA_POSITIVE = {
-        "紅鸞": 3,
-        "天喜": 2,
-        "天乙貴人": 4,
-        "文昌": 2,
+        "紅鸞": 2,          # 調整（原3）
+        "天喜": 1,          # 調整（原2）
+        "天乙貴人": 3,      # 調整（原4）
+        "文昌": 2,          # 保持不變
     }
     
     SHEN_SHA_NEGATIVE = {
-        "羊刃": -4,
-        "劫煞": -3,
-        "亡神": -3,
-        "孤辰": -3,
-        "寡宿": -3,
-        "陰差陽錯": -4
+        "羊刃": -3,         # 調整（原-4）
+        "劫煞": -2,         # 調整（原-3）
+        "亡神": -2,         # 調整（原-3）
+        "孤辰": -2,         # 調整（原-3）
+        "寡宿": -2,         # 調整（原-3）
+        "陰差陽錯": -3      # 調整（原-4）
     }
     
     # 神煞互動加成
     SHEN_SHA_COMBO_BONUS = {
-        ("紅鸞", "天喜"): 5,
-        ("天乙貴人", "天乙貴人"): 4,
+        ("紅鸞", "天喜"): 3,              # 調整（原5）
+        ("天乙貴人", "天乙貴人"): 3,      # 調整（原4）
     }
     
     # ========== 專業化解配置 ==========
     RESOLUTION_PATTERNS = {
-        "殺印相生": 8,
-        "財官相生": 7,
-        "傷官生財": 6,
-        "食傷配印": 5,
+        "殺印相生": 5,      # 調整（原8）
+        "財官相生": 4,      # 調整（原7）
+        "傷官生財": 3,      # 調整（原6）
+        "食傷配印": 2,      # 調整（原5）
     }
     
     # ========== 現實校準配置 ==========
-    AGE_GAP_PENALTY_5_8 = -2
-    AGE_GAP_PENALTY_9_12 = -5
-    AGE_GAP_PENALTY_13_PLUS = -8
+    AGE_GAP_PENALTY_5_8 = 0     # 設置為0，避免雙重扣分
+    AGE_GAP_PENALTY_9_12 = 0    # 設置為0，避免雙重扣分
+    AGE_GAP_PENALTY_13_PLUS = 0 # 設置為0，避免雙重扣分
     
     # ========== 關係模型判定 ==========
-    BALANCED_MAX_DIFF = 12
-    SUPPLY_MIN_DIFF = 15
+    BALANCED_MAX_DIFF = 15      # 調整（原12）
+    SUPPLY_MIN_DIFF = 20        # 調整（原15）
     
     # ========== 時間信心度映射 ==========
     TIME_CONFIDENCE_LEVELS = {
@@ -1068,6 +1065,12 @@ class BaziCalculator:
         if '正官' in shi_shen_list and '正財' in shi_shen_list:
             structure_features.append("財官相生")
         
+        if '傷官' in shi_shen_list and '正財' in shi_shen_list:
+            structure_features.append("傷官生財")
+        
+        if '食神' in shi_shen_list and '正印' in shi_shen_list:
+            structure_features.append("食傷配印")
+        
         if structure_features:
             return "、".join(structure_features)
         else:
@@ -1212,10 +1215,18 @@ class ScoringEngine:
             for element in needed_elements:
                 if element in supplier_elements:
                     concentration = supplier_elements[element]
-                    if concentration > 5:  # 降低閾值，讓更多匹配生效
-                        # 新公式：濃度/30，分母變小，分數變大
+                    if concentration > 20:  # 調整閾值
                         factor = min(1.5, concentration / 30.0)
                         bonus = C.DEMAND_MATCH_BONUS_BASE * factor
+                        sub_score += bonus
+                        details.append(f"{person_name}喜{element}，對方有{concentration:.1f}%: +{bonus:.1f}分")
+                    elif concentration > 10:
+                        factor = min(1.0, concentration / 30.0)
+                        bonus = C.DEMAND_MATCH_BONUS_BASE * factor
+                        sub_score += bonus
+                        details.append(f"{person_name}喜{element}，對方有{concentration:.1f}%: +{bonus:.1f}分")
+                    else:
+                        bonus = C.DEMAND_MATCH_BONUS_BASE * 0.5
                         sub_score += bonus
                         details.append(f"{person_name}喜{element}，對方有{concentration:.1f}%: +{bonus:.1f}分")
             return sub_score
@@ -1437,8 +1448,6 @@ class ScoringEngine:
             details.append(f"神煞上限控制: {total_bonus:.1f}→{C.SHEN_SHA_BONUS_CAP:.1f}分")
             total_bonus = C.SHEN_SHA_BONUS_CAP
         
-        # 注意：已刪除神煞保底分，不再有最低分保證
-        
         return total_bonus, details
     
     @staticmethod
@@ -1562,7 +1571,7 @@ class ScoringEngine:
         if avg >= 65 and diff < C.BALANCED_MAX_DIFF:
             model = "平衡型"
             details.append(f"平均分≥65且差異<{C.BALANCED_MAX_DIFF}，判定為平衡型")
-        elif avg >= 55 and diff >= C.SUPPLY_MIN_DIFF:
+        elif avg >= 55 and avg < 85 and diff >= C.SUPPLY_MIN_DIFF:
             if a_to_b > b_to_a:
                 model = "供求型 (用戶A供應用戶B)"
                 details.append(f"平均分≥55且差異≥{C.SUPPLY_MIN_DIFF}，用戶A>用戶B，判定為供求型")
@@ -1598,7 +1607,6 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         audit_log = []
         audit_log.append("八字配對計算開始")
         audit_log.append(f"基準分數: {C.BASE_SCORE}分")
-        audit_log.append(f"現實保底分: {C.REALITY_FLOOR}分")
         
         # 檢查日支六沖/害
         day_branch1 = bazi1.get('day_pillar', '  ')[1]
@@ -1632,11 +1640,11 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         pressure_score = score_parts["pressure_penalty"]
         
         if has_day_clash:
-            interference_factor = 0.4  # 日支沖，加分只剩4成
-            audit_log.append("⚠️ 日支相沖，啟動強力干涉：所有正向加分 x 0.4")
+            interference_factor = 0.6  # 日支沖，加分只剩6成（原0.4）
+            audit_log.append("⚠️ 日支相沖，啟動強力干涉：所有正向加分 x 0.6")
         elif pressure_score < -15:
-            interference_factor = 0.7  # 普通刑沖重，加分7折
-            audit_log.append(f"⚠️ 刑沖壓力大({pressure_score:.1f})，啟動干涉：所有正向加分 x 0.7")
+            interference_factor = 0.8  # 普通刑沖重，加分8折（原0.7）
+            audit_log.append(f"⚠️ 刑沖壓力大({pressure_score:.1f})，啟動干涉：所有正向加分 x 0.8")
         
         # 4. 計算基礎總分
         base_score = C.BASE_SCORE
@@ -1705,22 +1713,17 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         # 13. 應用現實校準
         calibrated_score = adjusted_score
         
-        # 年齡差距調整
-        age_diff = abs(bazi1.get('birth_year', 0) - bazi2.get('birth_year', 0))
-        if age_diff > 12:
-            calibrated_score += C.AGE_GAP_PENALTY_13_PLUS
-            audit_log.append(f"👥 年齡差距>12歲: {C.AGE_GAP_PENALTY_13_PLUS}分")
-        elif age_diff > 8:
-            calibrated_score += C.AGE_GAP_PENALTY_9_12
-            audit_log.append(f"👥 年齡差距9-12歲: {C.AGE_GAP_PENALTY_9_12}分")
-        elif age_diff > 4:
-            calibrated_score += C.AGE_GAP_PENALTY_5_8
-            audit_log.append(f"👥 年齡差距5-8歲: {C.AGE_GAP_PENALTY_5_8}分")
-        
-        # 現實保底分 - 只在沒有重大刑沖時激活
-        if calibrated_score < C.REALITY_FLOOR and not has_day_clash and not has_day_harm:
-            calibrated_score = C.REALITY_FLOOR
-            audit_log.append(f"🛡️ 現實保底分激活: {calibrated_score:.1f}分")
+        # 年齡差距調整 - 避免雙重扣分，已在大運風險中計算
+        # age_diff = abs(bazi1.get('birth_year', 0) - bazi2.get('birth_year', 0))
+        # if age_diff > 12:
+        #     calibrated_score += C.AGE_GAP_PENALTY_13_PLUS
+        #     audit_log.append(f"👥 年齡差距>12歲: {C.AGE_GAP_PENALTY_13_PLUS}分")
+        # elif age_diff > 8:
+        #     calibrated_score += C.AGE_GAP_PENALTY_9_12
+        #     audit_log.append(f"👥 年齡差距9-12歲: {C.AGE_GAP_PENALTY_9_12}分")
+        # elif age_diff > 4:
+        #     calibrated_score += C.AGE_GAP_PENALTY_5_8
+        #     audit_log.append(f"👥 年齡差距5-8歲: {C.AGE_GAP_PENALTY_5_8}分")
         
         # 14. 應用置信度調整
         confidence_adjust_applied = False
@@ -1991,25 +1994,32 @@ class BaziFormatters:
 1. 重新設計評分系統配置，解決分數通脹問題
 2. 增加干涉係數機制，刑沖嚴重時打折正向加分
 3. 刪除神煞保底分，避免低分區分數扭曲
-4. 大幅提高能量救應和結構核心分數
-5. 加重刑沖懲罰，特別是日支沖剋
+4. 調整能量救應和結構核心分數
+5. 調整刑沖懲罰，特別是日支沖剋
 6. 統一四方功能格式化輸出
+7. 修正年齡差距雙重扣分問題
 
 修改記錄：
 2026-02-02 深度重構版：
-1. 降低基準分：從60降至55，留出分數空間
-2. 刪除神煞保底分：SHEN_SHA_FLOOR從7改為0，解決低分區分數扭曲問題
-3. 提高能量救應：DEMAND_MATCH_BONUS_BASE從6提升到18，讓喜用神互補真正有效
-4. 加重刑沖懲罰：DAY_CLASH_PENALTY從-12提升到-25，反映日支沖的嚴重性
-5. 增加干涉係數機制：日支沖時所有正向加分打4折，普通刑沖重打7折
-6. 提高正向加分上限：POSITIVE_BONUS_CAP從30提升到45
-7. 提高評級閾值：重新調整各級別分數標準
-8. 增強能量救應計算：使用濃度/30的新公式，讓分數更合理
-9. 統一格式化輸出：讓四方功能輸出格式一致
+1. 提高基準分：從55改回60，更符合實際
+2. 降低能量救應上限：從35降到25
+3. 降低神煞上限：從15降到8
+4. 調整日支沖懲罰：從-25調整到-20
+5. 調整日支沖硬上限：從45提高到55
+6. 調整日支沖干涉係數：從0.4提高到0.6
+7. 調整正向加分上限：從45降到35
+8. 調整能量救應基礎分：從18降到12
+9. 調整神煞組合加分：紅鸞天喜從5降到3
+10. 調整人格風險各項扣分
+11. 調整大運風險年齡差扣分
+12. 調整關係模型判斷條件
+13. 修正年齡差距雙重扣分問題
+14. 調整評分閾值
+15. 調整十神結構中的化解組合判斷
 
 累積修正：
 - 解決分數通脹問題，讓刑沖組合能真正顯現低分
-- 增強喜用神互補的分數，讓優質組合能跑出高分
+- 增強喜用神互補的分數，讓優質組合能跑出合理分數
 - 統一所有功能的計算和輸出邏輯
 - 保持向後兼容，所有現有接口不變
 - 符合繁體中文要求
