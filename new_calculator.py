@@ -1205,19 +1205,25 @@ class ProfessionalBaziCalculator:
         }
 # 🔖 1.4 專業八字核心引擎結束
 
-# 🔖 1.5 全新專業評分引擎開始（判斷流程制）
+# 🔖 1.5 全新專業評分引擎開始（判斷流程制）- 修正版本
 class ProfessionalScoringEngine:
-    """專業評分引擎 - 採用判斷流程制，先斷凶吉、後論好壞"""
+    """專業評分引擎 - 嚴格遵循判斷流程制：先斷凶吉、後論好壞"""
     
-    # 統一規則數值
+    # 統一規則數值（固定）
     DAY_CLASH_CAP = 60          # 日支六沖硬上限
     DAY_HARM_CAP = 63           # 日支六害硬上限
     FUYIN_CAP = 60              # 伏吟硬上限
-    MULTIPLE_CLASH_CAP = 50     # 多重刑沖硬上限
+    MULTIPLE_CLASH_CAP = 50     # 多重刑沖硬上限（總刑沖≥3）
     
     STRUCTURE_MAX = 15          # 結構核心上限
     RESCUE_MAX_PERCENT = 0.3    # 救應最多減刑沖30%
     SHEN_SHA_MAX = 10           # 神煞+專業化解上限
+    
+    # 刑沖扣分標準
+    CLASH_PENALTY = -8          # 六沖基礎扣分
+    HARM_PENALTY = -6           # 六害基礎扣分
+    DAY_WEIGHT = 2.0            # 日柱權重
+    OTHER_WEIGHT = 1.0          # 其他柱權重
     
     # 區間映射
     SCORE_INTERVALS = {
@@ -1232,53 +1238,53 @@ class ProfessionalScoringEngine:
     def calculate_match_score_pro(bazi1: Dict, bazi2: Dict, 
                                 gender1: str, gender2: str,
                                 is_testpair: bool = False) -> Dict[str, Any]:
-        """專業配對評分主函數 - 判斷流程制"""
+        """專業配對評分主函數 - 嚴格判斷流程制"""
         try:
             audit_log = []
-            audit_log.append("🎯 開始專業八字配對評分（判斷流程制）")
+            audit_log.append("🎯 開始專業八字配對評分（嚴格判斷流程制）")
             
             # 基礎檢查
             if not bazi1 or not bazi2:
                 raise MatchScoringError("八字資料不全")
             
             # 第一步：日柱生死關（先斷凶吉）
-            ceiling, ceiling_reason, day_clash_info = ProfessionalScoringEngine._check_day_pillar_hard_limit_pro(
+            ceiling, ceiling_reason, day_clash_info = ProfessionalScoringEngine._check_day_pillar_hard_limit_strict(
                 bazi1, bazi2, audit_log
             )
             
-            # 第二步：計算全盤刑沖壓力
-            pressure_score, pressure_details = ProfessionalScoringEngine._calculate_pressure_penalty_pro_new(
+            # 第二步：計算全盤刑沖壓力（嚴格扣分）
+            pressure_score, pressure_details = ProfessionalScoringEngine._calculate_pressure_penalty_strict(
                 bazi1, bazi2, audit_log
             )
             
             # 第三步：計算結構核心（只取最強一項）
-            structure_score, structure_details = ProfessionalScoringEngine._calculate_structure_core_pro_new(
+            structure_score, structure_details = ProfessionalScoringEngine._calculate_structure_core_strict(
                 bazi1, bazi2, audit_log
             )
             
-            # 第四步：用神救應（只減刑沖）
-            rescue_percent, rescue_details = ProfessionalScoringEngine._calculate_rescue_percent_pro(
+            # 第四步：用神救應（只減刑沖，上限30%）
+            rescue_percent, rescue_details = ProfessionalScoringEngine._calculate_rescue_percent_strict(
                 bazi1, bazi2, audit_log
             )
             
-            # 第五步：神煞與專業化解（輔助描述）
-            shen_sha_score, shen_sha_details = ProfessionalScoringEngine._calculate_shen_sha_bonus_pro_new(
+            # 第五步：神煞與專業化解（硬忌盤不入分）
+            shen_sha_score, shen_sha_details = ProfessionalScoringEngine._calculate_shen_sha_bonus_strict(
                 bazi1, bazi2, ceiling_reason, audit_log
             )
             
-            # 第六步：計算最終分數（判斷流程制）
-            final_score, calculation_details = ProfessionalScoringEngine._calculate_final_score_pro_new(
+            # 第六步：計算最終分數（嚴格流程）
+            final_score, calculation_details = ProfessionalScoringEngine._calculate_final_score_strict(
                 ceiling, ceiling_reason, pressure_score, rescue_percent,
                 structure_score, shen_sha_score, audit_log
             )
             
             # 第七步：區間映射
-            mapped_score, interval_info = ProfessionalScoringEngine._map_to_interval_pro(
+            mapped_score, interval_info = ProfessionalScoringEngine._map_to_interval_strict(
                 final_score, audit_log
             )
             
             # 第八步：關係模型判定
-            relationship_model, model_details = ProfessionalScoringEngine._determine_relationship_model_pro_new(
+            relationship_model, model_details = ProfessionalScoringEngine._determine_relationship_model_strict(
                 mapped_score, bazi1, bazi2, audit_log
             )
             
@@ -1310,18 +1316,16 @@ class ProfessionalScoringEngine:
             raise MatchScoringError(f"評分失敗: {str(e)}")
     
     @staticmethod
-    def _check_day_pillar_hard_limit_pro(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, str, Dict[str, Any]]:
-        """第一步：日柱生死關 - 先斷凶吉"""
+    def _check_day_pillar_hard_limit_strict(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, str, Dict[str, Any]]:
+        """第一步：日柱生死關 - 嚴格判斷"""
         day_branch1 = bazi1.get('day_pillar', '  ')[1]
         day_branch2 = bazi2.get('day_pillar', '  ')[1]
-        day_stem1 = bazi1.get('day_stem', '')
-        day_stem2 = bazi2.get('day_stem', '')
         
         # 檢查日支六沖
         has_day_clash = ProfessionalScoringEngine._is_branch_clash(day_branch1, day_branch2)
         # 檢查日支六害
         has_day_harm = ProfessionalScoringEngine._is_branch_harm(day_branch1, day_branch2)
-        # 檢查伏吟（相同八字）
+        # 檢查伏吟（完全相同八字）
         pillars_same = all(bazi1.get(k) == bazi2.get(k) for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar'])
         
         # 收集全盤刑沖數量（用於判斷多重）
@@ -1331,6 +1335,7 @@ class ProfessionalScoringEngine:
         # 收集所有地支
         branches1 = []
         branches2 = []
+        
         for pillar in [bazi1.get('year_pillar', ''), bazi1.get('month_pillar', ''), 
                       bazi1.get('day_pillar', ''), bazi1.get('hour_pillar', '')]:
             if len(pillar) >= 2:
@@ -1341,7 +1346,7 @@ class ProfessionalScoringEngine:
             if len(pillar) >= 2:
                 branches2.append(pillar[1])
         
-        # 統計刑沖
+        # 統計全盤刑沖
         for b1 in branches1:
             for b2 in branches2:
                 if ProfessionalScoringEngine._is_branch_clash(b1, b2):
@@ -1351,27 +1356,31 @@ class ProfessionalScoringEngine:
         
         total_clash_harm = clash_count + harm_count
         
-        # 判斷硬忌類型並設定天花
+        # 判斷硬忌類型並設定天花（嚴格判斷）
         if has_day_clash:
             ceiling = ProfessionalScoringEngine.DAY_CLASH_CAP
             reason = f"日支六沖 ({day_branch1}↔{day_branch2})"
-            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六沖，天花設定為{ceiling}")
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六沖({day_branch1}↔{day_branch2})，天花={ceiling}")
+        
         elif has_day_harm:
             ceiling = ProfessionalScoringEngine.DAY_HARM_CAP
             reason = f"日支六害 ({day_branch1}↔{day_branch2})"
-            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六害，天花設定為{ceiling}")
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 日支六害({day_branch1}↔{day_branch2})，天花={ceiling}")
+        
         elif pillars_same:
             ceiling = ProfessionalScoringEngine.FUYIN_CAP
             reason = f"伏吟 (八字相同)"
-            audit_log.append(f"⚠️ 第一步：日柱生死關 - 伏吟，天花設定為{ceiling}")
-        elif total_clash_harm >= 3:  # 多重刑沖
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 伏吟，天花={ceiling}")
+        
+        elif total_clash_harm >= 3:  # 多重刑沖（嚴格：總數≥3）
             ceiling = ProfessionalScoringEngine.MULTIPLE_CLASH_CAP
             reason = f"多重刑沖 (共{total_clash_harm}處)"
-            audit_log.append(f"⚠️ 第一步：日柱生死關 - 多重刑沖{total_clash_harm}處，天花設定為{ceiling}")
+            audit_log.append(f"⚠️ 第一步：日柱生死關 - 多重刑沖{total_clash_harm}處，天花={ceiling}")
+        
         else:
             ceiling = 90  # 無硬忌，天花90
             reason = "無硬忌"
-            audit_log.append(f"✅ 第一步：日柱生死關 - 無硬忌，天花設定為{ceiling}")
+            audit_log.append(f"✅ 第一步：日柱生死關 - 無硬忌，天花={ceiling}")
         
         day_clash_info = {
             "has_day_clash": has_day_clash,
@@ -1385,8 +1394,8 @@ class ProfessionalScoringEngine:
         return ceiling, reason, day_clash_info
     
     @staticmethod
-    def _calculate_pressure_penalty_pro_new(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
-        """第二步：計算全盤刑沖壓力 - 權重制"""
+    def _calculate_pressure_penalty_strict(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第二步：計算全盤刑沖壓力 - 嚴格扣分"""
         details = []
         
         # 收集所有地支
@@ -1410,31 +1419,35 @@ class ProfessionalScoringEngine:
         day_branch2 = bazi2.get('day_pillar', '  ')[1]
         
         total_penalty = 0.0
+        clash_count = 0
+        harm_count = 0
         
-        # 逐條計算刑沖
+        # 逐條計算刑沖（嚴格扣分）
         for b1 in branches1:
             for b2 in branches2:
                 # 計算權重：日支×2，其餘×1
-                weight = 2.0 if (b1 == day_branch1 and b2 == day_branch2) else 1.0
+                weight = ProfessionalScoringEngine.DAY_WEIGHT if (b1 == day_branch1 and b2 == day_branch2) else ProfessionalScoringEngine.OTHER_WEIGHT
                 
                 # 檢查六沖
                 if ProfessionalScoringEngine._is_branch_clash(b1, b2):
-                    penalty = -8 * weight  # 基礎扣8分
+                    penalty = ProfessionalScoringEngine.CLASH_PENALTY * weight
                     total_penalty += penalty
+                    clash_count += 1
                     details.append(f"六沖 {b1}↔{b2}: {penalty:.1f}分 (權重×{weight})")
                 
                 # 檢查六害
                 if ProfessionalScoringEngine._is_branch_harm(b1, b2):
-                    penalty = -6 * weight  # 基礎扣6分
+                    penalty = ProfessionalScoringEngine.HARM_PENALTY * weight
                     total_penalty += penalty
+                    harm_count += 1
                     details.append(f"六害 {b1}↔{b2}: {penalty:.1f}分 (權重×{weight})")
         
-        audit_log.append(f"📊 第二步：刑沖壓力 = {total_penalty:.1f}分 (共{len(details)}處)")
+        audit_log.append(f"📊 第二步：刑沖壓力 = {total_penalty:.1f}分 (六沖{clash_count}處, 六害{harm_count}處)")
         
         return round(total_penalty, 1), details
     
     @staticmethod
-    def _calculate_structure_core_pro_new(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+    def _calculate_structure_core_strict(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
         """第三步：結構核心 - 只取最強一項"""
         details = []
         
@@ -1445,23 +1458,23 @@ class ProfessionalScoringEngine:
         
         structure_options = []
         
-        # 1. 天干五合（最高優先）
+        # 1. 天干五合（最高優先，15分）
         if ProfessionalScoringEngine._is_stem_five_harmony(day_stem1, day_stem2):
             structure_options.append(("天干五合", 15, f"日干五合 {day_stem1}-{day_stem2}"))
         
-        # 2. 地支六合
+        # 2. 地支六合（12分）
         if ProfessionalScoringEngine._is_branch_six_harmony(day_branch1, day_branch2):
             structure_options.append(("地支六合", 12, f"日支六合 {day_branch1}-{day_branch2}"))
         
-        # 3. 地支三合
+        # 3. 地支三合（10分）
         if ProfessionalScoringEngine._is_branch_three_harmony(day_branch1, day_branch2):
             structure_options.append(("地支三合", 10, f"地支三合 {day_branch1}-{day_branch2}"))
         
-        # 4. 日干相同
+        # 4. 日干相同（8分）
         if day_stem1 == day_stem2:
             structure_options.append(("日干相同", 8, f"日干相同 {day_stem1}-{day_stem2}"))
         
-        # 5. 日支相同
+        # 5. 日支相同（6分）
         if day_branch1 == day_branch2:
             structure_options.append(("日支相同", 6, f"日支相同 {day_branch1}-{day_branch2}"))
         
@@ -1478,8 +1491,8 @@ class ProfessionalScoringEngine:
             return 0.0, ["無明顯結構"]
     
     @staticmethod
-    def _calculate_rescue_percent_pro(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
-        """第四步：用神救應 - 只減刑沖"""
+    def _calculate_rescue_percent_strict(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第四步：用神救應 - 只減刑沖，上限30%"""
         details = []
         
         useful1 = bazi1.get('useful_elements', [])
@@ -1528,18 +1541,18 @@ class ProfessionalScoringEngine:
         return rescue_percent, details
     
     @staticmethod
-    def _calculate_shen_sha_bonus_pro_new(bazi1: Dict, bazi2: Dict, ceiling_reason: str, audit_log: List[str]) -> Tuple[float, List[str]]:
-        """第五步：神煞與專業化解 - 輔助描述"""
+    def _calculate_shen_sha_bonus_strict(bazi1: Dict, bazi2: Dict, ceiling_reason: str, audit_log: List[str]) -> Tuple[float, List[str]]:
+        """第五步：神煞與專業化解 - 硬忌盤不入分"""
         details = []
         
         # 如果第一步已判硬忌，則完全不入分
-        if "硬忌" in ceiling_reason or ceiling_reason in ["日支六沖", "日支六害", "伏吟", "多重刑沖"]:
-            audit_log.append(f"✨ 第五步：神煞與專業化解 - 硬忌盤，不入分")
+        if "硬忌" in ceiling_reason or any(keyword in ceiling_reason for keyword in ["六沖", "六害", "伏吟", "多重刑沖"]):
+            audit_log.append(f"✨ 第五步：神煞與專業化解 - 硬忌盤({ceiling_reason})，不入分")
             return 0.0, ["硬忌盤，不入分"]
         
         score = 0.0
         
-        # 神煞加分
+        # 神煞加分（減半處理）
         bonus1 = bazi1.get('shen_sha_bonus', 0)
         bonus2 = bazi2.get('shen_sha_bonus', 0)
         shen_sha_names1 = bazi1.get('shen_sha_names', '').split('、')
@@ -1567,8 +1580,8 @@ class ProfessionalScoringEngine:
         structure2 = bazi2.get('shi_shen_structure', '')
         
         resolution_patterns = {
-            "殺印相生": 3, "財官相生": 2.5, "傷官生財": 2,
-            "食傷配印": 2, "官印相生": 2, "比劫幫身": 1.5
+            "殺印相生": 2, "財官相生": 2, "傷官生財": 1.5,
+            "食傷配印": 1.5, "官印相生": 1.5, "比劫幫身": 1
         }
         
         for pattern, bonus in resolution_patterns.items():
@@ -1590,10 +1603,10 @@ class ProfessionalScoringEngine:
         return round(final_score, 1), details
     
     @staticmethod
-    def _calculate_final_score_pro_new(ceiling: float, ceiling_reason: str, pressure_score: float,
+    def _calculate_final_score_strict(ceiling: float, ceiling_reason: str, pressure_score: float,
                                      rescue_percent: float, structure_score: float,
                                      shen_sha_score: float, audit_log: List[str]) -> Tuple[float, List[str]]:
-        """第六步：計算最終分數 - 判斷流程制"""
+        """第六步：計算最終分數 - 嚴格流程"""
         details = []
         
         # 1. 應用救應減刑沖
@@ -1618,7 +1631,7 @@ class ProfessionalScoringEngine:
             details.append(f"結構核心: +{structure_score:.1f}")
         
         # 4. 加神煞與專業化解（如果非硬忌盤）
-        if "硬忌" not in ceiling_reason and ceiling_reason not in ["日支六沖", "日支六害", "伏吟", "多重刑沖"]:
+        if "硬忌" not in ceiling_reason and not any(keyword in ceiling_reason for keyword in ["六沖", "六害", "伏吟", "多重刑沖"]):
             if shen_sha_score > 0:
                 raw_score += shen_sha_score
                 details.append(f"輔助分: +{shen_sha_score:.1f}")
@@ -1630,51 +1643,64 @@ class ProfessionalScoringEngine:
         return round(final_score, 1), details
     
     @staticmethod
-    def _map_to_interval_pro(score: float, audit_log: List[str]) -> Tuple[float, Dict[str, Any]]:
-        """第七步：區間映射"""
+    def _map_to_interval_strict(score: float, audit_log: List[str]) -> Tuple[float, Dict[str, Any]]:
+        """第七步：區間映射 - 嚴格映射"""
         intervals = ProfessionalScoringEngine.SCORE_INTERVALS
         
         # 確定區間
         if score < 50:
             interval = "hard_avoid"
             interval_name = "硬忌盤"
-            mapped_score = 30 + (score - 20) * (20/30) if score > 20 else 30  # 映射到30-50
+            # 映射到30-50
+            if score < 20:
+                mapped_score = 30
+            else:
+                mapped_score = 30 + (score - 20) * (20/30)  # 20-50映射到30-50
+                mapped_score = max(30, min(50, mapped_score))
+        
         elif score < 60:
             interval = "structure_problem"
             interval_name = "有結構問題"
-            mapped_score = 45 + (score - 50) * (15/10)  # 映射到45-60
+            # 映射到45-60
+            mapped_score = 45 + (score - 50) * (15/10)  # 50-60映射到45-60
+            mapped_score = max(45, min(60, mapped_score))
+        
         elif score < 70:
             interval = "neutral_adjustable"
             interval_name = "中性可磨合"
-            mapped_score = 55 + (score - 60) * (15/10)  # 映射到55-70
+            # 映射到55-70
+            mapped_score = 55 + (score - 60) * (15/10)  # 60-70映射到55-70
+            mapped_score = max(55, min(70, mapped_score))
+        
         elif score < 85:
             interval = "stable_good"
             interval_name = "穩定良配"
-            mapped_score = 70 + (score - 70) * (15/15)  # 映射到70-85
+            # 映射到70-85
+            mapped_score = 70 + (score - 70) * (15/15)  # 70-85映射到70-85
+            mapped_score = max(70, min(85, mapped_score))
+        
         else:
             interval = "rare_excellent"
             interval_name = "極罕見上乘"
-            mapped_score = 85 + min(score - 85, 5)  # 映射到85-90
-        
-        # 確保在區間內
-        min_score, max_score = intervals[interval]
-        mapped_score = max(min_score, min(max_score, mapped_score))
+            # 映射到85-90
+            mapped_score = 85 + min(score - 85, 5)  # 85+映射到85-90
+            mapped_score = max(85, min(90, mapped_score))
         
         interval_info = {
             "interval": interval,
             "interval_name": interval_name,
-            "min_score": min_score,
-            "max_score": max_score,
+            "min_score": intervals[interval][0],
+            "max_score": intervals[interval][1],
             "raw_score": score,
             "mapped_score": mapped_score
         }
         
-        audit_log.append(f"🗺️ 第七步：區間映射 - {interval_name}({min_score}-{max_score})，原始{score:.1f} → 映射{mapped_score:.1f}")
+        audit_log.append(f"🗺️ 第七步：區間映射 - {interval_name}({intervals[interval][0]}-{intervals[interval][1]})，原始{score:.1f} → 映射{mapped_score:.1f}")
         
         return round(mapped_score, 1), interval_info
     
     @staticmethod
-    def _determine_relationship_model_pro_new(score: float, bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[str, List[str]]:
+    def _determine_relationship_model_strict(score: float, bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Tuple[str, List[str]]:
         """第八步：關係模型判定"""
         details = []
         
@@ -1719,6 +1745,7 @@ class ProfessionalScoringEngine:
         
         return {"name": "避免發展", "description": "硬傷明顯，易生變，不適合婚戀"}
     
+    # 地支關係判斷方法（保持不變）
     @staticmethod
     def _is_branch_clash(branch1: str, branch2: str) -> bool:
         """檢查地支六沖"""
@@ -1775,7 +1802,7 @@ class ProfessionalScoringEngine:
             if branch1 in harmony_set and branch2 in harmony_set and branch1 != branch2:
                 return True
         return False
-# 🔖 1.5 全新專業評分引擎結束（判斷流程制）
+# 🔖 1.5 全新專業評分引擎結束（判斷流程制）- 修正版本
 
 # 🔖 1.6 主入口函數開始
 def calculate_bazi_pro(year: int, month: int, day: int, hour: int,
