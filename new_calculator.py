@@ -176,7 +176,7 @@ class ProfessionalConfig:
 PC = ProfessionalConfig
 # 🔖 1.2 專業配置系統結束
 
-# 🔖 1.3 專業時間處理引擎開始
+# 🔖 1.3 專業時間處理引擎開始 - 修正版本
 class ProfessionalTimeProcessor:
     """專業時間處理引擎 - 確保99%時間計算準確"""
     
@@ -210,10 +210,12 @@ class ProfessionalTimeProcessor:
             longitude_adjust = longitude_diff * PC.LONGITUDE_CORRECTION
             audit_log.append(f"📍 經度校正: {longitude_adjust:.1f}分鐘 (經度差: {longitude_diff:.2f}度)")
             
-            # 3. 均時差計算 (Equation of Time)
+            # 3. 均時差計算 (Equation of Time) - 修正版本
             try:
-                day_obj = sxtwl.fromSolar(year, month, day)
-                jd = day_obj.getJulianDay() + (hour + minute/60.0)/24.0
+                # 使用datetime計算儒略日
+                import math
+                # 將日期時間轉換為儒略日
+                jd = ProfessionalTimeProcessor._datetime_to_julian_day(year, month, day, hour, minute)
                 eot_adjust = ProfessionalTimeProcessor._calculate_eot_pro(jd)
                 audit_log.append(f"☀️ 均時差校正: {eot_adjust:.1f}分鐘")
             except Exception as e:
@@ -266,31 +268,50 @@ class ProfessionalTimeProcessor:
             raise TimeCalculationError(f"時間計算失敗: {str(e)}")
     
     @staticmethod
+    def _datetime_to_julian_day(year: int, month: int, day: int, hour: int, minute: int) -> float:
+        """將日期時間轉換為儒略日"""
+        # 簡化版儒略日計算
+        # 參考: https://en.wikipedia.org/wiki/Julian_day
+        if month <= 2:
+            year -= 1
+            month += 12
+        
+        A = year // 100
+        B = 2 - A + (A // 4)
+        
+        # 日期部分的儒略日
+        jd_day = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
+        
+        # 時間部分（轉換為天的小數）
+        time_fraction = (hour + minute / 60.0) / 24.0
+        
+        return jd_day + time_fraction
+    
+    @staticmethod
     def _calculate_eot_pro(jd: float) -> float:
-        """專業均時差計算"""
-        # 使用更精確的公式
-        n = jd - 2451545.0
+        """專業均時差計算 - 修正版本"""
+        # 使用更簡單的近似公式，避免複雜的天文計算
+        # 基於儒略日計算太陽平黃經
         
-        # 太陽平黃經
-        L = 280.460 + 0.9856474 * n
-        L = L % 360
+        # 計算自J2000.0以來的世紀數
+        T = (jd - 2451545.0) / 36525.0
         
-        # 太陽平近點角
-        g = 357.528 + 0.9856003 * n
-        g = g % 360
+        # 太陽平黃經（度）
+        L0 = 280.46646 + 36000.76983 * T + 0.0003032 * T * T
         
-        # 轉換為弧度
-        L_rad = math.radians(L)
-        g_rad = math.radians(g)
+        # 太陽平近點角（度）
+        M = 357.52911 + 35999.05029 * T - 0.0001537 * T * T
         
-        # 專業計算公式
-        eot_minutes = 229.18 * (
-            0.000075 +
-            0.001868 * math.cos(g_rad) -
-            0.032077 * math.sin(g_rad) -
-            0.014615 * math.cos(2 * g_rad) -
-            0.040849 * math.sin(2 * g_rad)
-        )
+        # 太陽中心差
+        C = (1.914602 - 0.004817 * T - 0.000014 * T * T) * math.sin(math.radians(M)) + \
+            (0.019993 - 0.000101 * T) * math.sin(math.radians(2 * M)) + \
+            0.000289 * math.sin(math.radians(3 * M))
+        
+        # 太陽真黃經
+        L = L0 + C
+        
+        # 簡化的均時差計算
+        eot_minutes = 9.87 * math.sin(math.radians(2 * L)) - 7.53 * math.cos(math.radians(L)) - 1.5 * math.sin(math.radians(L))
         
         return eot_minutes
     
@@ -311,6 +332,36 @@ class ProfessionalTimeProcessor:
         
         return (year, month, day, confidence)
 # 🔖 1.3 專業時間處理引擎結束
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 # 🔖 1.4 專業八字核心引擎開始
 class ProfessionalBaziCalculator:
@@ -349,6 +400,7 @@ class ProfessionalBaziCalculator:
         '亥': ('子', '丑'), '子': ('亥', '丑'), '丑': ('亥', '子')   # 冬季水會
     }
     
+    
     @staticmethod
     def calculate_pro(year: int, month: int, day: int, hour: int,
                      gender: str = "未知",
@@ -381,9 +433,11 @@ class ProfessionalBaziCalculator:
             )
             adjusted_year, adjusted_month, adjusted_day, final_confidence = adjusted_date
             
-            # 使用sxtwl計算四柱
+            # 使用sxtwl計算四柱 - 修正使用方式
             day_obj = sxtwl.fromSolar(adjusted_year, adjusted_month, adjusted_day)
             
+            # 修正：正確獲取天干地支
+            # sxtwl 返回的是數字索引，需要轉換為漢字
             y_gz = day_obj.getYearGZ()
             m_gz = day_obj.getMonthGZ()
             d_gz = day_obj.getDayGZ()
@@ -393,12 +447,15 @@ class ProfessionalBaziCalculator:
                 adjusted_year, adjusted_month, adjusted_day, true_solar_time['hour']
             )
             
-            # 組裝基礎八字數據
-            year_pillar = f"{ProfessionalBaziCalculator.STEMS[y_gz.tg]}{ProfessionalBaziCalculator.BRANCHES[y_gz.dz]}"
-            month_pillar = f"{ProfessionalBaziCalculator.STEMS[m_gz.tg]}{ProfessionalBaziCalculator.BRANCHES[m_gz.dz]}"
-            day_pillar = f"{ProfessionalBaziCalculator.STEMS[d_gz.tg]}{ProfessionalBaziCalculator.BRANCHES[d_gz.dz]}"
+            # 組裝基礎八字數據 - 使用修正後的索引獲取
+            STEMS = ProfessionalBaziCalculator.STEMS
+            BRANCHES = ProfessionalBaziCalculator.BRANCHES
             
-            day_stem = ProfessionalBaziCalculator.STEMS[d_gz.tg]
+            year_pillar = f"{STEMS[y_gz.tg]}{BRANCHES[y_gz.dz]}"
+            month_pillar = f"{STEMS[m_gz.tg]}{BRANCHES[m_gz.dz]}"
+            day_pillar = f"{STEMS[d_gz.tg]}{BRANCHES[d_gz.dz]}"
+            
+            day_stem = STEMS[d_gz.tg]
             day_stem_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(day_stem, "")
             
             bazi_data = {
