@@ -96,66 +96,66 @@ class Config:
     # ========== 評分系統配置 ==========
     # 基準分調整（60分基礎緣分）
     BASE_SCORE = 60
-    REALITY_FLOOR = 45  # 修改：從55降低到45，解決55分堆積問題
+    REALITY_FLOOR = 40  # 修改：從45降低到40，進一步降低保底分
     
     # 專業評分閾值
-    THRESHOLD_TERMINATION = 30      # 修改：從35降低到30
-    THRESHOLD_STRONG_WARNING = 40   # 修改：從45降低到40
-    THRESHOLD_WARNING = 45          # 修改：從50降低到45
-    THRESHOLD_ACCEPTABLE = 55       # 修改：從60降低到55
-    THRESHOLD_GOOD_MATCH = 65       # 修改：從70降低到65
-    THRESHOLD_EXCELLENT_MATCH = 75  # 修改：從80降低到75
-    THRESHOLD_PERFECT_MATCH = 85    # 修改：從90降低到85
+    THRESHOLD_TERMINATION = 30      # 保持不變
+    THRESHOLD_STRONG_WARNING = 40   # 保持不變
+    THRESHOLD_WARNING = 45          # 保持不變
+    THRESHOLD_ACCEPTABLE = 55       # 保持不變
+    THRESHOLD_GOOD_MATCH = 65       # 保持不變
+    THRESHOLD_EXCELLENT_MATCH = 75  # 保持不變
+    THRESHOLD_PERFECT_MATCH = 85    # 保持不變
     
     # ========== 刑沖硬傷系統 ==========
-    DAY_CLASH_HARD_CAP = 45    # 保持不變
-    DAY_HARM_HARD_CAP = 50     # 修改：從48提高到50
-    FATAL_RISK_CAP = 35        # 修改：從40降低到35
+    DAY_CLASH_HARD_CAP = 40    # 修改：從45降低到40
+    DAY_HARM_HARD_CAP = 45     # 修改：從50降低到45
+    FATAL_RISK_CAP = 30        # 修改：從35降低到30
     
     # ========== 模組分數上限 ==========
-    POSITIVE_BONUS_CAP = 35        # 修改：從30提高到35
-    POSITIVE_SATURATION_FACTOR = 0.5  # 修改：從0.3提高到0.5
+    POSITIVE_BONUS_CAP = 30        # 修改：從35降低到30
+    POSITIVE_SATURATION_FACTOR = 0.4  # 修改：從0.5降低到0.4
     
     # 各模組上限
-    ENERGY_RESCUE_CAP = 30          # 修改：從25提高到30
-    STRUCTURE_CORE_CAP = 25         # 修改：從20提高到25
-    PERSONALITY_RISK_CAP = -20      # 修改：從-25調整為-20
-    PRESSURE_PENALTY_CAP = -30      # 保持不變
+    ENERGY_RESCUE_CAP = 25          # 修改：從30降低到25
+    STRUCTURE_CORE_CAP = 20         # 修改：從25降低到20
+    PERSONALITY_RISK_CAP = -20      # 保持不變
+    PRESSURE_PENALTY_CAP = -35      # 修改：從-30調整為-35
     SHEN_SHA_BONUS_CAP = 12         # 保持不變
     SHEN_SHA_FLOOR = 7              # 保持不變
     RESOLUTION_BONUS_CAP = 10       # 保持不變
     DAYUN_RISK_CAP = -15            # 保持不變
     
     # 總扣分上限保護
-    TOTAL_PENALTY_CAP = -35         # 保持不變
+    TOTAL_PENALTY_CAP = -40         # 修改：從-35調整為-40
     
     # ========== 能量救應配置 ==========
     WEAK_THRESHOLD = 15
-    EXTREME_WEAK_BONUS = 12       # 修改：從10提高到12
-    DEMAND_MATCH_BONUS_BASE = 8   # 修改：從5提高到8
+    EXTREME_WEAK_BONUS = 8        # 修改：從12降低到8
+    DEMAND_MATCH_BONUS_BASE = 6   # 修改：從8降低到6
     CONCENTRATION_BOOST_THRESHOLD = 30
-    CONCENTRATION_BOOST_FACTOR = 1.5
+    CONCENTRATION_BOOST_FACTOR = 1.2  # 修改：從1.5降低到1.2
     
     # 能量抵銷比例
-    RESCUE_DEDUCTION_RATIO = 0.3
+    RESCUE_DEDUCTION_RATIO = 0.25  # 修改：從0.3降低到0.25
     
     # ========== 結構核心配置 ==========
-    STEM_COMBINATION_FIVE_HARMONY = 22  # 修改：從18提高到22
-    STEM_COMBINATION_GENERATION = 6     # 修改：從4提高到6
-    STEM_COMBINATION_SAME = 2           # 保持不變
+    STEM_COMBINATION_FIVE_HARMONY = 18  # 修改：從22降低到18
+    STEM_COMBINATION_GENERATION = 5     # 修改：從6降低到5
+    STEM_COMBINATION_SAME = 1.5         # 修改：從2降低到1.5
     
-    BRANCH_COMBINATION_SIX_HARMONY = 18  # 修改：從15提高到18
-    BRANCH_COMBINATION_THREE_HARMONY = 12 # 保持不變
+    BRANCH_COMBINATION_SIX_HARMONY = 15  # 修改：從18降低到15
+    BRANCH_COMBINATION_THREE_HARMONY = 10 # 修改：從12降低到10
     
     # ========== 刑沖壓力配置 ==========
-    BRANCH_CLASH_PENALTY = -5    # 修改：從-8降低到-5
-    BRANCH_HARM_PENALTY = -4     # 修改：從-6降低到-4
-    DAY_CLASH_PENALTY = -10      # 修改：從-15降低到-10
-    DAY_HARM_PENALTY = -8        # 修改：從-12降低到-8
+    BRANCH_CLASH_PENALTY = -6      # 修改：從-5調整為-6
+    BRANCH_HARM_PENALTY = -5       # 修改：從-4調整為-5
+    DAY_CLASH_PENALTY = -12        # 修改：從-10調整為-12
+    DAY_HARM_PENALTY = -10         # 修改：從-8調整為-10
     
     # 沖合抵銷
-    TRIAD_RESOLUTION_RATIO = 0.6
-    HARMONY_RESOLUTION_RATIO = 0.4
+    TRIAD_RESOLUTION_RATIO = 0.5   # 修改：從0.6降低到0.5
+    HARMONY_RESOLUTION_RATIO = 0.3  # 修改：從0.4降低到0.3
     
     # ========== 人格風險配置 ==========
     PERSONALITY_RISK_PATTERNS = {
@@ -166,7 +166,7 @@ class Config:
         "梟神奪食": -8,
         "半三刑": -6
     }
-    PERSONALITY_STACKED_PENALTY = -12
+    PERSONALITY_STACKED_PENALTY = -10  # 修改：從-12降低到-10
     
     # ========== 神煞系統配置 ==========
     SHEN_SHA_POSITIVE = {
@@ -1197,7 +1197,7 @@ class ScoringEngine:
     
     @staticmethod
     def _calculate_energy_rescue_professional(bazi1: Dict, bazi2: Dict) -> Tuple[float, List[str]]:
-        """計算能量救應分數 - 改進濃度計算"""
+        """計算能量救應分數 - 調整濃度計算"""
         score = 0
         details = []
         
@@ -1208,17 +1208,17 @@ class ScoringEngine:
         harmful1 = bazi1.get('harmful_elements', [])
         harmful2 = bazi2.get('harmful_elements', [])
         
-        # A喜用 vs B五行 - 改進計算公式
+        # A喜用 vs B五行 - 調整計算公式
         for element in useful1:
             if element in elements2:
                 concentration = elements2[element]
                 if concentration > 0:
-                    # 新公式：基礎分數 + 濃度加成
-                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 50)  # 參考點50%
-                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.5)
+                    # 調整公式：基礎分數 + 濃度加成，但更保守
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 60)  # 參考點60%
+                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.2)
                     
                     if element in harmful2:
-                        base_bonus *= 0.5  # 如果是對方的忌神，降低分數但不要太嚴
+                        base_bonus *= 0.4  # 如果是對方的忌神，大幅降低分數
                         details.append(f"A喜{element}，B有{concentration:.1f}%，但為B忌神，打折後: +{base_bonus:.1f}分")
                     else:
                         details.append(f"A喜{element}，B有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
@@ -1230,29 +1230,29 @@ class ScoringEngine:
             if element in elements1:
                 concentration = elements1[element]
                 if concentration > 0:
-                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 50)
-                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.5)
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 60)
+                    base_bonus = min(base_bonus, C.DEMAND_MATCH_BONUS_BASE * 1.2)
                     
                     if element in harmful1:
-                        base_bonus *= 0.5
+                        base_bonus *= 0.4
                         details.append(f"B喜{element}，A有{concentration:.1f}%，但為A忌神，打折後: +{base_bonus:.1f}分")
                     else:
                         details.append(f"B喜{element}，A有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
                     
                     score += base_bonus
         
-        # 極弱救應 - 提高分數
+        # 極弱救應 - 保守分數
         if bazi1.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi1.get('day_stem_element', '')
-            if day_element in elements2 and elements2[day_element] > 15:
-                bonus = C.EXTREME_WEAK_BONUS * 0.7
+            if day_element in elements2 and elements2[day_element] > 20:
+                bonus = C.EXTREME_WEAK_BONUS * 0.5
                 score += bonus
                 details.append(f"A身極弱({bazi1['strength_score']:.1f}分)，B有{day_element}{elements2[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
         if bazi2.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi2.get('day_stem_element', '')
-            if day_element in elements1 and elements1[day_element] > 15:
-                bonus = C.EXTREME_WEAK_BONUS * 0.7
+            if day_element in elements1 and elements1[day_element] > 20:
+                bonus = C.EXTREME_WEAK_BONUS * 0.5
                 score += bonus
                 details.append(f"B身極弱({bazi2['strength_score']:.1f}分)，A有{day_element}{elements1[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
@@ -1297,27 +1297,27 @@ class ScoringEngine:
         element1 = stem_elements.get(day_stem1, '')
         element2 = stem_elements.get(day_stem2, '')
         
-        # 相生關係
+        # 相生關係 - 調整分數
         if (element1 == '木' and element2 == '火') or (element1 == '火' and element2 == '木'):
-            score += C.STEM_COMBINATION_GENERATION * 0.5
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.3  # 降低係數
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.3:.1f}分")
         elif (element1 == '火' and element2 == '土') or (element1 == '土' and element2 == '火'):
-            score += C.STEM_COMBINATION_GENERATION * 0.5
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.3
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.3:.1f}分")
         elif (element1 == '土' and element2 == '金') or (element1 == '金' and element2 == '土'):
-            score += C.STEM_COMBINATION_GENERATION * 0.5
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.3
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.3:.1f}分")
         elif (element1 == '金' and element2 == '水') or (element1 == '水' and element2 == '金'):
-            score += C.STEM_COMBINATION_GENERATION * 0.5
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.3
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.3:.1f}分")
         elif (element1 == '水' and element2 == '木') or (element1 == '木' and element2 == '水'):
-            score += C.STEM_COMBINATION_GENERATION * 0.5
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.3
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.3:.1f}分")
         
-        # 相同五行
+        # 相同五行 - 降低分數
         if element1 == element2:
-            score += C.STEM_COMBINATION_SAME * 0.5
-            details.append(f"日干比和 {day_stem1}-{day_stem2}: +{C.STEM_COMBINATION_SAME * 0.5:.1f}分")
+            score += C.STEM_COMBINATION_SAME * 0.3  # 降低係數
+            details.append(f"日干比和 {day_stem1}-{day_stem2}: +{C.STEM_COMBINATION_SAME * 0.3:.1f}分")
         
         # 上限控制
         final_score = min(C.STRUCTURE_CORE_CAP, max(0, score))
@@ -1463,8 +1463,8 @@ class ScoringEngine:
         
         for pattern, bonus in C.RESOLUTION_PATTERNS.items():
             if pattern in structure1 or pattern in structure2:
-                score += bonus
-                details.append(f"化解組合 {pattern}: +{bonus:.1f}分")
+                score += bonus * 0.8  # 降低係數
+                details.append(f"化解組合 {pattern}: +{bonus * 0.8:.1f}分")
         
         final_score = min(C.RESOLUTION_BONUS_CAP, score)
         if final_score != score:
@@ -1501,28 +1501,28 @@ class ScoringEngine:
         source_useful = source_bazi.get('useful_elements', [])
         target_elements = target_bazi.get('elements', {})
         
-        # 喜用神匹配
+        # 喜用神匹配 - 保守計算
         useful_match_score = 0
         for element in source_useful:
             if element in target_elements:
                 concentration = target_elements[element]
-                if concentration > 20:
-                    useful_match_score += 8  # 提高分數
-                elif concentration > 10:
+                if concentration > 25:  # 提高閾值
                     useful_match_score += 5
-                else:
+                elif concentration > 15:
                     useful_match_score += 3
+                else:
+                    useful_match_score += 1
         
         score += useful_match_score
         
-        # 配偶星影響
+        # 配偶星影響 - 保守計算
         target_spouse_effective = target_bazi.get('spouse_star_effective', '未知')
         if target_spouse_effective == '強':
-            score += 6  # 提高分數
+            score += 3  # 降低分數
         elif target_spouse_effective == '中':
-            score += 4
-        elif target_spouse_effective == '弱':
             score += 2
+        elif target_spouse_effective == '弱':
+            score += 1
         
         final_score = max(0, min(100, round(score, 1)))
         details.append(f"{direction} 最終分數: {final_score:.1f}")
@@ -1635,8 +1635,8 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
         
         # 2. 相同八字懲罰
         if pillars_same:
-            audit_log.append(f"⚠️ 相同八字(伏吟)懲罰: 結構-10分")
-            score_parts["structure_core"] = max(0, score_parts["structure_core"] - 10)
+            audit_log.append(f"⚠️ 相同八字(伏吟)懲罰: 結構-15分")
+            score_parts["structure_core"] = max(0, score_parts["structure_core"] - 15)
         
         # 3. 計算基礎總分
         base_score = C.BASE_SCORE
@@ -1684,14 +1684,14 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             adjusted_score = min(C.DAY_CLASH_HARD_CAP, adjusted_score)
             audit_log.append(f"⚠️ 日支六沖硬上限激活: 最高{C.DAY_CLASH_HARD_CAP}分")
         elif has_day_harm:
-            # 日支六害：直接封頂，提高到50分
+            # 日支六害：直接封頂
             adjusted_score = min(C.DAY_HARM_HARD_CAP, adjusted_score)
             audit_log.append(f"⚠️ 日支六害硬上限激活: 最高{C.DAY_HARM_HARD_CAP}分")
         
         # 10. 相同八字上限
-        if pillars_same and adjusted_score > 65:
-            adjusted_score = min(adjusted_score, 65)
-            audit_log.append(f"⚠️ 相同八字上限: 最高65分")
+        if pillars_same and adjusted_score > 60:  # 降低上限
+            adjusted_score = min(adjusted_score, 60)
+            audit_log.append(f"⚠️ 相同八字上限: 最高60分")
         
         # 11. 正向加分飽和（防通脹）
         if raw_bonus > C.POSITIVE_BONUS_CAP:
@@ -1714,7 +1714,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             calibrated_score += C.AGE_GAP_PENALTY_5_8
             audit_log.append(f"👥 年齡差距5-8歲: {C.AGE_GAP_PENALTY_5_8}分")
         
-        # 現實保底分
+        # 現實保底分 - 只在沒有重大刑沖時激活
         if calibrated_score < C.REALITY_FLOOR and not has_day_clash and not has_day_harm:
             calibrated_score = C.REALITY_FLOOR
             audit_log.append(f"🛡️ 現實保底分激活: {calibrated_score:.1f}分")
@@ -2113,6 +2113,40 @@ class BaziFormatters:
 13. 降低人格風險上限：PERSONALITY_RISK_CAP 從-25調整為-20
 14. 改進能量救應計算邏輯：使用新的濃度計算公式，提高匹配度分數
 15. 提高雙向影響分數：增加喜用神匹配和配偶星影響的分數
+
+2026-02-02 第四次修正（針對測試成功率35%問題）：
+1. 進一步降低現實保底分：REALITY_FLOOR 從45降低到40
+2. 提高刑沖懲罰：
+   - BRANCH_CLASH_PENALTY 從-5調整為-6
+   - BRANCH_HARM_PENALTY 從-4調整為-5
+   - DAY_CLASH_PENALTY 從-10調整為-12
+   - DAY_HARM_PENALTY 從-8調整為-10
+3. 降低正向加分上限：POSITIVE_BONUS_CAP 從35降低到30
+4. 降低正向加分飽和係數：POSITIVE_SATURATION_FACTOR 從0.5降低到0.4
+5. 降低能量救應分數上限：ENERGY_RESCUE_CAP 從30降低到25
+6. 降低結構核心分數上限：STRUCTURE_CORE_CAP 從25降低到20
+7. 降低能量救應基礎分數：DEMAND_MATCH_BONUS_BASE 從8降低到6
+8. 降低極弱救應分數：EXTREME_WEAK_BONUS 從12降低到8
+9. 降低結構核心加分值：
+   - STEM_COMBINATION_FIVE_HARMONY 從22降低到18
+   - STEM_COMBINATION_GENERATION 從6降低到5
+   - BRANCH_COMBINATION_SIX_HARMONY 從18降低到15
+10. 提高刑沖硬上限：DAY_CLASH_HARD_CAP 從45降低到40
+11. 提高刑沖硬上限：DAY_HARM_HARD_CAP 從50降低到45
+12. 降低致命風險上限：FATAL_RISK_CAP 從35降低到30
+13. 提高刑沖壓力上限：PRESSURE_PENALTY_CAP 從-30調整為-35
+14. 提高總扣分上限：TOTAL_PENALTY_CAP 從-35調整為-40
+15. 降低能量抵銷比例：RESCUE_DEDUCTION_RATIO 從0.3降低到0.25
+16. 降低沖合抵銷比例：
+    - TRIAD_RESOLUTION_RATIO 從0.6降低到0.5
+    - HARMONY_RESOLUTION_RATIO 從0.4降低到0.3
+17. 降低人格風險疊加懲罰：PERSONALITY_STACKED_PENALTY 從-12降低到-10
+18. 調整能量救應計算邏輯：使用更保守的濃度計算公式
+19. 調整結構核心分數計算：降低相生和比和的分數係數
+20. 調整專業化解分數：降低係數從1.0到0.8
+21. 調整雙向影響分數計算：提高喜用神匹配閾值，降低分數
+22. 調整相同八字懲罰：從-10調整為-15
+23. 調整相同八字上限：從65降低到60
 
 累積修正：
 - 保持60分基準分系統
