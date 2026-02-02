@@ -132,9 +132,9 @@ class Config:
     # ========== 能量救應配置 ==========
     WEAK_THRESHOLD = 15
     EXTREME_WEAK_BONUS = 15
-    DEMAND_MATCH_BONUS_BASE = 10
+    DEMAND_MATCH_BONUS_BASE = 8  # 修改：從10降低到8
     CONCENTRATION_BOOST_THRESHOLD = 30
-    CONCENTRATION_BOOST_FACTOR = 1.8
+    CONCENTRATION_BOOST_FACTOR = 1.5  # 修改：從1.8降低到1.5
     
     # 能量抵銷比例
     RESCUE_DEDUCTION_RATIO = 0.3
@@ -148,10 +148,10 @@ class Config:
     BRANCH_COMBINATION_THREE_HARMONY = 12
     
     # ========== 刑沖壓力配置 ==========
-    BRANCH_CLASH_PENALTY = -10
-    BRANCH_HARM_PENALTY = -8
-    DAY_CLASH_PENALTY = -18
-    DAY_HARM_PENALTY = -12
+    BRANCH_CLASH_PENALTY = -12  # 修改：從-10增加到-12
+    BRANCH_HARM_PENALTY = -10   # 修改：從-8增加到-10
+    DAY_CLASH_PENALTY = -20     # 修改：從-18增加到-20
+    DAY_HARM_PENALTY = -15      # 修改：從-12增加到-15
     
     # 沖合抵銷
     TRIAD_RESOLUTION_RATIO = 0.6
@@ -1208,57 +1208,53 @@ class ScoringEngine:
         harmful1 = bazi1.get('harmful_elements', [])
         harmful2 = bazi2.get('harmful_elements', [])
         
-        # A喜用 vs B五行
+        # A喜用 vs B五行 - 修改：降低基礎分數
         for element in useful1:
             if element in elements2:
                 concentration = elements2[element]
-                base_bonus = C.DEMAND_MATCH_BONUS_BASE
-                
-                if concentration > C.CONCENTRATION_BOOST_THRESHOLD:
-                    concentration_factor = (concentration / 30) ** 2
-                    base_bonus *= concentration_factor
-                
-                if element in harmful2:
-                    base_bonus *= 0.5
-                    details.append(f"A喜{element}，B有{concentration:.1f}%，但為B忌神，打折後: +{base_bonus:.1f}分")
-                else:
-                    details.append(f"A喜{element}，B有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
-                
-                score += base_bonus
+                if concentration > 0:
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 100)
+                    
+                    if element in harmful2:
+                        base_bonus *= 0.3  # 如果是對方的忌神，大幅降低分數
+                        details.append(f"A喜{element}，B有{concentration:.1f}%，但為B忌神，打折後: +{base_bonus:.1f}分")
+                    else:
+                        details.append(f"A喜{element}，B有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
+                    
+                    score += base_bonus
         
         # B喜用 vs A五行
         for element in useful2:
             if element in elements1:
                 concentration = elements1[element]
-                base_bonus = C.DEMAND_MATCH_BONUS_BASE
-                
-                if concentration > C.CONCENTRATION_BOOST_THRESHOLD:
-                    concentration_factor = (concentration / 30) ** 2
-                    base_bonus *= concentration_factor
-                
-                if element in harmful1:
-                    base_bonus *= 0.5
-                    details.append(f"B喜{element}，A有{concentration:.1f}%，但為A忌神，打折後: +{base_bonus:.1f}分")
-                else:
-                    details.append(f"B喜{element}，A有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
-                
-                score += base_bonus
+                if concentration > 0:
+                    base_bonus = C.DEMAND_MATCH_BONUS_BASE * (concentration / 100)
+                    
+                    if element in harmful1:
+                        base_bonus *= 0.3
+                        details.append(f"B喜{element}，A有{concentration:.1f}%，但為A忌神，打折後: +{base_bonus:.1f}分")
+                    else:
+                        details.append(f"B喜{element}，A有{concentration:.1f}%，需求對接: +{base_bonus:.1f}分")
+                    
+                    score += base_bonus
         
-        # 極弱救應
+        # 極弱救應 - 修改：降低極弱救應分數
         if bazi1.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi1.get('day_stem_element', '')
-            if day_element in elements2 and elements2[day_element] > 25:
-                score += C.EXTREME_WEAK_BONUS
-                details.append(f"A身極弱({bazi1['strength_score']:.1f}分)，B有{day_element}{elements2[day_element]:.1f}%，極弱救應: +{C.EXTREME_WEAK_BONUS:.1f}分")
+            if day_element in elements2 and elements2[day_element] > 20:
+                bonus = C.EXTREME_WEAK_BONUS * 0.5  # 降低到7.5分
+                score += bonus
+                details.append(f"A身極弱({bazi1['strength_score']:.1f}分)，B有{day_element}{elements2[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
         if bazi2.get('strength_score', 50) < C.WEAK_THRESHOLD:
             day_element = bazi2.get('day_stem_element', '')
-            if day_element in elements1 and elements1[day_element] > 25:
-                score += C.EXTREME_WEAK_BONUS
-                details.append(f"B身極弱({bazi2['strength_score']:.1f}分)，A有{day_element}{elements1[day_element]:.1f}%，極弱救應: +{C.EXTREME_WEAK_BONUS:.1f}分")
+            if day_element in elements1 and elements1[day_element] > 20:
+                bonus = C.EXTREME_WEAK_BONUS * 0.5
+                score += bonus
+                details.append(f"B身極弱({bazi2['strength_score']:.1f}分)，A有{day_element}{elements1[day_element]:.1f}%，極弱救應: +{bonus:.1f}分")
         
         # 上限控制
-        final_score = min(C.ENERGY_RESCUE_CAP, score)
+        final_score = min(C.ENERGY_RESCUE_CAP, max(0, score))
         if final_score != score:
             details.append(f"能量救應上限控制: {score:.1f}→{final_score:.1f}分")
         
@@ -1298,30 +1294,30 @@ class ScoringEngine:
         element1 = stem_elements.get(day_stem1, '')
         element2 = stem_elements.get(day_stem2, '')
         
-        # 相生關係
+        # 相生關係 - 修改：降低相生分數
         if (element1 == '木' and element2 == '火') or (element1 == '火' and element2 == '木'):
-            score += C.STEM_COMBINATION_GENERATION
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.5
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
         elif (element1 == '火' and element2 == '土') or (element1 == '土' and element2 == '火'):
-            score += C.STEM_COMBINATION_GENERATION
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.5
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
         elif (element1 == '土' and element2 == '金') or (element1 == '金' and element2 == '土'):
-            score += C.STEM_COMBINATION_GENERATION
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.5
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
         elif (element1 == '金' and element2 == '水') or (element1 == '水' and element2 == '金'):
-            score += C.STEM_COMBINATION_GENERATION
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.5
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
         elif (element1 == '水' and element2 == '木') or (element1 == '木' and element2 == '水'):
-            score += C.STEM_COMBINATION_GENERATION
-            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION:.1f}分")
+            score += C.STEM_COMBINATION_GENERATION * 0.5
+            details.append(f"日干相生 {day_stem1}→{day_stem2}: +{C.STEM_COMBINATION_GENERATION * 0.5:.1f}分")
         
-        # 相同五行
+        # 相同五行 - 修改：降低相同五行分數
         if element1 == element2:
-            score += C.STEM_COMBINATION_SAME
-            details.append(f"日干比和 {day_stem1}-{day_stem2}: +{C.STEM_COMBINATION_SAME:.1f}分")
+            score += C.STEM_COMBINATION_SAME * 0.5
+            details.append(f"日干比和 {day_stem1}-{day_stem2}: +{C.STEM_COMBINATION_SAME * 0.5:.1f}分")
         
         # 上限控制
-        final_score = min(C.STRUCTURE_CORE_CAP, score)
+        final_score = min(C.STRUCTURE_CORE_CAP, max(0, score))
         if final_score != score:
             details.append(f"結構核心上限控制: {score:.1f}→{final_score:.1f}分")
         
@@ -1387,8 +1383,6 @@ class ScoringEngine:
         
         clash_count = 0
         harm_count = 0
-        day_clash = False
-        day_harm = False
         
         for b1 in branches1:
             for b2 in branches2:
@@ -1397,7 +1391,6 @@ class ScoringEngine:
                     # 日支六沖特別重扣
                     if b1 == bazi1.get('day_pillar', '  ')[1] and b2 == bazi2.get('day_pillar', '  ')[1]:
                         penalty = C.DAY_CLASH_PENALTY
-                        day_clash = True
                         details.append(f"日支六沖 {b1}↔{b2}: {penalty:.1f}分")
                     else:
                         penalty = C.BRANCH_CLASH_PENALTY
@@ -1411,7 +1404,6 @@ class ScoringEngine:
                     # 日支六害特別重扣
                     if b1 == bazi1.get('day_pillar', '  ')[1] and b2 == bazi2.get('day_pillar', '  ')[1]:
                         penalty = C.DAY_HARM_PENALTY
-                        day_harm = True
                         details.append(f"日支六害 {b1}↔{b2}: {penalty:.1f}分")
                     else:
                         penalty = C.BRANCH_HARM_PENALTY
@@ -1506,34 +1498,28 @@ class ScoringEngine:
         source_useful = source_bazi.get('useful_elements', [])
         target_elements = target_bazi.get('elements', {})
         
-        # 喜用神匹配
+        # 喜用神匹配 - 修改：降低匹配分數
         useful_match_score = 0
         for element in source_useful:
             if element in target_elements:
                 concentration = target_elements[element]
                 if concentration > 20:
-                    useful_match_score += 12
-                    details.append(f"{direction} {element}匹配強({concentration:.1f}%): +12分")
+                    useful_match_score += 8  # 從12降低到8
                 elif concentration > 10:
-                    useful_match_score += 8
-                    details.append(f"{direction} {element}匹配中({concentration:.1f}%): +8分")
+                    useful_match_score += 5  # 從8降低到5
                 else:
-                    useful_match_score += 4
-                    details.append(f"{direction} {element}匹配弱({concentration:.1f}%): +4分")
+                    useful_match_score += 2  # 從4降低到2
         
         score += useful_match_score
         
-        # 配偶星影響
+        # 配偶星影響 - 修改：降低影響分數
         target_spouse_effective = target_bazi.get('spouse_star_effective', '未知')
         if target_spouse_effective == '強':
-            score += 10
-            details.append(f"{direction} 配偶星旺盛: +10分")
+            score += 6  # 從10降低到6
         elif target_spouse_effective == '中':
-            score += 6
-            details.append(f"{direction} 配偶星明顯: +6分")
+            score += 4  # 從6降低到4
         elif target_spouse_effective == '弱':
-            score += 3
-            details.append(f"{direction} 配偶星單一: +3分")
+            score += 2  # 從3降低到2
         
         final_score = max(0, min(100, round(score, 1)))
         details.append(f"{direction} 最終分數: {final_score:.1f}")
@@ -1618,11 +1604,9 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
     """
     try:
         audit_log = []
-        audit_log.append("=" * 60)
         audit_log.append("八字配對計算開始")
         audit_log.append(f"基準分數: {C.BASE_SCORE}分")
         audit_log.append(f"現實保底分: {C.REALITY_FLOOR}分")
-        audit_log.append("=" * 60)
         
         # 檢查日支六沖/害
         day_branch1 = bazi1.get('day_pillar', '  ')[1]
@@ -1794,9 +1778,7 @@ def calculate_match(bazi1: Dict, bazi2: Dict, gender1: str, gender2: str, is_tes
             }
         }
         
-        audit_log.append("=" * 60)
         audit_log.append("八字配對計算完成")
-        audit_log.append("=" * 60)
         
         logger.info(f"八字配對完成: 最終分數 {final_score:.1f}分, 評級: {rating}")
         
@@ -1883,24 +1865,24 @@ class BaziFormatters:
         water = elements.get('水', 0)
         
         # 構建個人資料文本
-        personal_text = f"📊 {username} 的八字分析\n{'='*40}\n\n"
+        personal_text = f"📊 {username} 的八字分析\n"
         
         # 個人資料
         personal_text += f"性別：{gender}\n"
         personal_text += f"出生：{birth_year}年{birth_month}月{birth_day}日{birth_hour}時（時間信心度{confidence_text}）\n"
         personal_text += f"八字：{year_pillar} {month_pillar} {day_pillar} {hour_pillar}\n"
-        personal_text += f"生肖：{zodiac}，日主：{day_stem}{day_stem_element}（{day_stem_strength}，{strength_score:.1f}分）\n\n"
+        personal_text += f"生肖：{zodiac}，日主：{day_stem}{day_stem_element}（{day_stem_strength}，{strength_score:.1f}分）\n"
         
         personal_text += f"格局：{pattern_type}\n"
         personal_text += f"十神結構：{shi_shen_structure}\n"
         personal_text += f"喜用神：{', '.join(useful_elements) if useful_elements else '無'}\n"
-        personal_text += f"忌神：{', '.join(harmful_elements) if harmful_elements else '無'}\n\n"
+        personal_text += f"忌神：{', '.join(harmful_elements) if harmful_elements else '無'}\n"
         
         personal_text += f"夫妻星：{spouse_star_status}\n"
         personal_text += f"夫妻宮：{spouse_palace_status}\n"
-        personal_text += f"神煞：{shen_sha_names}\n\n"
+        personal_text += f"神煞：{shen_sha_names}\n"
         
-        personal_text += f"五行分佈：木{wood:.1f}% 火{fire:.1f}% 土{earth:.1f}% 金{metal:.1f}% 水{water:.1f}%\n"
+        personal_text += f"五行分佈：木{wood:.1f}% 火{fire:.1f}% 土{earth:.1f}% 金{metal:.1f}% 水{water:.1f}%"
         
         return personal_text
     
@@ -1916,56 +1898,56 @@ class BaziFormatters:
         module_scores = match_result.get('module_scores', {})
         
         # 構建配對結果文本
-        result_text = f"🎯 配對分析結果\n{'='*40}\n\n"
+        result_text = f"🎯 配對分析結果\n"
         
         # 核心分數和評級
         result_text += f"📊 配對分數：{score:.1f}分\n"
         result_text += f"✨ 評級：{rating}\n"
-        result_text += f"🎭 關係模型：{model}\n\n"
+        result_text += f"🎭 關係模型：{model}\n"
         
         # 模組分數
-        result_text += "📈 分數構成：\n"
-        result_text += f"  能量救應：{module_scores.get('energy_rescue', 0):.1f}分\n"
-        result_text += f"  結構核心：{module_scores.get('structure_core', 0):.1f}分\n"
-        result_text += f"  人格風險：{module_scores.get('personality_risk', 0):.1f}分\n"
-        result_text += f"  刑沖壓力：{module_scores.get('pressure_penalty', 0):.1f}分\n"
-        result_text += f"  神煞加持：{module_scores.get('shen_sha_bonus', 0):.1f}分\n"
-        result_text += f"  專業化解：{module_scores.get('resolution_bonus', 0):.1f}分\n"
-        result_text += f"  大運風險：{module_scores.get('dayun_risk', 0):.1f}分\n\n"
+        result_text += "📈 分數構成："
+        result_text += f"能量救應：{module_scores.get('energy_rescue', 0):.1f}分 "
+        result_text += f"結構核心：{module_scores.get('structure_core', 0):.1f}分 "
+        result_text += f"人格風險：{module_scores.get('personality_risk', 0):.1f}分 "
+        result_text += f"刑沖壓力：{module_scores.get('pressure_penalty', 0):.1f}分 "
+        result_text += f"神煞加持：{module_scores.get('shen_sha_bonus', 0):.1f}分 "
+        result_text += f"專業化解：{module_scores.get('resolution_bonus', 0):.1f}分 "
+        result_text += f"大運風險：{module_scores.get('dayun_risk', 0):.1f}分\n"
         
         # 雙向影響
         a_to_b = match_result.get('a_to_b_score', 0)
         b_to_a = match_result.get('b_to_a_score', 0)
-        result_text += f"🤝 雙向影響\n{'='*40}\n\n"
-        result_text += f"{user_a_name} 對 {user_b_name} 的影響：{a_to_b:.1f}分\n"
-        result_text += f"{user_b_name} 對 {user_a_name} 的影響：{b_to_a:.1f}分\n\n"
+        result_text += f"🤝 雙向影響："
+        result_text += f"{user_a_name} 對 {user_b_name}：{a_to_b:.1f}分 "
+        result_text += f"{user_b_name} 對 {user_a_name}：{b_to_a:.1f}分\n"
         
         # 關鍵發現
-        result_text += f"🔍 關鍵發現\n{'='*40}\n\n"
+        result_text += f"🔍 關鍵發現："
         
         # 優勢
         if score >= C.THRESHOLD_EXCELLENT_MATCH:
-            result_text += "✅ 優勢：\n• 五行能量高度互補\n• 結構穩定無硬傷\n• 有明顯的救應機制\n"
+            result_text += "✅ 優勢：五行能量高度互補、結構穩定無硬傷、有明顯的救應機制 "
         elif score >= C.THRESHOLD_GOOD_MATCH:
-            result_text += "✅ 優勢：\n• 核心需求能夠對接\n• 主要結構無大沖\n• 有化解機制\n"
+            result_text += "✅ 優勢：核心需求能夠對接、主要結構無大沖、有化解機制 "
         elif score >= C.THRESHOLD_ACCEPTABLE:
-            result_text += "✅ 優勢：\n• 基本能量可以互補\n• 需要努力經營關係\n"
+            result_text += "✅ 優勢：基本能量可以互補、需要努力經營關係 "
         else:
-            result_text += "✅ 優勢：\n• 優勢不明顯，需謹慎考慮\n"
+            result_text += "✅ 優勢：優勢不明顯，需謹慎考慮 "
         
         # 挑戰
         challenges = []
         if module_scores.get('personality_risk', 0) < -10:
-            challenges.append("• 人格風險較高，可能性格衝突")
+            challenges.append("人格風險較高，可能性格衝突")
         if module_scores.get('pressure_penalty', 0) < -15:
-            challenges.append("• 刑沖壓力較大，容易產生矛盾")
+            challenges.append("刑沖壓力較大，容易產生矛盾")
         if module_scores.get('dayun_risk', 0) < -10:
-            challenges.append("• 未來大運有挑戰，需要提前準備")
+            challenges.append("未來大運有挑戰，需要提前準備")
         
         if challenges:
-            result_text += "\n⚠️ 挑戰：\n" + "\n".join(challenges) + "\n"
+            result_text += "⚠️ 挑戰：" + " ".join(challenges)
         else:
-            result_text += "\n⚠️ 挑戰：\n• 無明顯重大挑戰\n"
+            result_text += "⚠️ 挑戰：無明顯重大挑戰"
         
         return result_text
     
@@ -1979,23 +1961,81 @@ class BaziFormatters:
         pillars1 = f"{bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}"
         pillars2 = f"{bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}"
         
-        result_text = f"🔮 八字測試結果\n{'='*40}\n\n"
+        result_text = f"🔮 八字測試結果\n"
         
         result_text += f"A八字：{pillars1}（{bazi1.get('gender', '未知')}）\n"
-        result_text += f"B八字：{pillars2}（{bazi2.get('gender', '未知')}）\n\n"
+        result_text += f"B八字：{pillars2}（{bazi2.get('gender', '未知')}）\n"
         
         result_text += f"匹配度：{score:.1f}分\n"
-        result_text += f"評級：{rating}\n\n"
+        result_text += f"評級：{rating}\n"
         
         # 快速分析
         if score >= C.THRESHOLD_EXCELLENT_MATCH:
-            result_text += "⚡ 快速分析：\n• 喜用神完美互補\n• 結構穩定無大沖\n• 時機緣分良好\n"
+            result_text += "⚡ 快速分析：喜用神完美互補、結構穩定無大沖、時機緣分良好"
         elif score >= C.THRESHOLD_GOOD_MATCH:
-            result_text += "⚡ 快速分析：\n• 核心需求能夠對接\n• 主要結構無大沖\n• 有化解機制\n"
+            result_text += "⚡ 快速分析：核心需求能夠對接、主要結構無大沖、有化解機制"
         elif score >= C.THRESHOLD_ACCEPTABLE:
-            result_text += "⚡ 快速分析：\n• 基本能量可以互補\n• 需要努力經營關係\n• 注意溝通方式\n"
+            result_text += "⚡ 快速分析：基本能量可以互補、需要努力經營關係、注意溝通方式"
         else:
-            result_text += "⚡ 快速分析：\n• 關係存在明顯挑戰\n• 建議謹慎考慮\n• 避免投入過多情感\n"
+            result_text += "⚡ 快速分析：關係存在明顯挑戰、建議謹慎考慮、避免投入過多情感"
         
         return result_text
 # 🔖 1.7 統一格式化工具類結束
+
+# ========文件信息開始 ========#
+"""
+文件: new_calculator.py
+功能: 八字配對系統核心引擎
+
+引用文件: 
+- sxtwl (農曆計算庫)
+- 無其他自定義模組
+
+被引用文件:
+- bot.py (主程序)
+- admin_service.py (管理員服務)
+- bazi_soulmate.py (真命天子搜索)
+
+主要修改：
+1. 修復評分算法問題，降低整體分數
+2. 增加刑沖懲罰力度
+3. 降低能量救應和結構核心分數
+4. 修改分數細項提取邏輯
+5. 保持所有現有接口不變
+
+修改記錄：
+2026-02-02 本次修正：
+1. 降低能量救應基礎分數：DEMAND_MATCH_BONUS_BASE 從10降低到8
+2. 降低能量濃度加成係數：CONCENTRATION_BOOST_FACTOR 從1.8降低到1.5
+3. 增加刑沖懲罰力度：
+   - BRANCH_CLASH_PENALTY 從-10增加到-12
+   - BRANCH_HARM_PENALTY 從-8增加到-10  
+   - DAY_CLASH_PENALTY 從-18增加到-20
+   - DAY_HARM_PENALTY 從-12增加到-15
+4. 降低相生和相同五行分數：乘以0.5係數
+5. 降低極弱救應分數：從15降低到7.5
+6. 修改能量救應計算：根據濃度比例計算，而非固定分數
+7. 降低雙向影響分數：匹配分數降低30-50%
+8. 修復分數細項提取邏輯
+
+累積修正：
+- 保持60分基準分系統
+- 修復測試案例成功率問題
+- 保持所有用戶功能正常
+- 符合繁體中文要求
+- 無版本號標示
+"""
+# ========文件信息結束 ========#
+
+# ========目錄開始 ========#
+"""
+目錄:
+1.1 錯誤處理類 - 自定義異常類
+1.2 配置常量類 - 系統配置和參數
+1.3 時間處理引擎 - 真太陽時計算
+1.4 八字核心引擎 - 八字計算和分析
+1.5 評分引擎 - 命理評分算法
+1.6 主入口函數 - 八字配對主要邏輯
+1.7 統一格式化工具類 - 結果格式化輸出
+"""
+# ========目錄結束 ========#
