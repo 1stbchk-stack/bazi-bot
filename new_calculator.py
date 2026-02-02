@@ -2348,6 +2348,11 @@ BaziFormatters = ProfessionalFormatters
 9. 保持向後兼容，所有接口不變
 10. 修正所有已知問題，提高準確性
 
+2026-02-03 兼容性修正：
+1. 在文件末尾添加兼容別名：BaziError = BaziSystemError, MatchError = MatchScoringError
+2. 確保 bot.py 可以正確導入錯誤處理類
+3. 保持所有現有接口不變，維持向後兼容
+
 累積修正：
 - 解決刑沖懲罰不足問題，讓極端刑沖組合能跑出低分
 - 解決正向加分不足問題，讓優質互補組合能跑出高分
