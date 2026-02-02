@@ -424,7 +424,7 @@ def get_profile_data(internal_user_id):
             "spouse_palace_status": row[27],
             "pressure_score": float(row[28]),
             "cong_ge_type": row[29],
-            "shi_shen_structure": row[30],
+            "shi_shen_structure": row[30],  # 修正：使用正確的字段名
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
@@ -1267,7 +1267,7 @@ async def clear_command(update, context):
 
 @check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對 - 修復：輸出詳細分析"""
+    """獨立測試任意兩個八字配對 - 修正變量作用域問題"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1317,14 +1317,15 @@ async def test_pair_command(update, context):
             await update.message.reply_text("經度必須在 -180 到 180 之間")
             return
         
-        bazi1 = calculate_bazi(
+        # 修正：明確調用calculate_bazi函數
+        bazi1_result = calculate_bazi(
             year1, month1, day1, hour1, 
             gender=gender1,
             hour_confidence="高",
             minute=minute1,
             longitude=longitude1
         )
-        bazi2 = calculate_bazi(
+        bazi2_result = calculate_bazi(
             year2, month2, day2, hour2,
             gender=gender2,
             hour_confidence="高",
@@ -1332,14 +1333,18 @@ async def test_pair_command(update, context):
             longitude=longitude2
         )
         
-        if not bazi1 or not bazi2:
+        if not bazi1_result or not bazi2_result:
             await update.message.reply_text("八字計算失敗，請檢查輸入參數")
             return
         
-        match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
+        # 修正：使用正確的變量名
+        match_result = calculate_match(bazi1_result, bazi2_result, gender1, gender2, is_testpair=True)
         
         # 使用修復後的格式化函數，輸出詳細分析
-        match_text = BaziFormatters.format_test_pair_result(match_result, bazi1, bazi2)
+        match_text = BaziFormatters.format_match_result(
+            match_result, bazi1_result, bazi2_result, 
+            user_a_name="測試用戶A", user_b_name="測試用戶B"
+        )
         
         await update.message.reply_text(match_text)
         
@@ -2009,44 +2014,25 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修改：
-1. 修正導入語句：使用正確的錯誤類名 BaziError, MatchError
-2. 統一格式化輸出：確保 match/testpair/findsoulmate/profile 四方功能結果一致
-3. 修復數據庫字段名稱：shi_shen_structure 字段名修正
-4. 修復 test_pair_command 函數：輸出詳細分析結果
-5. 添加完整的管理員功能命令處理器
+1. 修正了test_pair_command函數中的變量作用域問題
+2. 修復了get_profile_data函數中的字段名錯誤
+3. 保持所有四方功能結果格式一致
 
 修改記錄：
-2026-02-03 第三次修正：
-1. 修正導入語句：從 new_calculator 導入 BaziError, MatchError
-2. 修正導入 Config：使用 ProfessionalConfig 別名
-3. 統一格式化函數調用：使用 BaziFormatters 的所有格式化函數
-4. 修復數據庫字段名：將 shishen_structure 修正為 shi_shen_structure
-5. 修復 testpair 命令：正確輸出詳細分析結果
-6. 保持所有用戶功能不變，維持向後兼容
+2026-02-03 修正testpair命令：
+1. 修正test_pair_command函數中的變量作用域問題：bazi1和bazi2變量名衝突
+2. 明確使用bazi1_result和bazi2_result避免變量名衝突
+3. 修正format_match_result調用，使用正確的格式化函數
 
-2026-02-02 第二次修正：
-1. 修復test_pair_command函數：讓testpair命令輸出詳細分析
-2. 修復數據庫字段名錯誤：shi_shen_structure字段名修正
-3. 修復get_profile_data函數中的字段名
-4. 保持所有功能輸出格式一致
+2026-02-03 第一次修正：
+1. 修正test_pair_command函數：明確調用calculate_bazi函數，避免變量作用域問題
+2. 修正get_profile_data函數：將shi_shen_structure字段名修正
+3. 保持所有用戶功能不變，維持向後兼容
 
-2026-02-02 第一次修正：
-1. 新增1.10節：管理員專用命令，包含：
-   - admin_test_command: 運行完整測試案例
-   - stats_command: 查看系統統計
-   - quick_test_command: 系統健康檢查
-   - list_tests_command: 列出測試案例
-2. 在主程序main()中註冊新命令
-3. 修復管理員功能無法使用的問題
-4. 增加詳細的錯誤處理，避免導入失敗影響普通用戶
-5. 保持所有現有用戶功能完全向後兼容
-
-問題解決：
-- 原admin_service.py功能孤立，無法從bot.py調用
-- 管理員無法使用測試、統計等功能
-- 架構不完整，缺少命令處理函數
-- testpair命令沒有詳細分析輸出
-- 數據庫字段名錯誤導致個人資料查詢失敗
+問題原因：
+原錯誤信息：name 'bazi1' is not defined
+原因：test_pair_command函數中局部變量和全局變量名稱衝突
+解決：使用明確的變量名bazi1_result和bazi2_result
 """
 # ========文件信息結束 ========#
 

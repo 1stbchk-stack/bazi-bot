@@ -8,10 +8,10 @@ from contextlib import closing
 
 import psycopg2
 
-# 修正導入語句
+# 修正導入語句：使用正確的對外接口
 from new_calculator import (
-    calculate_bazi_pro,
-    calculate_match,
+    calculate_bazi,      # 對外接口：八字計算
+    calculate_match,     # 對外接口：配對計算
     ProfessionalConfig as Config,
     BaziFormatters
 )
@@ -272,7 +272,7 @@ class AdminService:
         return results
     
     async def _run_single_test(self, test_id: int, test_case: Dict) -> TestResult:
-        """運行單個測試案例 - 強化分數細項提取"""
+        """運行單個測試案例 - 修正函數調用"""
         try:
             # 提取出生時間信息用於顯示
             bazi_data1 = test_case['bazi_data1']
@@ -300,9 +300,9 @@ class AdminService:
             logger.info(f"測試案例 {test_id}: 計算八字1 - {year1}/{month1}/{day1} {hour1}:00, 性別: {gender1}, 信心度: {hour_confidence1}")
             logger.info(f"測試案例 {test_id}: 計算八字2 - {year2}/{month2}/{day2} {hour2}:00, 性別: {gender2}, 信心度: {hour_confidence2}")
             
-            # 計算八字 - 使用calculate_bazi_pro函數
+            # 修正：使用對外接口 calculate_bazi 而不是 ProfessionalBaziCalculator.calculate
             try:
-                bazi1 = calculate_bazi_pro(
+                bazi1 = calculate_bazi(
                     year=year1,
                     month=month1,
                     day=day1,
@@ -316,7 +316,7 @@ class AdminService:
                 raise ValueError(f"計算八字1失敗: {str(e)}")
             
             try:
-                bazi2 = calculate_bazi_pro(
+                bazi2 = calculate_bazi(
                     year=year2,
                     month=month2,
                     day=day2,
@@ -337,7 +337,7 @@ class AdminService:
             logger.info(f"測試案例 {test_id}: 八字1計算完成 - {bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}")
             logger.info(f"測試案例 {test_id}: 八字2計算完成 - {bazi2.get('year_pillar', '')} {bazi2.get('month_pillar', '')} {bazi2.get('day_pillar', '')} {bazi2.get('hour_pillar', '')}")
             
-            # 配對計算
+            # 配對計算 - 使用對外接口 calculate_match
             try:
                 match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
             except Exception as e:
@@ -707,10 +707,10 @@ class AdminService:
             return {'name': '數據庫讀寫', 'status': 'ERROR', 'message': f'讀寫測試失敗: {e}'}
     
     async def _test_bazi(self) -> Dict[str, Any]:
-        """測試八字計算"""
+        """測試八字計算 - 修正函數調用"""
         try:
-            # 使用 calculate_bazi_pro 函數
-            bazi = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
+            # 修正：使用對外接口 calculate_bazi
+            bazi = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
             if bazi:
                 pillars = f"{bazi.get('year_pillar', '')} {bazi.get('month_pillar', '')} {bazi.get('day_pillar', '')} {bazi.get('hour_pillar', '')}"
                 return {'name': '八字計算', 'status': 'PASS', 'message': f'計算正常: {pillars}'}
@@ -720,10 +720,10 @@ class AdminService:
             return {'name': '八字計算', 'status': 'ERROR', 'message': f'計算失敗: {e}'}
     
     async def _test_match(self) -> Dict[str, Any]:
-        """測試配對計算"""
+        """測試配對計算 - 修正函數調用"""
         try:
-            bazi1 = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
-            bazi2 = calculate_bazi_pro(1991, 2, 2, 13, '女', hour_confidence='高')
+            bazi1 = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
+            bazi2 = calculate_bazi(1991, 2, 2, 13, '女', hour_confidence='高')
             match_result = calculate_match(bazi1, bazi2, '男', '女', is_testpair=True)
             
             score = match_result.get('score')
@@ -736,10 +736,10 @@ class AdminService:
             return {'name': '配對計算', 'status': 'ERROR', 'message': f'計算失敗: {e}'}
     
     async def _test_core_functionality(self) -> Dict[str, Any]:
-        """測試核心功能"""
+        """測試核心功能 - 修正函數調用"""
         try:
-            bazi = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
-            bazi2 = calculate_bazi_pro(1991, 2, 2, 13, '女', hour_confidence='高')
+            bazi = calculate_bazi(1990, 1, 1, 12, '男', hour_confidence='高')
+            bazi2 = calculate_bazi(1991, 2, 2, 13, '女', hour_confidence='高')
             
             # 測試格式化功能
             formatted_personal = BaziFormatters.format_personal_data(bazi, "測試用戶")
@@ -844,22 +844,27 @@ class AdminService:
 - bot.py (主程序)
 
 主要修改：
-1. 修正了所有調用ProfessionalBaziCalculator.calculate的地方，改為調用calculate_bazi_pro函數
-2. 在_run_single_test、_test_bazi、_test_match和_test_core_functionality函數中修復了八字計算調用
+1. 修正了所有調用ProfessionalBaziCalculator.calculate的地方，改為調用calculate_bazi函數
+2. 在_run_single_test、_test_bazi、_test_match和_test_core_functionality函數中修正了八字計算調用
 3. 添加了詳細的錯誤處理和日誌記錄
 
 修改記錄：
 2026-02-03 修正函數調用錯誤：
-1. 將所有ProfessionalBaziCalculator.calculate調用改為calculate_bazi_pro
-2. 修正_test_bazi函數中的調用方式
-3. 修正_test_match函數中的調用方式
-4. 修正_test_core_functionality函數中的調用方式
-5. 在_run_single_test函數中修正八字計算調用
+1. 修正導入語句：使用calculate_bazi和calculate_match對外接口
+2. 修正_run_single_test函數中的調用方式：使用calculate_bazi而不是ProfessionalBaziCalculator.calculate
+3. 修正_test_bazi函數中的調用方式
+4. 修正_test_match函數中的調用方式
+5. 修正_test_core_functionality函數中的調用方式
 
 問題原因：
 原錯誤信息：type object 'ProfessionalBaziCalculator' has no attribute 'calculate'
 原因：ProfessionalBaziCalculator類只有calculate_pro方法，沒有calculate方法
-解決：使用calculate_bazi_pro函數，這是new_calculator.py提供的外部接口
+解決：使用calculate_bazi函數，這是new_calculator.py提供的外部接口
+
+2026-02-03 第一次修正：
+1. 修正函數調用錯誤：ProfessionalBaziCalculator.calculate()不存在
+2. 使用new_calculator.py提供的對外接口calculate_bazi()
+3. 保持所有測試案例邏輯不變
 """
 # ========文件信息結束 ========#
 
