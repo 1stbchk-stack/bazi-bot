@@ -312,7 +312,7 @@ class AdminService:
             model_match = model == expected_model
             
             # 提取分數細項（用於極簡格式）
-            score_details = self._extract_score_details(match_result)
+            score_details = self._extract_score_details_correct(match_result)
             
             # 生成詳細信息
             details = [
@@ -354,50 +354,65 @@ class AdminService:
                 error=str(e)
             )
     
-    def _extract_score_details(self, match_result: Dict) -> str:
-        """從配對結果中提取分數細項"""
+    def _extract_score_details_correct(self, match_result: Dict) -> str:
+        """從配對結果中正確提取分數細項 - 修復版本"""
         try:
-            base_score = 60  # 固定基準分
             module_scores = match_result.get('module_scores', {})
             
+            # 基準分固定為60
+            base_score = 60
+            
+            # 提取各模組分數
+            energy = module_scores.get('energy_rescue', 0)
+            structure = module_scores.get('structure_core', 0)
+            shensha = module_scores.get('shen_sha_bonus', 0)
+            resolution = module_scores.get('resolution_bonus', 0)
+            personality = module_scores.get('personality_risk', 0)
+            pressure = module_scores.get('pressure_penalty', 0)
+            dayun = module_scores.get('dayun_risk', 0)
+            
+            # 計算正向加分和負向扣分
+            positive_bonus = energy + structure + shensha + resolution
+            negative_penalty = personality + pressure + dayun
+            
+            # 計算總分
+            total_score = base_score + positive_bonus + negative_penalty
+            
+            # 構建細項字符串
             details = []
             
-            # 能量救應
-            energy = module_scores.get('energy_rescue', 0)
+            # 基準分
+            details.append(f"基準分:{base_score}")
+            
+            # 正向加分
+            if positive_bonus > 0:
+                details.append(f"+{positive_bonus:.0f}")
+            
+            # 負向扣分
+            if negative_penalty < 0:
+                details.append(f"{negative_penalty:.0f}")
+            
+            # 詳細模組分數
+            mod_details = []
             if energy != 0:
-                details.append(f"{'+' if energy > 0 else ''}能量:{energy:.0f}")
-            
-            # 結構核心
-            structure = module_scores.get('structure_core', 0)
+                mod_details.append(f"能量:{energy:+.0f}")
             if structure != 0:
-                details.append(f"{'+' if structure > 0 else ''}結構:{structure:.0f}")
-            
-            # 刑沖壓力
-            pressure = module_scores.get('pressure_penalty', 0)
-            if pressure != 0:
-                details.append(f"刑沖:{pressure:.0f}")
-            
-            # 大運風險
-            dayun = module_scores.get('dayun_risk', 0)
-            if dayun != 0:
-                details.append(f"大運:{dayun:.0f}")
-            
-            # 神煞加持
-            shensha = module_scores.get('shen_sha_bonus', 0)
+                mod_details.append(f"結構:{structure:+.0f}")
             if shensha != 0:
-                details.append(f"{'+' if shensha > 0 else ''}神煞:{shensha:.0f}")
-            
-            # 人格風險
-            personality = module_scores.get('personality_risk', 0)
-            if personality != 0:
-                details.append(f"人格:{personality:.0f}")
-            
-            # 專業化解
-            resolution = module_scores.get('resolution_bonus', 0)
+                mod_details.append(f"神煞:{shensha:+.0f}")
             if resolution != 0:
-                details.append(f"{'+' if resolution > 0 else ''}化解:{resolution:.0f}")
+                mod_details.append(f"化解:{resolution:+.0f}")
+            if personality != 0:
+                mod_details.append(f"人格:{personality:+.0f}")
+            if pressure != 0:
+                mod_details.append(f"刑沖:{pressure:+.0f}")
+            if dayun != 0:
+                mod_details.append(f"大運:{dayun:+.0f}")
             
-            return " ".join(details) if details else "無分項數據"
+            if mod_details:
+                details.append("(" + " ".join(mod_details) + ")")
+            
+            return " ".join(details)
             
         except Exception as e:
             logger.error(f"提取分數細項失敗: {e}")
@@ -779,12 +794,19 @@ class AdminService:
 4. 保持所有測試功能與新的評分系統兼容
 
 修改記錄：
-2026-02-02 本次修正：
+2026-02-02 第一次修正：
 1. 將ADMIN_TEST_CASES直接包含在文件中，移除對test_cases.py的依賴
 2. 修復_format_single_test_result()方法，移除分隔線和空行
 3. 簡化format_test_results()輸出格式
 4. 修復分數細項提取邏輯，確保顯示正確
 5. 所有顯示改為緊湊格式，無空行和分隔線
+
+2026-02-02 第二次修正：
+1. 修復分數細項提取邏輯：重寫_extract_score_details_correct方法
+2. 正確顯示基準分和模組分數：基準分固定為60分
+3. 修正分數細項格式：顯示基準分、正向加分、負向扣分
+4. 修正模組分數顯示：正確顯示正負號
+5. 保持測試結果格式緊湊，無空行
 
 累積修正：
 - 更新常數引用以匹配new_calculator.py的修改

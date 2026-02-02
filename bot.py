@@ -381,7 +381,7 @@ def get_profile_data(internal_user_id):
                 p.wood, p.fire, p.earth, p.metal, p.water,
                 p.day_stem_strength, p.strength_score, p.useful_elements, p.harmful_elements,
                 p.spouse_star_status, p.spouse_star_effective, p.spouse_palace_status, p.pressure_score,
-                p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
+                p.cong_ge_type, p.shishen_structure, p.shen_sha_data
             FROM users u
             JOIN profiles p ON u.id = p.user_id
             WHERE u.id = %s
@@ -1269,7 +1269,7 @@ async def clear_command(update, context):
 
 @check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對"""
+    """獨立測試任意兩個八字配對 - 修復：輸出詳細分析"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1340,6 +1340,7 @@ async def test_pair_command(update, context):
         
         match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
         
+        # 使用修復後的格式化函數，輸出詳細分析
         match_text = BaziFormatters.format_test_pair_result(match_result, bazi1, bazi2)
         
         await update.message.reply_text(match_text)
@@ -1881,7 +1882,7 @@ async def quick_test_command(update, context):
 async def list_tests_command(update, context):
     """列出所有測試案例"""
     try:
-        from test_cases import ADMIN_TEST_CASES
+        from admin_service import ADMIN_TEST_CASES
         text = "📋 可用測試案例：\n\n"
         
         for i, test in enumerate(ADMIN_TEST_CASES, 1):
@@ -2006,7 +2007,6 @@ if __name__ == "__main__":
 - bazi_soulmate.py (真命天子搜索)
 - texts.py (文本內容)
 - admin_service.py (管理員服務)
-- test_cases.py (測試案例)
 
 被引用文件: 無 (為入口文件)
 
@@ -2017,7 +2017,7 @@ if __name__ == "__main__":
 4. 保持了所有現有用戶功能不變
 
 修改記錄：
-2026-02-02 本次修正：
+2026-02-02 第一次修正：
 1. 新增1.10節：管理員專用命令，包含：
    - admin_test_command: 運行完整測試案例
    - stats_command: 查看系統統計
@@ -2028,10 +2028,18 @@ if __name__ == "__main__":
 4. 增加詳細的錯誤處理，避免導入失敗影響普通用戶
 5. 保持所有現有用戶功能完全向後兼容
 
+2026-02-02 第二次修正：
+1. 修復test_pair_command函數：讓testpair命令輸出詳細分析
+2. 修復數據庫字段名錯誤：shi_shen_structure字段名修正
+3. 修復get_profile_data函數中的字段名
+4. 保持所有功能輸出格式一致
+
 問題解決：
 - 原admin_service.py功能孤立，無法從bot.py調用
 - 管理員無法使用測試、統計等功能
 - 架構不完整，缺少命令處理函數
+- testpair命令沒有詳細分析輸出
+- 數據庫字段名錯誤導致個人資料查詢失敗
 """
 # ========文件信息結束 ========#
 
@@ -2047,7 +2055,7 @@ if __name__ == "__main__":
 1.7 命令處理函數 - 基本用戶命令（start, help, profile等）
 1.8 Find Soulmate流程函數 - 真命天子搜尋功能
 1.9 按鈕回調處理函數 - 處理配對選擇按鈕
-1.10 管理員專用命令 - 管理員測試和統計功能（新增）
+1.10 管理員專用命令 - 管理員測試和統計功能
 1.11 主程序 - 機器人啟動和事件循環
 """
 # ========目錄結束 ========#
