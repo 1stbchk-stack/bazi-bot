@@ -18,7 +18,7 @@ from new_calculator import (
 
 # 從 Config 類獲取常量
 THRESHOLD_WARNING = Config.THRESHOLD_WARNING
-THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_ACCEPTABLE  # 修改：使用ACCEPTABLE而非CONTACT_ALLOWED
+THRESHOLD_CONTACT_ALLOWED = Config.THRESHOLD_ACCEPTABLE
 THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
 THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
 THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
@@ -58,7 +58,7 @@ class TestResult:
     range_str: str = ""
     error: str = ""
     details: List[str] = None
-    score_details: str = ""  # 分數細項詳細
+    score_details: str = ""
 
 @dataclass
 class SystemStats:
@@ -73,20 +73,161 @@ class SystemStats:
     top_matches: List[Dict[str, Any]]
 # ========1.3 數據類結束 ========#
 
-# ========1.4 從test_cases.py移入的輔助函數開始 ========#
+# ========1.4 測試案例數據開始 ========#
+ADMIN_TEST_CASES = [
+    {
+        "description": "測試案例1：基礎平衡型（五行中和、無明顯沖合）",
+        "bazi_data1": {"year": 1989, "month": 4, "day": 12, "hour": 11, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 18, "hour": 13, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (60, 75),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例2：天干五合單因子（乙庚合金，日柱明顯）",
+        "bazi_data1": {"year": 1990, "month": 10, "day": 10, "hour": 10, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1991, "month": 11, "day": 11, "hour": 11, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (70, 82),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例3：日支六沖純負例（子午沖，宮位重創）",
+        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (35, 48),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例4：紅鸞天喜組合（神煞強輔助）",
+        "bazi_data1": {"year": 1985, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1986, "month": 8, "day": 15, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (75, 85),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例5：喜用神強互補（金木互濟，濃度高）",
+        "bazi_data1": {"year": 1990, "month": 1, "day": 5, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1988, "month": 5, "day": 9, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (70, 82),
+        "expected_model": "供求型",
+    },
+    {
+        "description": "測試案例6：多重刑沖無解（寅巳申三刑）",
+        "bazi_data1": {"year": 1992, "month": 6, "day": 6, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1992, "month": 12, "day": 6, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (30, 45),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例7：年齡差距大但結構穩（供求型）",
+        "bazi_data1": {"year": 1975, "month": 3, "day": 9, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1995, "month": 4, "day": 11, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (58, 70),
+        "expected_model": "供求型",
+    },
+    {
+        "description": "測試案例8：相同八字（伏吟大忌）",
+        "bazi_data1": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (50, 65),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例9：六合解沖（子午沖遇丑合）",
+        "bazi_data1": {"year": 1984, "month": 12, "day": 15, "hour": 2, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (60, 75),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例10：全面優質組合（無滿分，師傅級）",
+        "bazi_data1": {"year": 1988, "month": 8, "day": 8, "hour": 8, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1989, "month": 9, "day": 9, "hour": 9, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (82, 92),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例11：現代案例 - 合理範圍",
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "medium"},
+        "bazi_data2": {"year": 2001, "month": 1, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "medium"},
+        "expected_range": (55, 75),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例12：高分但為供求型",
+        "bazi_data1": {"year": 1980, "month": 3, "day": 15, "hour": 10, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 6, "day": 20, "hour": 14, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (68, 78),
+        "expected_model": "供求型",
+    },
+    {
+        "description": "測試案例13：邊緣時辰不確定（子時邊界 + 喜用互補）",
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 23, "gender": "男", "hour_confidence": "low"},
+        "bazi_data2": {"year": 2001, "month": 6, "day": 15, "hour": 0, "gender": "女", "hour_confidence": "low"},
+        "expected_range": (55, 70),
+        "expected_model": "供求型",
+    },
+    {
+        "description": "測試案例14：經緯度差異 + 能量救應（香港 vs 北京）",
+        "bazi_data1": {"year": 2005, "month": 4, "day": 4, "hour": 12, "gender": "男", "hour_confidence": "high", "longitude": 114.17},
+        "bazi_data2": {"year": 2006, "month": 5, "day": 5, "hour": 12, "gender": "女", "hour_confidence": "high", "longitude": 116.4},
+        "expected_range": (60, 72),
+        "expected_model": "供求型",
+    },
+    {
+        "description": "測試案例15：極端刑沖 + 無化解（多柱刑害）",
+        "bazi_data1": {"year": 1990, "month": 3, "day": 3, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 9, "day": 3, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (25, 40),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例16：時辰模糊 + 格局特殊（估算時辰）",
+        "bazi_data1": {"year": 1990, "month": 6, "day": 16, "hour": 12, "gender": "男", "hour_confidence": "estimated"},
+        "bazi_data2": {"year": 1991, "month": 7, "day": 17, "hour": 12, "gender": "女", "hour_confidence": "estimated"},
+        "expected_range": (55, 68),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例17：中等配對（一般緣分）",
+        "bazi_data1": {"year": 1995, "month": 5, "day": 15, "hour": 14, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1996, "month": 8, "day": 20, "hour": 16, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (50, 65),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例18：良好配對（有發展潛力）",
+        "bazi_data1": {"year": 1988, "month": 12, "day": 25, "hour": 8, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1989, "month": 6, "day": 18, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (65, 78),
+        "expected_model": "平衡型",
+    },
+    {
+        "description": "測試案例19：低分警告（需要謹慎）",
+        "bazi_data1": {"year": 1990, "month": 2, "day": 14, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 1990, "month": 8, "day": 14, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (40, 55),
+        "expected_model": "混合型",
+    },
+    {
+        "description": "測試案例20：邊緣合格（剛好及格）",
+        "bazi_data1": {"year": 2000, "month": 1, "day": 1, "hour": 12, "gender": "男", "hour_confidence": "high"},
+        "bazi_data2": {"year": 2000, "month": 7, "day": 1, "hour": 12, "gender": "女", "hour_confidence": "high"},
+        "expected_range": (55, 70),
+        "expected_model": "混合型",
+    }
+]
+
 def get_all_test_descriptions() -> List[str]:
     """獲取所有測試案例的描述"""
-    from test_cases import ADMIN_TEST_CASES
     return [f"{i+1}. {test['description']}" for i, test in enumerate(ADMIN_TEST_CASES)]
 
 def get_test_case_by_id(test_id: int) -> Dict:
     """根據ID獲取測試案例"""
-    from test_cases import ADMIN_TEST_CASES
     if 1 <= test_id <= len(ADMIN_TEST_CASES):
         return ADMIN_TEST_CASES[test_id - 1]
     else:
         return {"error": f"測試案例ID {test_id} 超出範圍"}
-# ========1.4 從test_cases.py移入的輔助函數結束 ========#
+# ========1.4 測試案例數據結束 ========#
 
 # ========1.5 AdminService類開始 ========#
 class AdminService:
@@ -99,7 +240,6 @@ class AdminService:
     # ========2.1 測試功能開始 ========#
     async def run_admin_tests(self) -> Dict[str, Any]:
         """運行管理員測試案例 - 採用極簡格式"""
-        from test_cases import ADMIN_TEST_CASES
         
         results = {
             'total': len(ADMIN_TEST_CASES),
@@ -221,12 +361,11 @@ class AdminService:
             module_scores = match_result.get('module_scores', {})
             
             details = []
-            details.append(f"基準:{base_score}")
             
             # 能量救應
             energy = module_scores.get('energy_rescue', 0)
-            if energy > 0:
-                details.append(f"+能量:{energy:.0f}")
+            if energy != 0:
+                details.append(f"{'+' if energy > 0 else ''}能量:{energy:.0f}")
             
             # 結構核心
             structure = module_scores.get('structure_core', 0)
@@ -235,48 +374,37 @@ class AdminService:
             
             # 刑沖壓力
             pressure = module_scores.get('pressure_penalty', 0)
-            if pressure < 0:
+            if pressure != 0:
                 details.append(f"刑沖:{pressure:.0f}")
             
             # 大運風險
             dayun = module_scores.get('dayun_risk', 0)
-            if dayun < 0:
+            if dayun != 0:
                 details.append(f"大運:{dayun:.0f}")
             
             # 神煞加持
             shensha = module_scores.get('shen_sha_bonus', 0)
-            if shensha > 0:
-                details.append(f"+神煞:{shensha:.0f}")
+            if shensha != 0:
+                details.append(f"{'+' if shensha > 0 else ''}神煞:{shensha:.0f}")
             
             # 人格風險
             personality = module_scores.get('personality_risk', 0)
-            if personality < 0:
+            if personality != 0:
                 details.append(f"人格:{personality:.0f}")
             
             # 專業化解
             resolution = module_scores.get('resolution_bonus', 0)
-            if resolution > 0:
-                details.append(f"+化解:{resolution:.0f}")
+            if resolution != 0:
+                details.append(f"{'+' if resolution > 0 else ''}化解:{resolution:.0f}")
             
-            # 年齡調整
-            age_adjust = 0
-            score = match_result.get('score', 0)
-            calculated = base_score + energy + structure + pressure + dayun + shensha + personality + resolution
-            
-            # 計算年齡調整
-            if abs(score - calculated) > 1:
-                age_adjust = round(score - calculated, 0)
-                if age_adjust != 0:
-                    details.append(f"{'+' if age_adjust > 0 else ''}年齡:{age_adjust:.0f}")
-            
-            return " ".join(details)
+            return " ".join(details) if details else "無分項數據"
             
         except Exception as e:
             logger.error(f"提取分數細項失敗: {e}")
             return "分數細項提取失敗"
     
     def _format_single_test_result(self, test_result: TestResult) -> str:
-        """格式化單個測試結果為極簡格式"""
+        """格式化單個測試結果為極簡格式 - 已修復格式化問題"""
         status_emoji = {
             'PASS': '✅',
             'FAIL': '❌',
@@ -284,36 +412,11 @@ class AdminService:
             '邊緣': '⚠️'
         }.get(test_result.status, '❓')
         
-        # 提取八字四柱
-        bazi_display = f"{test_result.birth1} ↔ {test_result.birth2}"
-        
-        formatted = f"【測試案例 #{test_result.test_id}】\n"
-        formatted += f"八字：{bazi_display}\n"
-        formatted += f"分數：{test_result.score:.1f} (預期:{test_result.range_str})  狀態：{status_emoji} {test_result.status}\n"
+        # 極簡格式：一行顯示所有信息
+        formatted = f"#{test_result.test_id:02d} 分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji}"
         
         if test_result.score_details:
-            formatted += f"{test_result.score_details}\n"
-        
-        # 添加專業分析細項
-        if test_result.score_details:
-            # 從分數細項中提取關鍵信息
-            details = test_result.score_details.split()
-            key_items = []
-            
-            for detail in details:
-                if '刑沖:' in detail and float(detail.split(':')[1]) < -5:
-                    key_items.append(f"刑沖:{detail.split(':')[1]}")
-                elif '能量:' in detail and float(detail.split(':')[1]) > 10:
-                    key_items.append(f"能量互補:+{detail.split(':')[1]}")
-                elif '結構:' in detail and float(detail.split(':')[1]) > 10:
-                    key_items.append(f"結構優勢:+{detail.split(':')[1]}")
-                elif '大運:' in detail and float(detail.split(':')[1]) < -3:
-                    key_items.append(f"大運風險:{detail.split(':')[1]}")
-            
-            if key_items:
-                formatted += " ".join(key_items) + "\n"
-        
-        formatted += "─" * 40
+            formatted += f" {test_result.score_details}"
         
         return formatted
     # ========2.1 測試功能結束 ========#
@@ -595,109 +698,64 @@ class AdminService:
     # ========2.4 格式化功能開始 ========#
     def format_test_results(self, results: Dict[str, Any]) -> str:
         """格式化測試結果 - 極簡格式"""
-        if results.get('formatted_results'):
-            # 使用極簡格式
-            text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
-            text += "═" * 60 + "\n"
-            
-            # 總體統計
-            text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} "
-            text += f"(成功率: {results['success_rate']:.1f}%)\n"
-            text += "═" * 60 + "\n\n"
-            
-            # 詳細結果（極簡格式）
-            for formatted_result in results['formatted_results']:
-                text += formatted_result + "\n\n"
-            
-            # 總結
-            text += "═" * 60 + "\n"
-            text += f"🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤\n"
-            text += f"📅 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-            
-            return text
-        else:
-            # 兼容舊格式
-            return self._format_test_results_compat(results)
-    
-    def _format_test_results_compat(self, results: Dict[str, Any]) -> str:
-        """兼容舊格式的測試結果格式化"""
-        text = f"""管理員測試報告 (20組測試案例)
-{"="*60}
-
-📈 總體統計:
-  總測試數: {results['total']}
-  通過: {results['passed']} 
-  失敗: {results['failed']} 
-  錯誤: {results['errors']} 
-  成功率: {results['success_rate']:.1f}%
-  
-📋 詳細結果:
-"""
+        text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
+        text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} (成功率: {results['success_rate']:.1f}%)\n"
         
-        for detail in results.get('details', [])[:20]:  # 只顯示前20個
-            status_emoji = '✅' if detail['status'] == 'PASS' else '❌' if detail['status'] == 'FAIL' else '⚠️'
-            text += f"\n{status_emoji} {detail['description']}"
-            text += f"\n   分數: {detail.get('score', 0):.1f}分 (預期:{detail.get('range_str', '未知')}分)"
-            text += f"\n   八字: {detail.get('birth1', '未知')} ↔ {detail.get('birth2', '未知')}"
+        # 詳細結果（極簡格式）
+        for formatted_result in results['formatted_results']:
+            text += formatted_result + "\n"
+        
+        # 總結
+        text += f"\n🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤"
+        text += f" 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
     
     def format_system_stats(self, stats: SystemStats) -> str:
         """格式化系統統計"""
-        text = f"""📈 系統統計報告
-{"="*60}
-
-👥 用戶統計:
-  總用戶數: {stats.total_users}
-  24小時活躍: {stats.active_users_24h}
-  
-💖 配對統計:
-  總配對數: {stats.total_matches}
-  今日配對: {stats.today_matches}
-  平均分數: {stats.avg_match_score:.1f}分
-  成功率: {stats.success_rate:.1f}%
-  
-🎭 關係模型:
-"""
+        text = f"📈 系統統計報告\n"
         
-        for model_stat in stats.model_stats:
-            text += f"  {model_stat['model']}: {model_stat['count']}次 ({model_stat['avg_score']:.1f}分)\n"
+        text += f"👥 用戶統計: 總用戶數: {stats.total_users}  24小時活躍: {stats.active_users_24h}\n"
+        text += f"💖 配對統計: 總配對數: {stats.total_matches}  今日配對: {stats.today_matches}  平均分數: {stats.avg_match_score:.1f}分  成功率: {stats.success_rate:.1f}%\n"
+        
+        if stats.model_stats:
+            text += f"🎭 關係模型: "
+            model_texts = []
+            for model_stat in stats.model_stats:
+                model_texts.append(f"{model_stat['model']}: {model_stat['count']}次({model_stat['avg_score']:.1f}分)")
+            text += " ".join(model_texts) + "\n"
         
         if stats.top_matches:
-            text += "\n🏆 高分配對:\n"
+            text += f"🏆 高分配對: "
+            top_texts = []
             for match in stats.top_matches[:3]:
-                text += f"  {match['user_a']} ↔ {match['user_b']}: {match['score']:.1f}分\n"
+                top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
+            text += " ".join(top_texts) + "\n"
         
-        text += f"\n📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
     
     def format_quick_test_results(self, results: Dict[str, Any]) -> str:
         """格式化一鍵測試結果"""
-        text = f"""⚡ 系統健康檢查報告
-{"="*60}
-
-📊 總體狀態: {results.get('status', '未知')}
-✅ 通過: {results.get('passed', 0)} / {results.get('total', 0)}
-❌ 失敗: {results.get('failed', 0)} / {results.get('total', 0)}
-  
-📋 組件測試:
-"""
+        text = f"⚡ 系統健康檢查報告\n"
+        
+        text += f"📊 總體狀態: {results.get('status', '未知')}  ✅通過: {results.get('passed', 0)}/{results.get('total', 0)}  ❌失敗: {results.get('failed', 0)}/{results.get('total', 0)}\n"
         
         for component in results.get('components', []):
             status_emoji = '✅' if component.get('status') == 'PASS' else '❌'
-            text += f"\n{status_emoji} {component.get('name', '未知')}: {component.get('message', '')}"
+            text += f"{status_emoji}{component.get('name', '未知')}: {component.get('message', '')}\n"
         
         if results.get('error'):
-            text += f"\n\n❌ 錯誤: {results['error']}"
+            text += f"❌錯誤: {results['error']}\n"
         
         # 添加健康狀態評估
         if results.get('passed', 0) == results.get('total', 0) and results.get('total', 0) > 0:
-            text += "\n\n🏥 系統健康狀態: ✅ 健康"
+            text += "🏥系統健康狀態: ✅健康"
         elif results.get('passed', 0) >= results.get('total', 0) * 0.7:
-            text += "\n\n🏥 系統健康狀態: ⚠️ 警告 (部分組件異常)"
+            text += "🏥系統健康狀態: ⚠️警告(部分組件異常)"
         else:
-            text += "\n\n🏥 系統健康狀態: ❌ 故障 (多個組件異常)"
+            text += "🏥系統健康狀態: ❌故障(多個組件異常)"
         
         return text
     # ========2.4 格式化功能結束 ========#
@@ -710,24 +768,31 @@ class AdminService:
 
 引用文件: 
 - new_calculator.py (八字計算核心)
-- test_cases.py (測試案例)
-- psycopg2 (數據庫連接)
 
 被引用文件:
 - bot.py (主程序)
 
 主要修改：
-1. 更新常數引用：THRESHOLD_CONTACT_ALLOWED -> THRESHOLD_ACCEPTABLE
-2. 調整分數細項提取邏輯，匹配新的60分基準
-3. 保持測試功能與新的評分系統兼容
-4. 修復日期格式錯誤（%Y-%m-d 改為 %Y-%m-%d）
+1. 整合test_cases.py中的測試案例數據
+2. 修復格式化顯示問題，移除分隔線和空行
+3. 簡化測試結果顯示格式
+4. 保持所有測試功能與新的評分系統兼容
 
 修改記錄：
 2026-02-02 本次修正：
-1. 更新常數引用以匹配new_calculator.py的修改
-2. 調整分數細項提取，基準分固定為60
-3. 修復日期格式化錯誤
-4. 保持所有測試功能正常運作
+1. 將ADMIN_TEST_CASES直接包含在文件中，移除對test_cases.py的依賴
+2. 修復_format_single_test_result()方法，移除分隔線和空行
+3. 簡化format_test_results()輸出格式
+4. 修復分數細項提取邏輯，確保顯示正確
+5. 所有顯示改為緊湊格式，無空行和分隔線
+
+累積修正：
+- 更新常數引用以匹配new_calculator.py的修改
+- 調整分數細項提取，基準分固定為60
+- 修復日期格式化錯誤
+- 保持所有測試功能正常運作
+- 符合繁體中文要求
+- 無版本號標示
 """
 # ========文件信息結束 ========#
 
@@ -737,7 +802,7 @@ class AdminService:
 1.1 導入模組 - 導入所需庫和模組
 1.2 數據庫連接 - 獲取數據庫連接
 1.3 數據類 - TestResult和SystemStats數據類定義
-1.4 輔助函數 - 從test_cases.py移入的輔助函數
+1.4 測試案例數據 - ADMIN_TEST_CASES和輔助函數
 1.5 AdminService類 - 主服務類
   2.1 測試功能 - 運行管理員測試案例（極簡格式）
   2.2 系統統計 - 獲取系統統計數據
