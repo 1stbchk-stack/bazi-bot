@@ -32,23 +32,21 @@ from telegram.ext import (
 # 導入新的計算核心
 from new_calculator import (
     # 八字計算器
-    BaziCalculator as ProfessionalBaziCalculator,
+    BaziCalculator,
     
     # 評分引擎
-    ScoringEngine as MasterBaziMatcher,
+    ScoringEngine,
     
     # 主入口函數
     calculate_match,
+    calculate_bazi,
     
     # 錯誤處理
-    BaziCalculatorError as BaziError,
-    ScoringEngineError as MatchError,
+    BaziError,
+    MatchError,
     
     # 配置常數
-    Config,
-    
-    # 時間處理器
-    TimeProcessor,
+    ProfessionalConfig as Config,
     
     # 統一格式化工具類
     BaziFormatters
@@ -381,7 +379,7 @@ def get_profile_data(internal_user_id):
                 p.wood, p.fire, p.earth, p.metal, p.water,
                 p.day_stem_strength, p.strength_score, p.useful_elements, p.harmful_elements,
                 p.spouse_star_status, p.spouse_star_effective, p.spouse_palace_status, p.pressure_score,
-                p.cong_ge_type, p.shishen_structure, p.shen_sha_data
+                p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
             FROM users u
             JOIN profiles p ON u.id = p.user_id
             WHERE u.id = %s
@@ -691,7 +689,7 @@ async def complete_registration(update, context):
     longitude = user_data.get("longitude", DEFAULT_LONGITUDE)
     
     try:
-        bazi = ProfessionalBaziCalculator.calculate(
+        bazi = calculate_bazi(
             year, month, day, hour, 
             gender=gender,
             hour_confidence=hour_confidence,
@@ -1319,17 +1317,17 @@ async def test_pair_command(update, context):
             await update.message.reply_text("經度必須在 -180 到 180 之間")
             return
         
-        bazi1 = ProfessionalBaziCalculator.calculate(
+        bazi1 = calculate_bazi(
             year1, month1, day1, hour1, 
             gender=gender1,
-            hour_confidence="high",
+            hour_confidence="高",
             minute=minute1,
             longitude=longitude1
         )
-        bazi2 = ProfessionalBaziCalculator.calculate(
+        bazi2 = calculate_bazi(
             year2, month2, day2, hour2,
             gender=gender2,
-            hour_confidence="high",
+            hour_confidence="高",
             minute=minute2,
             longitude=longitude2
         )
@@ -2011,12 +2009,27 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修改：
-1. 添加了完整的管理員功能命令處理器（1.10節）
-2. 註冊了新的管理員命令到主程序
-3. 增加了詳細的錯誤處理和導入檢查
-4. 保持了所有現有用戶功能不變
+1. 修正導入語句：使用正確的錯誤類名 BaziError, MatchError
+2. 統一格式化輸出：確保 match/testpair/findsoulmate/profile 四方功能結果一致
+3. 修復數據庫字段名稱：shi_shen_structure 字段名修正
+4. 修復 test_pair_command 函數：輸出詳細分析結果
+5. 添加完整的管理員功能命令處理器
 
 修改記錄：
+2026-02-03 第三次修正：
+1. 修正導入語句：從 new_calculator 導入 BaziError, MatchError
+2. 修正導入 Config：使用 ProfessionalConfig 別名
+3. 統一格式化函數調用：使用 BaziFormatters 的所有格式化函數
+4. 修復數據庫字段名：將 shishen_structure 修正為 shi_shen_structure
+5. 修復 testpair 命令：正確輸出詳細分析結果
+6. 保持所有用戶功能不變，維持向後兼容
+
+2026-02-02 第二次修正：
+1. 修復test_pair_command函數：讓testpair命令輸出詳細分析
+2. 修復數據庫字段名錯誤：shi_shen_structure字段名修正
+3. 修復get_profile_data函數中的字段名
+4. 保持所有功能輸出格式一致
+
 2026-02-02 第一次修正：
 1. 新增1.10節：管理員專用命令，包含：
    - admin_test_command: 運行完整測試案例
@@ -2027,12 +2040,6 @@ if __name__ == "__main__":
 3. 修復管理員功能無法使用的問題
 4. 增加詳細的錯誤處理，避免導入失敗影響普通用戶
 5. 保持所有現有用戶功能完全向後兼容
-
-2026-02-02 第二次修正：
-1. 修復test_pair_command函數：讓testpair命令輸出詳細分析
-2. 修復數據庫字段名錯誤：shi_shen_structure字段名修正
-3. 修復get_profile_data函數中的字段名
-4. 保持所有功能輸出格式一致
 
 問題解決：
 - 原admin_service.py功能孤立，無法從bot.py調用
