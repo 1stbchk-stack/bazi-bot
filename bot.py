@@ -1806,7 +1806,102 @@ async def button_callback(update, context):
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
 # ========1.9 按鈕回調處理函數結束 ========#
 
-# ========1.10 主程序開始 ========#
+# ========1.10 管理員專用命令開始 ========#
+@check_maintenance
+@check_admin_only
+async def admin_test_command(update, context):
+    """運行管理員測試"""
+    try:
+        await update.message.reply_text("🔄 開始運行管理員測試...")
+        
+        from admin_service import AdminService
+        admin_service = AdminService()
+        results = await admin_service.run_admin_tests()
+        formatted = admin_service.format_test_results(results)
+        
+        # 分批發送長消息
+        if len(formatted) > 4000:
+            parts = [formatted[i:i+4000] for i in range(0, len(formatted), 4000)]
+            for part in parts:
+                await update.message.reply_text(part)
+        else:
+            await update.message.reply_text(formatted)
+            
+    except ImportError as e:
+        logger.error(f"導入管理員服務失敗: {e}")
+        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+    except Exception as e:
+        logger.error(f"管理員測試失敗: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 測試失敗: {str(e)}")
+
+@check_maintenance
+@check_admin_only
+async def stats_command(update, context):
+    """查看系統統計"""
+    try:
+        await update.message.reply_text("📊 獲取系統統計...")
+        
+        from admin_service import AdminService
+        admin_service = AdminService()
+        stats = await admin_service.get_system_stats()
+        formatted = admin_service.format_system_stats(stats)
+        
+        await update.message.reply_text(formatted)
+            
+    except ImportError as e:
+        logger.error(f"導入管理員服務失敗: {e}")
+        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+    except Exception as e:
+        logger.error(f"獲取統計失敗: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 統計失敗: {str(e)}")
+
+@check_maintenance
+@check_admin_only
+async def quick_test_command(update, context):
+    """運行一鍵快速測試"""
+    try:
+        await update.message.reply_text("⚡ 開始系統健康檢查...")
+        
+        from admin_service import AdminService
+        admin_service = AdminService()
+        results = await admin_service.run_quick_test()
+        formatted = admin_service.format_quick_test_results(results)
+        
+        await update.message.reply_text(formatted)
+            
+    except ImportError as e:
+        logger.error(f"導入管理員服務失敗: {e}")
+        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+    except Exception as e:
+        logger.error(f"快速測試失敗: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 快速測試失敗: {str(e)}")
+
+@check_maintenance
+@check_admin_only  
+async def list_tests_command(update, context):
+    """列出所有測試案例"""
+    try:
+        from test_cases import ADMIN_TEST_CASES
+        text = "📋 可用測試案例：\n\n"
+        
+        for i, test in enumerate(ADMIN_TEST_CASES, 1):
+            text += f"{i}. {test['description']}\n"
+            if len(text) > 3500:
+                await update.message.reply_text(text)
+                text = ""
+        
+        if text:
+            await update.message.reply_text(text)
+            
+    except ImportError as e:
+        logger.error(f"導入測試案例失敗: {e}")
+        await update.message.reply_text(f"❌ 導入測試案例失敗: {str(e)}")
+    except Exception as e:
+        logger.error(f"列出測試失敗: {e}", exc_info=True)
+        await update.message.reply_text(f"❌ 列出測試失敗: {str(e)}")
+# ========1.10 管理員專用命令結束 ========#
+
+# ========1.11 主程序開始 ========#
 def main():
     import time
     
@@ -1867,6 +1962,8 @@ def main():
         
         app.add_handler(main_conv_handler)
         app.add_handler(soulmate_conv_handler)
+        
+        # 基本命令
         app.add_handler(CommandHandler("help", help_command))
         app.add_handler(CommandHandler("profile", profile))
         app.add_handler(CommandHandler("explain", explain_command))
@@ -1874,7 +1971,15 @@ def main():
         app.add_handler(CommandHandler("clear", clear_command))
         app.add_handler(CommandHandler("testpair", test_pair_command))
         app.add_handler(CommandHandler("match", match))
+        
+        # 管理員命令
         app.add_handler(CommandHandler("maintenance", maintenance_command))
+        app.add_handler(CommandHandler("admintest", admin_test_command))
+        app.add_handler(CommandHandler("stats", stats_command))
+        app.add_handler(CommandHandler("quicktest", quick_test_command))
+        app.add_handler(CommandHandler("listtests", list_tests_command))
+        
+        # 回調處理
         app.add_handler(CallbackQueryHandler(button_callback))
         
         app.run_polling(
@@ -1889,4 +1994,60 @@ def main():
 
 if __name__ == "__main__":
     main()
-# ========1.10 主程序結束 ========#
+# ========1.11 主程序結束 ========#
+
+# ========文件信息開始 ========#
+"""
+文件: bot.py
+功能: 八字配對機器人主程序
+
+引用文件: 
+- new_calculator.py (八字計算核心)
+- bazi_soulmate.py (真命天子搜索)
+- texts.py (文本內容)
+- admin_service.py (管理員服務)
+- test_cases.py (測試案例)
+
+被引用文件: 無 (為入口文件)
+
+主要修改：
+1. 添加了完整的管理員功能命令處理器（1.10節）
+2. 註冊了新的管理員命令到主程序
+3. 增加了詳細的錯誤處理和導入檢查
+4. 保持了所有現有用戶功能不變
+
+修改記錄：
+2026-02-02 本次修正：
+1. 新增1.10節：管理員專用命令，包含：
+   - admin_test_command: 運行完整測試案例
+   - stats_command: 查看系統統計
+   - quick_test_command: 系統健康檢查
+   - list_tests_command: 列出測試案例
+2. 在主程序main()中註冊新命令
+3. 修復管理員功能無法使用的問題
+4. 增加詳細的錯誤處理，避免導入失敗影響普通用戶
+5. 保持所有現有用戶功能完全向後兼容
+
+問題解決：
+- 原admin_service.py功能孤立，無法從bot.py調用
+- 管理員無法使用測試、統計等功能
+- 架構不完整，缺少命令處理函數
+"""
+# ========文件信息結束 ========#
+
+# ========目錄開始 ========#
+"""
+目錄:
+1.1 導入模組 - 導入所需庫和模組
+1.2 配置與初始化 - 環境變數、常量設定
+1.3 維護模式檢查 - 維護模式裝飾器和權限檢查
+1.4 數據庫工具 - PostgreSQL數據庫連接和操作
+1.5 隱私條款模組 - 處理用戶隱私條款同意
+1.6 簡化註冊流程 - 用戶註冊和八字計算
+1.7 命令處理函數 - 基本用戶命令（start, help, profile等）
+1.8 Find Soulmate流程函數 - 真命天子搜尋功能
+1.9 按鈕回調處理函數 - 處理配對選擇按鈕
+1.10 管理員專用命令 - 管理員測試和統計功能（新增）
+1.11 主程序 - 機器人啟動和事件循環
+"""
+# ========目錄結束 ========#

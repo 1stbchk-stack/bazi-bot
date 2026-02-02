@@ -84,6 +84,11 @@ HELP_TEXT = """
 
 **管理員命令：**
 /maintenance - 開關維護模式（僅管理員）
+/admintest - 運行完整測試案例（僅管理員）
+/stats - 查看系統統計（僅管理員）
+/quicktest - 系統健康檢查（僅管理員）
+/listtests - 列出測試案例（僅管理員）
+"""
 
 **使用流程：**
 1. 輸入 /start 開始註冊
