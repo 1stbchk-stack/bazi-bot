@@ -8,10 +8,10 @@ from contextlib import closing
 
 import psycopg2
 
+# 修正導入語句
 from new_calculator import (
-    BaziCalculator,
+    calculate_bazi_pro,
     calculate_match,
-    ScoringEngine,
     ProfessionalConfig as Config,
     BaziFormatters
 )
@@ -278,21 +278,44 @@ class AdminService:
             bazi_data1 = test_case['bazi_data1']
             bazi_data2 = test_case['bazi_data2']
             
+            # 修復：使用正確的日期格式
             birth1 = f"{bazi_data1['gender']}{bazi_data1['year']}{bazi_data1['month']:02d}{bazi_data1['day']:02d}{bazi_data1['hour']:02d}"
             birth2 = f"{bazi_data2['gender']}{bazi_data2['year']}{bazi_data2['month']:02d}{bazi_data2['day']:02d}{bazi_data2['hour']:02d}"
-            range_str = f"{test_case['expected_range'][0]}-{test_case['expected_range'][1]}"
+            
+            # 修復：確保範圍字符串正確
+            range_min, range_max = test_case['expected_range']
+            range_str = f"{range_min}-{range_max}"
+            
+            # 提取參數
+            year1, month1, day1, hour1 = bazi_data1['year'], bazi_data1['month'], bazi_data1['day'], bazi_data1['hour']
+            gender1 = bazi_data1['gender']
+            hour_confidence1 = bazi_data1.get('hour_confidence', '高')
+            longitude1 = bazi_data1.get('longitude', DEFAULT_LONGITUDE)
+            
+            year2, month2, day2, hour2 = bazi_data2['year'], bazi_data2['month'], bazi_data2['day'], bazi_data2['hour']
+            gender2 = bazi_data2['gender']
+            hour_confidence2 = bazi_data2.get('hour_confidence', '高')
+            longitude2 = bazi_data2.get('longitude', DEFAULT_LONGITUDE)
             
             # 計算八字
-            bazi1 = BaziCalculator.calculate(**bazi_data1)
-            bazi2 = BaziCalculator.calculate(**bazi_data2)
+            bazi1 = calculate_bazi_pro(
+                year1, month1, day1, hour1,
+                gender=gender1,
+                hour_confidence=hour_confidence1,
+                longitude=longitude1
+            )
+            
+            bazi2 = calculate_bazi_pro(
+                year2, month2, day2, hour2,
+                gender=gender2,
+                hour_confidence=hour_confidence2,
+                longitude=longitude2
+            )
             
             if not bazi1 or not bazi2:
                 raise ValueError("八字計算失敗")
             
             # 配對計算
-            gender1 = bazi_data1['gender']
-            gender2 = bazi_data2['gender']
-            
             match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
             
             score = match_result.get('score', 0)
@@ -342,6 +365,7 @@ class AdminService:
             )
             
         except Exception as e:
+            logger.error(f"測試案例 {test_id} 運行失敗: {e}", exc_info=True)
             return TestResult(
                 test_id=test_id,
                 description=test_case.get('description', f'測試{test_id}'),
@@ -653,7 +677,8 @@ class AdminService:
     async def _test_bazi(self) -> Dict[str, Any]:
         """測試八字計算"""
         try:
-            bazi = BaziCalculator.calculate(1990, 1, 1, 12, '男')
+            # 使用 calculate_bazi_pro 而不是 BaziCalculator.calculate
+            bazi = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
             if bazi:
                 pillars = f"{bazi.get('year_pillar', '')} {bazi.get('month_pillar', '')} {bazi.get('day_pillar', '')} {bazi.get('hour_pillar', '')}"
                 return {'name': '八字計算', 'status': 'PASS', 'message': f'計算正常: {pillars}'}
@@ -665,8 +690,8 @@ class AdminService:
     async def _test_match(self) -> Dict[str, Any]:
         """測試配對計算"""
         try:
-            bazi1 = BaziCalculator.calculate(1990, 1, 1, 12, '男')
-            bazi2 = BaziCalculator.calculate(1991, 2, 2, 13, '女')
+            bazi1 = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
+            bazi2 = calculate_bazi_pro(1991, 2, 2, 13, '女', hour_confidence='高')
             match_result = calculate_match(bazi1, bazi2, '男', '女', is_testpair=True)
             
             score = match_result.get('score')
@@ -681,8 +706,8 @@ class AdminService:
     async def _test_core_functionality(self) -> Dict[str, Any]:
         """測試核心功能"""
         try:
-            bazi = BaziCalculator.calculate(1990, 1, 1, 12, '男')
-            bazi2 = BaziCalculator.calculate(1991, 2, 2, 13, '女')
+            bazi = calculate_bazi_pro(1990, 1, 1, 12, '男', hour_confidence='高')
+            bazi2 = calculate_bazi_pro(1991, 2, 2, 13, '女', hour_confidence='高')
             
             # 測試格式化功能
             formatted_personal = BaziFormatters.format_personal_data(bazi, "測試用戶")
@@ -745,7 +770,8 @@ class AdminService:
                 top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
             text += " ".join(top_texts) + "\n"
         
-        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
+        # 修正日期格式化：%Y-%m-d → %Y-%m-%d
+        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
     
@@ -786,13 +812,21 @@ class AdminService:
 - bot.py (主程序)
 
 主要修改：
-1. 修正導入語句：使用 ProfessionalConfig as Config
+1. 修正導入語句：使用 calculate_bazi_pro 和 calculate_match
 2. 修正分數細項提取邏輯：從score_details獲取基準分
 3. 統一常量引用：使用 THRESHOLD_CONTACT_ALLOWED 代替硬編碼值
 4. 修正測試案例信心度參數：使用"高/中/低/估算"格式
-5. 保持測試功能與新的評分系統兼容
+5. 修正測試方法中的八字計算調用：使用 calculate_bazi_pro
+6. 修復日期格式化錯誤：%Y-%m-d 修正為 %Y-%m-%d
 
 修改記錄：
+2026-02-03 第五次修正：
+1. 完全重寫 _run_single_test 方法：使用 calculate_bazi_pro 函數
+2. 修正測試方法：_test_bazi, _test_match, _test_core_functionality 都使用 calculate_bazi_pro
+3. 修正導入語句：從 new_calculator 導入 calculate_bazi_pro 和 calculate_match
+4. 移除錯誤的 BaziCalculator 調用
+5. 保持所有測試功能正常運作，與新的評分系統兼容
+
 2026-02-03 第四次修正：
 1. 修正導入語句：使用 ProfessionalConfig as Config
 2. 修正分數細項提取邏輯：從score_details獲取基準分，而不是debug_info
@@ -801,24 +835,11 @@ class AdminService:
 5. 修正日期格式化錯誤：%Y-%m-d 修正為 %Y-%m-%d
 6. 保持所有測試功能正常運作，與新的評分系統兼容
 
-2026-02-02 第三次修正：
-1. 修改_test_run_single_test方法，正確提取八字四柱
-2. 修改_format_single_test_result方法，顯示兩人四柱和類型
-3. 修改format_test_results方法，在每行結果前加#號
-4. 修正分數細項提取邏輯，從debug_info獲取基準分
-5. 保持測試結果格式緊湊，符合要求格式
-
-2026-02-02 第二次修正：
-1. 修復分數細項提取邏輯：重寫_extract_score_details_correct方法
-2. 正確顯示基準分和模組分數：基準分從debug_info獲取
-3. 修正分數細項格式：顯示基準分、正向加分、負向扣分
-4. 修正模組分數顯示：正確顯示正負號
-5. 保持測試結果格式緊湊
-
 累積修正：
 - 更新常數引用以匹配new_calculator.py的修改
 - 調整分數細項提取，基準分從score_details獲取
 - 修復日期格式化錯誤
+- 完全修正八字計算函數調用方式
 - 保持所有測試功能正常運作
 - 符合繁體中文要求
 - 無版本號標示
