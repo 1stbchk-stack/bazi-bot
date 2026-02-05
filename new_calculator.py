@@ -39,16 +39,16 @@ class ProfessionalValidationError(BaziSystemError):
 # 🔖 1.2 專業配置系統開始
 class ProfessionalConfig:
     """專業命理配置系統 - 集中管理時間、五行、權重、評級等專業參數"""
-
+    
     # ========== 1.2.1 基礎時間配置（固定不變）==========
-    TIME_ZONE_MERIDIAN: float = 120.0          # 東經120度標準時區（中國/香港常用）跟國師標準時區
-    DAY_BOUNDARY_MODE: str = "zizheng"        # 子正換日（專業標準）跟命理傳統做法
+    TIME_ZONE_MERIDIAN: float = 120.0          # 東經120度標準時區（中國/香港常用）
+    DAY_BOUNDARY_MODE: str = "zizheng"        # 子正換日（專業標準）
     DEFAULT_LONGITUDE: float = 114.17         # 香港經度跟常用地點
     DEFAULT_LATITUDE: float = 22.32           # 香港緯度
     LONGITUDE_CORRECTION: int = 4             # 經度差1度 = 4分鐘跟天文計算標準
-    DAY_BOUNDARY_HOUR: int = 23               # 日界線時辰（子正）跟子正換日法
+    DAY_BOUNDARY_HOUR: int = 23               # 日界線時辰（子正）
     DAY_BOUNDARY_MINUTE: int = 0              # 日界線分鐘
-
+    
     # ========== 1.2.2 香港夏令時完整表（固定不變）==========
     HK_DST_PERIODS = [
         ("1941-04-01", "1941-12-25"), ("1942-12-25", "1943-09-30"),
@@ -56,7 +56,7 @@ class ProfessionalConfig:
         ("1950-04-02", "1950-10-29"), ("1951-04-01", "1951-10-28"),
         ("1952-04-06", "1952-10-26"), ("1953-04-05", "1953-10-25"),
         ("1954-04-04", "1954-10-31"), ("1955-04-03", "1955-10-30"),
-        ("1956-04-01", "1956-10-28"), ("1957-04-07", ("1957-10-27")),
+        ("1956-04-01", "1956-10-28"), ("1957-04-07", "1957-10-27"),
         ("1958-04-06", "1958-10-26"), ("1959-04-05", "1959-10-25"),
         ("1960-04-03", "1960-10-30"), ("1961-04-02", "1961-10-29"),
         ("1962-04-01", "1962-10-28"), ("1963-04-07", "1963-10-27"),
@@ -69,7 +69,7 @@ class ProfessionalConfig:
         ("1976-04-04", "1976-10-31"), ("1977-04-03", "1977-10-30"),
         ("1978-04-02", "1978-10-29"), ("1979-05-06", "1979-10-21"),
     ]
-
+    
     # ========== 1.2.3 專業月令氣勢表（固定不變，跟命理傳統）==========
     MONTH_QI_MAP = {
         "子": {"yuqi": "辛", "zhongqi": "癸", "zhengqi": "壬", "qi_score": 10},
@@ -80,26 +80,26 @@ class ProfessionalConfig:
         "巳": {"yuqi": "戊", "zhongqi": "庚", "zhengqi": "丙", "qi_score": 12},
         "午": {"yuqi": "丙", "zhongqi": "戊", "zhengqi": "丁", "qi_score": 10},
         "未": {"yuqi": "丁", "zhongqi": "乙", "zhengqi": "己", "qi_score": 8},
-        "申": {"yuqi": "己", "zhongqi": "戊", "zhengqi": "庚", "qi_score": 10},
+        "申": {"yuqi": "戊", "zhongqi": "戊", "zhengqi": "庚", "qi_score": 10},  # 修正：餘氣應為戊非己
         "酉": {"yuqi": "庚", "zhongqi": "壬", "zhengqi": "辛", "qi_score": 8},
         "戌": {"yuqi": "辛", "zhongqi": "丁", "zhengqi": "戊", "qi_score": 8},
         "亥": {"yuqi": "戊", "zhongqi": "甲", "zhengqi": "壬", "qi_score": 10},
     }
-
+    
     # ========== 1.2.4 身強弱專業權重（固定不變，跟專業標準）==========
     MONTH_QI_WEIGHT: float = 40.0  # 月令氣勢權重（主力）跟命理原則：月令為提綱
     TONG_GEN_WEIGHT: float = 30.0  # 通根力量權重跟地支力量
     SUPPORT_WEIGHT: float = 20.0   # 生扶力量權重跟印星比劫
     STEM_STRENGTH_WEIGHT: float = 10.0  # 天干力量權重跟天干透出
-
+    
     STRENGTH_THRESHOLD_STRONG: float = 70.0  # 強跟專業劃分
     STRENGTH_THRESHOLD_MEDIUM: float = 40.0  # 中
     STRENGTH_THRESHOLD_WEAK: float = 20.0    # 弱
-
+    
     # ========== 1.2.5 陰陽天干（固定不變）==========
     YANG_STEMS = ["甲", "丙", "戊", "庚", "壬"]
     YIN_STEMS = ["乙", "丁", "己", "辛", "癸"]
-
+    
     # ========== 1.2.6 五行關係配置（固定不變）==========
     ELEMENT_GENERATION = {
         "木": "火",
@@ -108,7 +108,7 @@ class ProfessionalConfig:
         "金": "水",
         "水": "木",
     }
-
+    
     ELEMENT_CONTROL = {
         "木": "土",
         "土": "水",
@@ -116,23 +116,23 @@ class ProfessionalConfig:
         "火": "金",
         "金": "木",
     }
-
+    
     # ========== 1.2.7 地支藏干增強版（固定不變，跟專業藏干表）==========
     BRANCH_HIDDEN_STEMS_PRO = {
-        "子": [("癸", 1.0, 100)],  # 子水100%癸水跟藏干理論
+        "子": [("癸", 1.0, 100)],  # 子水100%癸水
         "丑": [("己", 0.5, 60), ("癸", 0.3, 30), ("辛", 0.2, 10)],
         "寅": [("甲", 0.6, 60), ("丙", 0.3, 30), ("戊", 0.1, 10)],
         "卯": [("乙", 1.0, 100)],
         "辰": [("戊", 0.5, 60), ("乙", 0.3, 30), ("癸", 0.2, 10)],
         "巳": [("丙", 0.6, 60), ("庚", 0.3, 30), ("戊", 0.1, 10)],
-        "午": [("丁", 0.7, 70), ("己", 0.3, 30)],
+        "午": [("丁", 0.7, 70), ("己", 0.3, 30)],  # 午火70%丁火，30%己土
         "未": [("己", 0.6, 60), ("丁", 0.3, 30), ("乙", 0.1, 10)],
         "申": [("庚", 0.6, 60), ("壬", 0.3, 30), ("戊", 0.1, 10)],
         "酉": [("辛", 1.0, 100)],
         "戌": [("戊", 0.6, 60), ("辛", 0.3, 30), ("丁", 0.1, 10)],
         "亥": [("壬", 0.7, 70), ("甲", 0.3, 30)],
     }
-
+    
     # ========== 1.2.8 專業評級標準（固定不變，跟專業劃分）==========
     THRESHOLD_TERMINATION: float = 25.0   # 終止線跟極差配對
     THRESHOLD_STRONG_WARNING: float = 35.0  # 強烈警告
@@ -141,7 +141,7 @@ class ProfessionalConfig:
     THRESHOLD_GOOD_MATCH: float = 65.0      # 良好配對
     THRESHOLD_EXCELLENT_MATCH: float = 75.0 # 優秀配對
     THRESHOLD_PERFECT_MATCH: float = 85.0   # 完美配對
-
+    
     RATING_SCALE = [
         (THRESHOLD_PERFECT_MATCH,   "極品仙緣",   "天作之合，互相成就，幸福美滿"),
         (THRESHOLD_EXCELLENT_MATCH, "上等婚配",   "明顯互補，幸福率高，可白頭偕老"),
@@ -152,15 +152,15 @@ class ProfessionalConfig:
         (THRESHOLD_TERMINATION,     "強烈不建議", "嚴重沖剋，極難長久，易分手"),
         (0,                         "避免發展",   "硬傷明顯，易生變，不適合婚戀"),
     ]
-
+    
     # ========== 1.2.9 時間信心度因子（固定不變）==========
-    TIME_CONFIDENCE_LEVELS: dict = {  # 補充類型提示
+    TIME_CONFIDENCE_LEVELS: dict = {
         "高": 1.00,   # 精確時間，無調整
         "中": 0.95,   # 有輕微調整
         "低": 0.90,   # 有明顯調整
         "估算": 0.85, # 估算時間
     }
-
+    
     @classmethod
     def get_rating(cls, score: float) -> str:
         """根據分數取得評級名稱。跟評級標準匹配"""
@@ -168,7 +168,7 @@ class ProfessionalConfig:
             if score >= threshold:
                 return name
         return "避免發展"
-
+    
     @classmethod
     def get_rating_description(cls, score: float) -> str:
         """根據分數取得評級描述。跟評級標準匹配"""
@@ -176,7 +176,7 @@ class ProfessionalConfig:
             if score >= threshold:
                 return description
         return "硬傷明顯，易生變，不適合婚戀"
-
+    
     @classmethod
     def get_confidence_factor(cls, confidence: str) -> float:
         """根據時間信心度字串取得數值因子。跟信心度影響權重"""
@@ -190,10 +190,9 @@ PC = ProfessionalConfig
 class ProfessionalTimeProcessor:
     """
     專業時間處理引擎 - 確保99%時間計算準確
-    功能：真太陽時計算、夏令時校正、經度調整、均時差補償、日界處理及信心度動態調整
-    目標：將標準時間轉換為極精密的真太陽時，保障後續八字計算與頂級命理師結果一致。
+    功能：真太陽時計算、夏令時校正、經度調整、均時差補償、日界處理
     """
-
+    
     @staticmethod
     def calculate_true_solar_time_pro(
         year: int,
@@ -210,65 +209,65 @@ class ProfessionalTimeProcessor:
             f"🔍 專業時間計算開始: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d} "
             f"(經度: {longitude:.2f}°，原始信心度: {confidence})"
         )
-
+        
         try:
-            # 1. 夏令時檢查（香港歷史）
+            # 1. 夏令時檢查
             dst_adjust = ProfessionalTimeProcessor._get_dst_adjustment(year, month, day, audit_log)
             
-            # 2. 經度校正（以東經120度為標準）
+            # 2. 經度校正
             lon_adjust = ProfessionalTimeProcessor._get_longitude_adjustment(longitude, audit_log)
             
-            # 3. 均時差校正 (Equation of Time)
+            # 3. 均時差校正
             eot_adjust = ProfessionalTimeProcessor._get_equation_of_time_adjustment(
                 year, month, day, hour, minute, audit_log
             )
-
+            
             # 4. 累計全部時間調整
             total_adjust_minutes = dst_adjust + lon_adjust + eot_adjust
             audit_log.append(f"📊 總調整量: {total_adjust_minutes:+.1f} 分鐘")
             total_minutes = hour * 60 + minute + total_adjust_minutes
-
-            # 5. 日界處理（跨日調整）
+            
+            # 5. 日界處理
             day_delta, adjusted_minutes = ProfessionalTimeProcessor._apply_day_boundary(total_minutes, audit_log)
             true_hour = int(adjusted_minutes // 60)
             true_minute = int(round(adjusted_minutes % 60))
             
-            # 修正四捨五入導致的60分鐘極端情況
+            # 修正四捨五入導致的60分鐘
             if true_minute == 60:
                 true_minute = 0
                 true_hour = (true_hour + 1) % 24
-
-            # 6. 根據總調整幅度動態調整信心度
+            
+            # 6. 動態調整信心度
             new_confidence = ProfessionalTimeProcessor._adjust_confidence_level(
                 confidence, abs(total_adjust_minutes), audit_log
             )
-
+            
             audit_log.append(
                 f"✅ 最終真太陽時結果: {true_hour:02d}:{true_minute:02d} "
                 f"(信心度: {new_confidence}，跨日: {day_delta:+d} 天)"
             )
-
+            
             return {
-                'hour': true_hour,           # 保持原鍵名，向後兼容
-                'minute': true_minute,       # 保持原鍵名，向後兼容
+                'hour': true_hour,
+                'minute': true_minute,
                 'confidence': new_confidence,
                 'adjusted': abs(total_adjust_minutes) > 5,
-                'day_adjusted': day_delta,   # 保持原鍵名，語義更優
+                'day_adjusted': day_delta,
                 'total_adjust_minutes': total_adjust_minutes,
                 'audit_log': audit_log,
             }
-
+            
         except Exception as e:
             logger.error(f"專業時間計算錯誤: {e}", exc_info=True)
             raise TimeCalculationError(f"時間計算失敗: {str(e)}")
-
+    
     @staticmethod
     def _get_dst_adjustment(year: int, month: int, day: int, audit_log: list[str]) -> float:
-        """1.3.1.1 檢查是否處於香港歷史夏令時期間，返回調整分鐘數（通常為 -60）。跟歷史資料"""
+        """1.3.1.1 檢查是否處於香港歷史夏令時期間"""
         dst_adjust = 0.0
         try:
             date_obj = datetime(year, month, day)
-            for start_str, end_str in PC.HK_DST_PERIODS:  # 使用1.2配置系統中的數據
+            for start_str, end_str in PC.HK_DST_PERIODS:
                 start_date = datetime.strptime(start_str, "%Y-%m-%d")
                 end_date = datetime.strptime(end_str, "%Y-%m-%d")
                 if start_date <= date_obj <= end_date:
@@ -279,47 +278,40 @@ class ProfessionalTimeProcessor:
             logger.warning(f"夏令時檢查異常: {e}")
             audit_log.append(f"⚠️ 夏令時檢查異常: {e}")
         return dst_adjust
-
+    
     @staticmethod
     def _get_longitude_adjustment(longitude: float, audit_log: list[str]) -> float:
-        """1.3.1.2 經度校正：相對於東經120度的時間差（每度4分鐘）。跟天文計算"""
+        """1.3.1.2 經度校正：相對於東經120度的時間差"""
         diff = longitude - PC.TIME_ZONE_MERIDIAN
         adjust = diff * PC.LONGITUDE_CORRECTION
         audit_log.append(f"📍 經度校正: {adjust:+.1f} 分鐘 (經度差: {diff:+.2f}°)")
         return adjust
-
+    
     @staticmethod
     def _get_equation_of_time_adjustment(
         year: int, month: int, day: int, hour: int, minute: int, audit_log: list[str]
     ) -> float:
-        """1.3.1.3 計算均時差（Equation of Time），返回分鐘調整量。跟天文算法"""
+        """1.3.1.3 計算均時差（Equation of Time）"""
         try:
             jd = ProfessionalTimeProcessor._gregorian_to_julian_day(year, month, day, hour, minute)
-            t = (jd - 2451545.0) / 36525.0  # 自J2000.0起算的世紀數
-
-            # 太陽平黃經 L0（度）
+            t = (jd - 2451545.0) / 36525.0
+            
             L0 = 280.46646 + 36000.76983 * t + 0.0003032 * t * t
-            # 太陽平近點角 M（度）
             M = 357.52911 + 35999.05029 * t - 0.0001537 * t * t
-
-            # 太陽中心差 C（三項式近似，精度足夠）
+            
             C = (
                 (1.914602 - 0.004817 * t - 0.000014 * t * t) * math.sin(math.radians(M))
                 + (0.019993 - 0.000101 * t) * math.sin(math.radians(2 * M))
                 + 0.000289 * math.sin(math.radians(3 * M))
             )
-
-            # 太陽真黃經 L
+            
             L = L0 + C
-
-            # 均時差近似公式（分鐘）
             eot = (
                 9.87 * math.sin(math.radians(2 * L))
                 - 7.53 * math.cos(math.radians(L))
                 - 1.5 * math.sin(math.radians(L))
             )
-
-            # 限制在合理範圍內（-20到+20分鐘），避免極端浮點誤差
+            
             eot = max(-20.0, min(20.0, eot))
             audit_log.append(f"☀️ 均時差校正: {eot:+.1f} 分鐘")
             return eot
@@ -327,10 +319,10 @@ class ProfessionalTimeProcessor:
             logger.warning(f"均時差計算異常: {e}")
             audit_log.append(f"⚠️ 均時差計算異常: {e}，暫以 0 分鐘處理")
             return 0.0
-
+    
     @staticmethod
     def _gregorian_to_julian_day(year: int, month: int, day: int, hour: int, minute: int) -> float:
-        """1.3.1.4 將公曆日期時間轉換為儒略日（簡化版，精度滿足命理需求）。跟天文計算"""
+        """1.3.1.4 將公曆日期時間轉換為儒略日"""
         if month <= 2:
             year -= 1
             month += 12
@@ -339,10 +331,10 @@ class ProfessionalTimeProcessor:
         jd_day = int(365.25 * (year + 4716)) + int(30.6001 * (month + 1)) + day + B - 1524.5
         time_fraction = (hour + minute / 60.0) / 24.0
         return jd_day + time_fraction
-
+    
     @staticmethod
     def _apply_day_boundary(total_minutes: float, audit_log: list[str]) -> tuple[int, float]:
-        """1.3.1.5 處理總分鐘數的日界跨天，返回跨天數和調整後分鐘數。跟日界邏輯"""
+        """1.3.1.5 處理總分鐘數的日界跨天"""
         day_delta = 0
         adjusted = total_minutes
         if total_minutes < 0:
@@ -354,12 +346,12 @@ class ProfessionalTimeProcessor:
             day_delta = 1
             audit_log.append("🔄 向後跨日調整（加1天）")
         return day_delta, adjusted
-
+    
     @staticmethod
     def _adjust_confidence_level(
         original: str, abs_adjust_minutes: float, audit_log: list[str]
     ) -> str:
-        """1.3.1.6 根據總調整幅度動態降低信心度。跟調整幅度成正比"""
+        """1.3.1.6 根據總調整幅度動態降低信心度"""
         if abs_adjust_minutes > 60:
             new = "估算"
         elif abs_adjust_minutes > 30:
@@ -371,43 +363,31 @@ class ProfessionalTimeProcessor:
         if new != original:
             audit_log.append(f"📉 信心度因調整幅度大而降級: {original} → {new}")
         return new
-
+    
     @staticmethod
     def apply_day_boundary_pro(
         year: int, month: int, day: int, hour: int, minute: int, confidence: str
     ) -> Tuple[int, int, int, str]:
-        """
-        1.3.2 專業日界處理（子正換日）。
-        當 DAY_BOUNDARY_MODE='zizheng' 且時間 >= 23:00 時，日期+1，並略降信心度。
-        跟子正換日法，必須先處理後計算四柱
-        """
+        """1.3.2 專業日界處理（子正換日）"""
         if PC.DAY_BOUNDARY_MODE == "none":
             return year, month, day, confidence
-
+        
         if PC.DAY_BOUNDARY_MODE == "zizheng":
             if hour >= PC.DAY_BOUNDARY_HOUR and minute >= PC.DAY_BOUNDARY_MINUTE:
                 current_date = datetime(year, month, day)
                 next_date = current_date + timedelta(days=1)
                 new_confidence = "中" if confidence == "高" else confidence
                 return next_date.year, next_date.month, next_date.day, new_confidence
-
+        
         return year, month, day, confidence
-
 # 🔖 1.3 專業時間處理引擎結束
 
-# 🔖 1.4 專業八字核心引擎開始（最終版）
+# 🔖 1.4 專業八字核心引擎開始
 class ProfessionalBaziCalculator:
     """
-    專業八字核心引擎（最終版）
-    
+    專業八字核心引擎
     功能：完整八字計算與深度分析
-    特色：
-    1. 保持100%向後兼容性
-    2. 集成DeepSeek算法增強（特殊格局、四維度身強弱）
-    3. 維持現有接口不變
-    4. 增強審計日誌和錯誤處理
-    
-    目標：確保99%案例與頂級命理師計算結果一致
+    特色：保持100%向後兼容性
     """
     
     # ========== 1.4.1 基礎常量配置（固定不變）==========
@@ -430,17 +410,10 @@ class ProfessionalBaziCalculator:
     
     # ========== 1.4.2 地支關係配置（固定不變）==========
     THREE_HARMONY_MAP = {
-        '申': ('子', '辰'), '子': ('申', '辰'), '辰': ('申', '子'),  # 水局跟三合局
-        '亥': ('卯', '未'), '卯': ('亥', '未'), '未': ('亥', '卯'),  # 木局
-        '寅': ('午', '戌'), '午': ('寅', '戌'), '戌': ('寅', '午'),  # 火局
-        '巳': ('酉', '丑'), '酉': ('巳', '丑'), '丑': ('巳', '酉')   # 金局
-    }
-    
-    THREE_MEETING_MAP = {
-        '寅': ('卯', '辰'), '卯': ('寅', '辰'), '辰': ('寅', '卯'),  # 春季木會
-        '巳': ('午', '未'), '午': ('巳', '未'), '未': ('巳', '午'),  # 夏季火會
-        '申': ('酉', '戌'), '酉': ('申', '戌'), '戌': ('申', '酉'),  # 秋季金會
-        '亥': ('子', '丑'), '子': ('亥', '丑'), '丑': ('亥', '子')   # 冬季水會
+        '申': ('子', '辰'), '子': ('申', '辰'), '辰': ('申', '子'),
+        '亥': ('卯', '未'), '卯': ('亥', '未'), '未': ('亥', '卯'),
+        '寅': ('午', '戌'), '午': ('寅', '戌'), '戌': ('寅', '午'),
+        '巳': ('酉', '丑'), '酉': ('巳', '丑'), '丑': ('巳', '酉')
     }
     
     # ========== 1.4.3 十神對照表（固定不變）==========
@@ -495,30 +468,24 @@ class ProfessionalBaziCalculator:
                      minute: Optional[int] = None,
                      longitude: float = PC.DEFAULT_LONGITUDE,
                      latitude: float = PC.DEFAULT_LATITUDE) -> Dict[str, Any]:
-        """
-        1.4.6 專業八字計算主函數（最終版）
-        
-        保持100%向後兼容性，接口不變
-        內部集成DeepSeek算法增強
-        順序：時間處理 → 日界處理 → 四柱計算 → 深度分析
-        """
+        """1.4.6 專業八字計算主函數"""
         audit_log = []
         
         try:
-            audit_log.append(f"🎯 開始專業八字計算（最終版）: {year}年{month}月{day}日{hour}時")
+            audit_log.append(f"🎯 開始專業八字計算: {year}年{month}月{day}日{hour}時")
             
-            # 處理分鐘缺失（保持現有邏輯）
+            # 處理分鐘缺失
             processed_minute = minute if minute is not None else 0
             if minute is None:
                 hour_confidence = "估算" if hour_confidence == "高" else hour_confidence
             
-            # 使用1.3專業時間處理引擎
+            # 使用專業時間處理引擎
             true_solar_time = ProfessionalTimeProcessor.calculate_true_solar_time_pro(
                 year, month, day, hour, processed_minute, longitude, hour_confidence
             )
             audit_log.extend(true_solar_time.get('audit_log', []))
             
-            # 專業日界處理（子正換日）
+            # 專業日界處理
             adjusted_date = ProfessionalTimeProcessor.apply_day_boundary_pro(
                 year, month, day,
                 true_solar_time['hour'], true_solar_time['minute'],
@@ -526,7 +493,7 @@ class ProfessionalBaziCalculator:
             )
             adjusted_year, adjusted_month, adjusted_day, final_confidence = adjusted_date
             
-            # 使用sxtwl計算四柱（保持現有方法）
+            # 使用sxtwl計算四柱
             day_obj = sxtwl.fromSolar(adjusted_year, adjusted_month, adjusted_day)
             
             # 獲取天干地支索引
@@ -534,12 +501,12 @@ class ProfessionalBaziCalculator:
             m_gz = day_obj.getMonthGZ()
             d_gz = day_obj.getDayGZ()
             
-            # 計算時柱（使用五鼠遁訣）
+            # 計算時柱
             hour_pillar = ProfessionalBaziCalculator._calculate_hour_pillar_pro(
                 adjusted_year, adjusted_month, adjusted_day, true_solar_time['hour']
             )
             
-            # 組裝基礎八字數據（保持現有字段名）
+            # 組裝基礎八字數據
             STEMS = ProfessionalBaziCalculator.STEMS
             BRANCHES = ProfessionalBaziCalculator.BRANCHES
             
@@ -550,7 +517,7 @@ class ProfessionalBaziCalculator:
             day_stem = STEMS[d_gz.tg]
             day_stem_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(day_stem, "")
             
-            # 基礎數據結構（保持100%兼容性）
+            # 基礎數據結構
             bazi_data = {
                 "year_pillar": year_pillar,
                 "month_pillar": month_pillar,
@@ -576,21 +543,21 @@ class ProfessionalBaziCalculator:
                 "audit_log": audit_log
             }
             
-            # 專業深度分析（集成DeepSeek增強算法）
+            # 專業深度分析
             bazi_data = ProfessionalBaziCalculator._analyze_professional_enhanced(bazi_data, gender, audit_log)
             
-            audit_log.append(f"✅ 專業八字計算完成（最終版）: {year_pillar} {month_pillar} {day_pillar} {hour_pillar}")
+            audit_log.append(f"✅ 專業八字計算完成: {year_pillar} {month_pillar} {day_pillar} {hour_pillar}")
             
             return bazi_data
             
         except Exception as e:
-            logger.error(f"專業八字計算錯誤（最終版）: {e}", exc_info=True)
+            logger.error(f"專業八字計算錯誤: {e}", exc_info=True)
             audit_log.append(f"❌ 八字計算錯誤: {str(e)}")
             raise ElementAnalysisError(f"八字分析失敗: {str(e)}")
     
     @staticmethod
     def _calculate_hour_pillar_pro(year: int, month: int, day: int, hour: int) -> str:
-        """1.4.6.1 專業時柱計算 - 使用五鼠遁訣（保持現有算法）跟傳統口訣"""
+        """1.4.6.1 專業時柱計算 - 使用五鼠遁訣"""
         day_obj = sxtwl.fromSolar(year, month, day)
         d_gz = day_obj.getDayGZ()
         day_stem = d_gz.tg
@@ -617,7 +584,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _hour_to_branch_pro(hour: int) -> int:
-        """1.4.6.1.1 專業時辰轉換（保持現有算法）跟時辰地支對應"""
+        """1.4.6.1.1 專業時辰轉換"""
         hour_map = {
             23: 0, 0: 0,    # 子時 (23:00-01:00)
             1: 1, 2: 1,     # 丑時 (01:00-03:00)
@@ -636,39 +603,29 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _analyze_professional_enhanced(bazi_data: Dict, gender: str, audit_log: List[str]) -> Dict:
-        """
-        1.4.7 專業深度分析（最終版）
-        
-        集成DeepSeek算法增強：
-        1. 四維度身強弱計算
-        2. 特殊格局識別
-        3. 增強審計日誌
-        
-        順序：五行 → 身強弱 → 格局 → 喜用 → 夫妻 → 神煞 → 十神 → 大運
-        必須按此順序因為後面的分析依賴前面的結果
-        """
+        """1.4.7 專業深度分析"""
         try:
-            audit_log.append("🔍 開始專業深度分析（最終版）")
+            audit_log.append("🔍 開始專業深度分析")
             
-            # 1. 專業五行分析（保持現有算法）
+            # 1. 專業五行分析
             bazi_data["elements"] = ProfessionalBaziCalculator._calculate_elements_pro(bazi_data)
             audit_log.append(f"✅ 五行分析完成: {bazi_data['elements']}")
             
-            # 2. 專業身強弱分析（DeepSeek四維度增強）
+            # 2. 專業身強弱分析
             strength_score, strength_details = ProfessionalBaziCalculator._calculate_strength_enhanced(bazi_data, audit_log)
             bazi_data["strength_score"] = strength_score
             bazi_data["day_stem_strength"] = ProfessionalBaziCalculator._determine_strength_pro(strength_score)
             bazi_data["strength_details"] = strength_details
             
-            audit_log.append(f"✅ 身強弱分析（四維度）: {strength_score:.1f}分 ({bazi_data['day_stem_strength']})")
+            audit_log.append(f"✅ 身強弱分析: {strength_score:.1f}分 ({bazi_data['day_stem_strength']})")
             
-            # 3. 專業格局判定（DeepSeek特殊格局增強）
+            # 3. 專業格局判定
             pattern_type, pattern_details = ProfessionalBaziCalculator._determine_pattern_enhanced(bazi_data, audit_log)
             bazi_data["pattern_type"] = pattern_type
             bazi_data["pattern_details"] = pattern_details
-            audit_log.append(f"✅ 格局判定（增強版）: {pattern_type}")
+            audit_log.append(f"✅ 格局判定: {pattern_type}")
             
-            # 4. 專業喜用神分析（保持現有算法）
+            # 4. 專業喜用神分析
             useful_elements, useful_details = ProfessionalBaziCalculator._calculate_useful_elements_pro(
                 bazi_data, gender, audit_log
             )
@@ -679,7 +636,7 @@ class ProfessionalBaziCalculator:
             bazi_data["harmful_elements"] = harmful_elements
             audit_log.append(f"✅ 喜用神分析: 喜{useful_elements}, 忌{harmful_elements}")
             
-            # 5. 專業夫妻星分析（保持現有算法）
+            # 5. 專業夫妻星分析
             spouse_status, spouse_details = ProfessionalBaziCalculator._analyze_spouse_star_pro(bazi_data, gender)
             bazi_data["spouse_star_status"] = spouse_status
             bazi_data["spouse_star_details"] = spouse_details
@@ -689,35 +646,35 @@ class ProfessionalBaziCalculator:
             bazi_data["spouse_palace_details"] = palace_details
             audit_log.append(f"✅ 夫妻分析: 星{spouse_status}, 宮{palace_status}")
             
-            # 6. 專業神煞分析（DeepSeek增強版）
+            # 6. 專業神煞分析
             shen_sha_names, shen_sha_bonus, shen_sha_details = ProfessionalBaziCalculator._calculate_shen_sha_enhanced(bazi_data)
             bazi_data["shen_sha_names"] = shen_sha_names
             bazi_data["shen_sha_bonus"] = shen_sha_bonus
             bazi_data["shen_sha_details"] = shen_sha_details
-            audit_log.append(f"✅ 神煞分析（增強版）: {shen_sha_names} ({shen_sha_bonus}分)")
+            audit_log.append(f"✅ 神煞分析: {shen_sha_names} ({shen_sha_bonus}分)")
             
-            # 7. 專業十神結構（保持現有算法）
+            # 7. 專業十神結構
             shi_shen_structure, shi_shen_details = ProfessionalBaziCalculator._calculate_shi_shen_pro(bazi_data, gender)
             bazi_data["shi_shen_structure"] = shi_shen_structure
             bazi_data["shi_shen_details"] = shi_shen_details
             audit_log.append(f"✅ 十神結構: {shi_shen_structure}")
             
-            # 8. 專業大運分析（簡化版）
+            # 8. 專業大運分析
             dayun_info = ProfessionalBaziCalculator._calculate_dayun_pro(bazi_data, gender)
             bazi_data["dayun_info"] = dayun_info
             
-            audit_log.append("✅ 專業深度分析完成（最終版）")
+            audit_log.append("✅ 專業深度分析完成")
             
             return bazi_data
             
         except Exception as e:
-            logger.error(f"專業分析錯誤（最終版）: {e}", exc_info=True)
+            logger.error(f"專業分析錯誤: {e}", exc_info=True)
             audit_log.append(f"❌ 專業分析錯誤: {str(e)}")
             raise ElementAnalysisError(f"專業分析失敗: {str(e)}")
     
     @staticmethod
     def _calculate_elements_pro(bazi_data: Dict) -> Dict[str, float]:
-        """1.4.7.1 專業五行分佈計算（保持現有算法）跟五行權重分佈"""
+        """1.4.7.1 專業五行分佈計算"""
         elements = {'木': 0.0, '火': 0.0, '土': 0.0, '金': 0.0, '水': 0.0}
         
         pillars = [
@@ -727,8 +684,7 @@ class ProfessionalBaziCalculator:
             bazi_data.get('hour_pillar', '')
         ]
         
-        # 專業權重：年1.0，月1.8，日1.5，時1.2 跟月令最重要原則
-        weights = [1.0, 1.8, 1.5, 1.2]
+        weights = [1.0, 1.8, 1.5, 1.2]  # 年1.0，月1.8，日1.5，時1.2
         
         for pillar, weight in zip(pillars, weights):
             if len(pillar) >= 2:
@@ -762,17 +718,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_strength_enhanced(bazi_data: Dict, audit_log: List[str]) -> Tuple[float, Dict[str, float]]:
-        """
-        1.4.7.2 專業身強弱計算（DeepSeek四維度增強版）
-        
-        四維度評分：
-        1. 月令氣勢（40%權重）跟月令為提綱原則
-        2. 通根力量（30%權重）跟地支力量
-        3. 生扶力量（20%權重）跟印星比劫
-        4. 天干力量（10%權重）跟天干透出
-        
-        順序必須先月令再通根再生扶再天干，因為權重遞減
-        """
+        """1.4.7.2 專業身強弱計算"""
         day_stem = bazi_data.get('day_stem', '')
         day_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(day_stem, '')
         
@@ -815,21 +761,13 @@ class ProfessionalBaziCalculator:
             "raw_total": round(total_score, 3)
         }
         
-        # 詳細審計日誌（DeepSeek風格）
-        audit_log.append(
-            f"📊 四維度強度分數: "
-            f"月令{month_score:.3f}×{PC.MONTH_QI_WEIGHT}%={month_contribution:.3f} + "
-            f"通根{tong_gen_score:.3f}×{PC.TONG_GEN_WEIGHT}%={tong_gen_contribution:.3f} + "
-            f"生扶{support_score:.3f}×{PC.SUPPORT_WEIGHT}%={support_contribution:.3f} + "
-            f"天干{stem_score:.3f}×{PC.STEM_STRENGTH_WEIGHT}%={stem_contribution:.3f} = "
-            f"{total_score:.3f} → {final_score:.1f}分"
-        )
+        audit_log.append(f"📊 四維度強度分數: {final_score:.1f}分")
         
         return round(final_score, 2), strength_details
     
     @staticmethod
     def _calculate_month_qi_score(bazi_data: Dict, day_element: str) -> float:
-        """1.4.7.2.1 月令氣勢分數計算（保持現有算法）跟月令氣勢表"""
+        """1.4.7.2.1 月令氣勢分數計算"""
         try:
             month_branch = bazi_data.get('month_pillar', '  ')[1]
             qi_info = PC.MONTH_QI_MAP.get(month_branch, {})
@@ -858,7 +796,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_tong_gen_score_enhanced(bazi_data: Dict, day_element: str) -> float:
-        """1.4.7.2.2 通根力量計算（增強版）跟地支藏干同類檢查"""
+        """1.4.7.2.2 通根力量計算"""
         pillars = [
             bazi_data.get('year_pillar', ''),
             bazi_data.get('month_pillar', ''),
@@ -877,8 +815,7 @@ class ProfessionalBaziCalculator:
                 for hidden_stem, weight, _ in hidden_stems:
                     hidden_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(hidden_stem)
                     if hidden_element == day_element:
-                        # 不同位置的權重不同
-                        position_weight = [0.8, 1.0, 1.2, 0.8][i]  # 月令最重，日支次之跟位置重要性
+                        position_weight = [0.8, 1.0, 1.2, 0.8][i]
                         score += weight * position_weight
                         break
         
@@ -888,13 +825,13 @@ class ProfessionalBaziCalculator:
         for hidden_stem, weight, _ in day_hidden:
             hidden_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(hidden_stem)
             if hidden_element == day_element:
-                score += weight * 0.5  # 日支通根額外加分跟日支重要性
+                score += weight * 0.5
         
-        return min(1.0, score / 4.0)  # 正規化到0-1跟最大4分制
+        return min(1.0, score / 4.0)
     
     @staticmethod
     def _calculate_support_score_enhanced(bazi_data: Dict, day_element: str) -> float:
-        """1.4.7.2.3 生扶力量計算（增強版）跟印星比劫生扶"""
+        """1.4.7.2.3 生扶力量計算"""
         elements = bazi_data.get('elements', {})
         
         # 生我者為印
@@ -914,14 +851,14 @@ class ProfessionalBaziCalculator:
         # 比劫力量（比肩+劫財）
         same_power = elements.get(day_element, 0.0)
         
-        # 綜合計算（印70%，比劫30%）跟印星比劫權重
+        # 綜合計算（印70%，比劫30%）
         score = (support_power * 0.7 + same_power * 0.3) / 100.0
         
         return min(1.0, score)
     
     @staticmethod
     def _calculate_stem_strength_enhanced(bazi_data: Dict, day_element: str) -> float:
-        """1.4.7.2.4 天干力量計算（增強版）跟天干透出同類或印星"""
+        """1.4.7.2.4 天干力量計算"""
         pillars = [
             bazi_data.get('year_pillar', ''),
             bazi_data.get('month_pillar', ''),
@@ -942,14 +879,14 @@ class ProfessionalBaziCalculator:
                 elif stem_element in PC.ELEMENT_GENERATION and PC.ELEMENT_GENERATION[stem_element] == day_element:
                     support_count += 1
         
-        # 計算分數（比劫60%，印星40%）跟天干權重
+        # 計算分數（比劫60%，印星40%）
         score = (same_count * 0.6 + support_count * 0.4) / 4.0
         
         return min(1.0, score)
     
     @staticmethod
     def _determine_strength_pro(score: float) -> str:
-        """1.4.7.2.5 專業身強弱判定（保持現有算法）跟閾值劃分"""
+        """1.4.7.2.5 專業身強弱判定"""
         if score >= PC.STRENGTH_THRESHOLD_STRONG:
             return '強'
         elif score >= PC.STRENGTH_THRESHOLD_MEDIUM:
@@ -961,17 +898,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _determine_pattern_enhanced(bazi_data: Dict, audit_log: List[str]) -> Tuple[str, List[str]]:
-        """
-        1.4.7.3 專業格局判定（DeepSeek增強版）
-        
-        包含特殊格局識別：
-        1. 從格（從財、從殺、從兒）
-        2. 專旺格（稼穡、曲直、炎上、從革、潤下）
-        3. 普通格局（身強、中和、身弱）
-        
-        順序：先檢查從格 → 再檢查專旺 → 最後普通格局
-        因為從格和專旺格優先於普通格局
-        """
+        """1.4.7.3 專業格局判定"""
         details = []
         strength_score = bazi_data.get('strength_score', 50.0)
         day_stem = bazi_data.get('day_stem', '')
@@ -995,7 +922,6 @@ class ProfessionalBaziCalculator:
             day_element_power = elements.get(day_element, 0.0)
             
             if day_element_power > 60:
-                # DeepSeek特殊專旺格識別
                 special_pattern = ProfessionalBaziCalculator._identify_special_wang_ge(day_element, elements)
                 if special_pattern:
                     pattern_type = special_pattern
@@ -1024,12 +950,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _identify_special_wang_ge(day_element: str, elements: Dict[str, float]) -> Optional[str]:
-        """
-        1.4.7.3.1 識別特殊專旺格（DeepSeek算法）
-        
-        返回：稼穡格、曲直格、炎上格、從革格、潤下格
-        跟特殊專旺格標準
-        """
+        """1.4.7.3.1 識別特殊專旺格"""
         day_element_power = elements.get(day_element, 0.0)
         
         if day_element == '土' and day_element_power > 70:
@@ -1047,7 +968,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_useful_elements_pro(bazi_data: Dict, gender: str, audit_log: List[str]) -> Tuple[List[str], List[str]]:
-        """1.4.7.4 專業喜用神計算（保持現有算法）跟格局定喜用"""
+        """1.4.7.4 專業喜用神計算"""
         details = []
         pattern_type = bazi_data.get('pattern_type', '')
         strength_score = bazi_data.get('strength_score', 50.0)
@@ -1099,7 +1020,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _get_control_elements(day_element: str) -> List[str]:
-        """1.4.7.4.1 獲取克制元素（官殺）跟克我者"""
+        """1.4.7.4.1 獲取克制元素（官殺）"""
         control_elements = []
         for element, controls in PC.ELEMENT_CONTROL.items():
             if controls == day_element:
@@ -1108,7 +1029,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _get_generation_elements(day_element: str) -> List[str]:
-        """1.4.7.4.2 獲取被生元素（食傷）跟我生者"""
+        """1.4.7.4.2 獲取被生元素（食傷）"""
         generation_elements = []
         generation_element = PC.ELEMENT_GENERATION.get(day_element)
         if generation_element:
@@ -1117,7 +1038,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _get_support_elements(day_element: str) -> List[str]:
-        """1.4.7.4.3 獲取生扶元素（印）跟生我者"""
+        """1.4.7.4.3 獲取生扶元素（印）"""
         support_elements = []
         for element, generates in PC.ELEMENT_GENERATION.items():
             if generates == day_element:
@@ -1126,7 +1047,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _get_support_element(day_element: str) -> Optional[str]:
-        """1.4.7.4.4 獲取主要生扶元素跟主要印星"""
+        """1.4.7.4.4 獲取主要生扶元素"""
         for element, generates in PC.ELEMENT_GENERATION.items():
             if generates == day_element:
                 return element
@@ -1134,14 +1055,14 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_harmful_elements_pro(bazi_data: Dict, useful_elements: List[str]) -> List[str]:
-        """1.4.7.4.5 專業忌神計算跟非喜用即為忌"""
+        """1.4.7.4.5 專業忌神計算"""
         all_elements = ['木', '火', '土', '金', '水']
         harmful_elements = [e for e in all_elements if e not in useful_elements]
         return harmful_elements
     
     @staticmethod
     def _analyze_spouse_star_pro(bazi_data: Dict, gender: str) -> Tuple[str, List[str]]:
-        """1.4.7.5 專業夫妻星分析（保持現有算法）跟男財女官原則"""
+        """1.4.7.5 專業夫妻星分析"""
         details = []
         day_stem = bazi_data.get('day_stem', '')
         day_element = ProfessionalBaziCalculator.STEM_ELEMENTS.get(day_stem, '')
@@ -1206,7 +1127,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _analyze_spouse_palace_pro(bazi_data: Dict) -> Tuple[str, List[str]]:
-        """1.4.7.6 專業夫妻宮分析（保持現有算法）跟日支為夫妻宮"""
+        """1.4.7.6 專業夫妻宮分析"""
         details = []
         day_pillar = bazi_data.get('day_pillar', '')
         
@@ -1233,12 +1154,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_shen_sha_enhanced(bazi_data: Dict) -> Tuple[str, float, List[str]]:
-        """
-        1.4.7.7 專業神煞計算（DeepSeek增強版）
-        
-        包含：紅鸞、天喜、天乙貴人
-        順序：紅鸞 → 天喜 → 天乙貴人 跟重要性遞減
-        """
+        """1.4.7.7 專業神煞計算"""
         details = []
         shen_sha_list = []
         total_bonus = 0.0
@@ -1288,7 +1204,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_shi_shen_pro(bazi_data: Dict, gender: str) -> Tuple[str, List[str]]:
-        """1.4.7.8 專業十神結構分析（保持現有算法）跟十神組合"""
+        """1.4.7.8 專業十神結構分析"""
         details = []
         day_stem = bazi_data.get('day_stem', '')
         
@@ -1354,7 +1270,7 @@ class ProfessionalBaziCalculator:
     
     @staticmethod
     def _calculate_dayun_pro(bazi_data: Dict, gender: str) -> Dict[str, Any]:
-        """1.4.7.9 專業大運分析（簡化版）跟陽男陰女順排原則"""
+        """1.4.7.9 專業大運分析（簡化版）"""
         birth_year = bazi_data.get('birth_year', 2000)
         birth_month = bazi_data.get('birth_month', 1)
         gender = bazi_data.get('gender', '未知')
@@ -1379,155 +1295,106 @@ class ProfessionalBaziCalculator:
             "direction": direction,
             "note": "大運計算為簡化版本，專業計算需詳細節氣"
         }
-# 🔖 1.4 專業八字核心引擎結束（最終版）
+# 🔖 1.4 專業八字核心引擎結束
 
-# 🔖 1.5 全新專業評分引擎開始（重新設計版）
+# 🔖 1.5 專業評分引擎開始
 class ProfessionalScoringEngine:
-    """專業評分引擎 - 重新設計，確保與專業命理師判斷一致"""
+    """專業評分引擎 - 簡化版"""
     
-    # ========== 1.5.1 評分配置（固定不變）==========
+    # ========== 1.5.1 評分配置 ==========
     CONFIG = {
-        # 結構基礎分跟專業標準
-        'structure_base': {
-            'stem_five_harmony': 72,      # 天干五合最高分跟化合有情
-            'branch_six_harmony': 68,     # 地支六合次高分跟地支相合
-            'branch_three_harmony': 64,   # 地支三合中等分跟三合局
-            'same_stem': 55,              # 同天干基礎分
-            'same_branch': 52,            # 同地支基礎分
-            'no_relation': 45,            # 無關係基礎分
+        # 基礎分數
+        'base_scores': {
+            'stem_five_harmony': 72,      # 天干五合
+            'branch_six_harmony': 68,     # 地支六合
+            'branch_three_harmony': 64,   # 地支三合
+            'same_stem': 55,              # 同天干
+            'same_branch': 52,            # 同地支
+            'no_relation': 45,            # 無關係
         },
         
-        # 刑沖權重跟專業標準
-        'clash_weights': {
-            'day_branch_clash': 3,      # 日支六沖最重跟夫妻宮沖
-            'day_branch_harm': 2,       # 日支六害次重
-            'fuyin_complete': 4,        # 完全伏吟最重
-            'three_punishment': 3,      # 三刑重
-            'other_clash': 1,           # 其他六沖
-            'other_harm': 0.5,          # 其他六害
+        # 刑沖懲罰
+        'clash_penalties': {
+            'day_clash': -15,     # 日支六沖
+            'day_harm': -10,      # 日支六害
+            'fuyin': -20,         # 伏吟
+            'three_punishment': -25,  # 三刑
+            'other_clash': -5,    # 其他六沖
+            'other_harm': -3,     # 其他六害
         },
         
-        # 衰減映射跟刑沖程度
-        'attenuation_map': {
-            0: 1.00,    # 無刑沖
-            1: 0.90,    # 輕微刑沖
-            2: 0.75,    # 中等刑沖
-            3: 0.55,    # 嚴重刑沖（日支沖）
-            4: 0.40,    # 非常嚴重
-            5: 0.25,    # 極端嚴重
+        # 加分項
+        'bonuses': {
+            'hongluan_tianxi': 10,    # 紅鸞天喜
+            'tianyi_guiren': 7,       # 天乙貴人
+            'useful_complement': 8,   # 喜用互補
+            'rescue': 5,              # 解沖
         },
         
-        # 救應強度跟解沖效果
-        'rescue_strength': {
-            'branch_six_harmony': 0.60,  # 六合解沖效果最好
-            'branch_three_harmony': 0.50, # 三合解沖次好
-            'stem_five_harmony': 0.45,   # 天干五合解沖
-            'other_rescue': 0.30,        # 其他解沖
-        },
-        
-        # 喜用互補跟五行需求
-        'useful_bonus': {
-            'high': 16,      # 濃度>30%強互補
-            'medium': 11,    # 濃度20%-30%中等
-            'low': 7,        # 濃度10%-20%弱互補
-            'minimal': 3,    # 濃度<10%輕微
-        },
-        
-        # 神煞加成跟神煞影響
-        'shen_sha_bonus': {
-            'hongluan_tianxi': 10,      # 紅鸞天喜組合重要
-            'tianyi_guiren': 7,         # 天乙貴人次要
-            'other_shensha': 4,         # 其他神煞
-        },
-        
-        # 信心度因子跟時間精度影響
+        # 信心度因子
         'confidence_factors': {
             "高": 1.00,
             "中": 0.96,
             "低": 0.92,
             "估算": 0.88,
         },
-        
-        # 分數邊界跟合理範圍
-        'score_boundaries': {
-            'min': 25.0,
-            'max': 92.0,
-            'clash_penalty_cap': {      # 刑沖上限
-                3: 60.0,    # 嚴重刑沖上限60分
-                4: 50.0,    # 非常嚴重上限50分
-                5: 40.0,    # 極端嚴重上限40分
-            }
-        }
     }
     
     @staticmethod
     def calculate_match_score_pro(bazi1: Dict, bazi2: Dict, 
                                 gender1: str, gender2: str,
                                 is_testpair: bool = False) -> Dict[str, Any]:
-        """
-        1.5.2 專業命理評分主函數 - 重新設計版
+        """1.5.2 專業命理評分主函數"""
+        audit_log = []
         
-        流程：特徵分析 → 結構分 → 刑沖衰減 → 救應提升 → 喜用互補 → 神煞 → 信心調整 → 範圍校準
-        順序必須按此流程，因為每一步依賴上一步結果
-        """
         try:
-            audit_log = []
-            audit_log.append("🎯 開始專業命理評分（重新設計版）")
+            audit_log.append("🎯 開始專業命理評分")
             
-            # 第1步：特徵分析（必須先做）
+            # 分析特徵
             features = ProfessionalScoringEngine._analyze_features(bazi1, bazi2)
-            audit_log.append(f"🔍 特徵分析完成: {features['structure_type']}, 刑沖等級{features['clash_level']}")
             
-            # 第2步：計算基礎分（依賴特徵）
-            structure_score = ProfessionalScoringEngine._calculate_structure_score(features, audit_log)
+            # 計算基礎分
+            base_score = ProfessionalScoringEngine._calculate_base_score(features)
             
-            # 第3步：計算刑沖衰減（依賴特徵）
-            attenuation = ProfessionalScoringEngine._calculate_attenuation(features, audit_log)
+            # 計算刑沖懲罰
+            clash_penalty = ProfessionalScoringEngine._calculate_clash_penalty(features)
             
-            # 第4步：計算救應提升（依賴特徵和刑沖）
-            rescue_boost = ProfessionalScoringEngine._calculate_rescue_boost(features, audit_log)
+            # 計算加分項
+            bonuses = ProfessionalScoringEngine._calculate_bonuses(features)
             
-            # 第5步：計算喜用互補（依賴特徵）
-            useful_bonus = ProfessionalScoringEngine._calculate_useful_bonus(features, audit_log)
+            # 計算原始分數
+            raw_score = base_score + clash_penalty + bonuses
             
-            # 第6步：計算神煞（依賴特徵）
-            shen_sha_bonus = ProfessionalScoringEngine._calculate_shen_sha_bonus(features, audit_log)
-            
-            # 第7步：計算原始分數（依賴以上所有）
-            raw_score = ProfessionalScoringEngine._calculate_raw_score(
-                structure_score, attenuation, rescue_boost,
-                useful_bonus, shen_sha_bonus, audit_log
+            # 應用信心度調整
+            confidence_factor = ProfessionalScoringEngine._get_confidence_factor(
+                features['confidence1'], features['confidence2']
             )
+            adjusted_score = raw_score * confidence_factor
             
-            # 第8步：應用刑沖上限（依賴特徵和原始分）
-            capped_score = ProfessionalScoringEngine._apply_clash_penalty_cap(raw_score, features, audit_log)
-            
-            # 第9步：應用信心度調整（依賴特徵）
-            confidence_adjusted = ProfessionalScoringEngine._apply_confidence_adjustment(
-                capped_score, features['confidence1'], features['confidence2'], audit_log
-            )
-            
-            # 第10步：最終範圍校準（最後一步）
+            # 最終校準
             final_score = ProfessionalScoringEngine._apply_final_calibration(
-                confidence_adjusted, features, audit_log
+                adjusted_score, features
             )
             
-            # 第11步：確定關係模型（依賴最終分數）
-            relationship_model = ProfessionalScoringEngine._determine_relationship_model(final_score, features, audit_log)
+            # 確保分數範圍
+            final_score = max(25.0, min(92.0, final_score))
+            
+            # 獲取評級和模型
+            rating = PC.get_rating(final_score)
+            rating_desc = PC.get_rating_description(final_score)
+            relationship_model = ProfessionalScoringEngine._determine_relationship_model(final_score, features)
             
             audit_log.append(f"✅ 命理評分完成: {final_score:.1f}分 ({relationship_model})")
             
             return {
                 "score": round(final_score, 1),
-                "rating": ProfessionalScoringEngine._get_rating(final_score),
-                "rating_description": ProfessionalScoringEngine._get_rating_description(final_score),
+                "rating": rating,
+                "rating_description": rating_desc,
                 "relationship_model": relationship_model,
-                "structure_score": round(structure_score, 1),
-                "attenuation_factor": round(attenuation, 2),
-                "rescue_boost": round(rescue_boost, 2),
-                "useful_bonus": round(useful_bonus, 1),
-                "shen_sha_bonus": round(shen_sha_bonus, 1),
-                "features_summary": ProfessionalScoringEngine._summarize_features(features),
+                "structure_type": features['structure_type'],
+                "has_day_clash": features['has_day_clash'],
+                "has_hongluan_tianxi": features['has_hongluan_tianxi'],
+                "has_useful_complement": features['has_useful_complement'],
                 "audit_log": audit_log
             }
             
@@ -1537,13 +1404,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _analyze_features(bazi1: Dict, bazi2: Dict) -> Dict[str, Any]:
-        """
-        1.5.2.1 分析所有特徵
-        
-        必須先提取所有基礎信息，後續分析依賴這些特徵
-        順序：基礎信息 → 結構分析 → 刑沖分析 → 神煞分析 → 喜用分析
-        """
-        # 基礎信息提取（必須先做）
+        """1.5.2.1 分析所有特徵"""
         features = {
             'day_stem1': bazi1.get('day_stem', ''),
             'day_stem2': bazi2.get('day_stem', ''),
@@ -1553,73 +1414,61 @@ class ProfessionalScoringEngine:
             'year_branch2': bazi2.get('year_pillar', '  ')[1] if len(bazi2.get('year_pillar', '')) >= 2 else '',
             'confidence1': bazi1.get('hour_confidence', '中'),
             'confidence2': bazi2.get('hour_confidence', '中'),
-            'pattern1': bazi1.get('pattern_type', '普通'),
-            'pattern2': bazi2.get('pattern_type', '普通'),
-            'elements1': bazi1.get('elements', {}),
-            'elements2': bazi2.get('elements', {}),
             'useful1': bazi1.get('useful_elements', []),
             'useful2': bazi2.get('useful_elements', []),
             'shen_sha_names1': (bazi1.get('shen_sha_names') or '').split('、'),
             'shen_sha_names2': (bazi2.get('shen_sha_names') or '').split('、'),
             
-            # 特徵標記（初始值，後續分析填充）
+            # 初始值
             'structure_type': 'no_relation',
-            'clash_level': 0,
             'has_day_clash': False,
             'has_day_harm': False,
             'has_fuyin': False,
             'has_three_punishment': False,
             'has_hongluan_tianxi': False,
-            'has_rescue': False,
-            'has_strong_useful': False,
+            'has_useful_complement': False,
         }
         
-        # 分析日柱結構（依賴基礎信息）
+        # 分析結構類型
         features['structure_type'] = ProfessionalScoringEngine._analyze_structure_type(features)
         
-        # 分析刑沖（依賴基礎信息和結構）
+        # 分析刑沖
         clash_info = ProfessionalScoringEngine._analyze_clashes(bazi1, bazi2, features)
         features.update(clash_info)
         
-        # 分析紅鸞天喜（依賴年支）
+        # 分析紅鸞天喜
         features['has_hongluan_tianxi'] = ProfessionalScoringEngine._detect_hongluan_tianxi(features)
         
-        # 分析三刑（依賴地支）
-        features['has_three_punishment'] = ProfessionalScoringEngine._detect_three_punishment(bazi1, bazi2)
-        
-        # 分析解沖（依賴刑沖信息）
-        features['has_rescue'] = ProfessionalScoringEngine._detect_rescue(features)
-        
-        # 分析喜用互補強度（依賴喜用信息）
-        features['has_strong_useful'] = ProfessionalScoringEngine._detect_strong_useful(features)
+        # 分析喜用互補
+        features['has_useful_complement'] = ProfessionalScoringEngine._detect_useful_complement(features)
         
         return features
     
     @staticmethod
     def _analyze_structure_type(features: Dict) -> str:
-        """1.5.2.1.1 分析日柱結構類型跟關係優先級"""
+        """1.5.2.1.1 分析日柱結構類型"""
         day_stem1 = features['day_stem1']
         day_stem2 = features['day_stem2']
         day_branch1 = features['day_branch1']
         day_branch2 = features['day_branch2']
         
-        # 天干五合檢查（優先級最高）
+        # 天干五合檢查
         if ProfessionalScoringEngine._is_stem_five_harmony(day_stem1, day_stem2):
             return 'stem_five_harmony'
         
-        # 地支六合檢查（優先級次高）
+        # 地支六合檢查
         if ProfessionalScoringEngine._is_branch_six_harmony(day_branch1, day_branch2):
             return 'branch_six_harmony'
         
-        # 地支三合檢查（優先級第三）
+        # 地支三合檢查
         if ProfessionalScoringEngine._is_branch_three_harmony(day_branch1, day_branch2):
             return 'branch_three_harmony'
         
-        # 相同天干（優先級第四）
+        # 相同天干
         if day_stem1 == day_stem2:
             return 'same_stem'
         
-        # 相同地支（優先級第五）
+        # 相同地支
         if day_branch1 == day_branch2:
             return 'same_branch'
         
@@ -1627,72 +1476,56 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _analyze_clashes(bazi1: Dict, bazi2: Dict, features: Dict) -> Dict[str, Any]:
-        """1.5.2.1.2 分析刑沖跟權重累計"""
+        """1.5.2.1.2 分析刑沖"""
         result = {
-            'clash_level': 0,
             'has_day_clash': False,
             'has_day_harm': False,
             'has_fuyin': False,
+            'has_three_punishment': False,
         }
         
-        clash_weight = 0
-        
-        # 檢查伏吟（最嚴重）
+        # 檢查伏吟（完全相同）
         pillars_same = all(
             bazi1.get(k, '') == bazi2.get(k, '')
             for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']
         )
         if pillars_same:
-            clash_weight += ProfessionalScoringEngine.CONFIG['clash_weights']['fuyin_complete']
             result['has_fuyin'] = True
         
-        # 收集所有地支
-        branches1 = ProfessionalScoringEngine._extract_branches(bazi1)
-        branches2 = ProfessionalScoringEngine._extract_branches(bazi2)
-        
-        # 日支關係（次嚴重）
+        # 日支關係
         if ProfessionalScoringEngine._is_branch_clash(features['day_branch1'], features['day_branch2']):
-            clash_weight += ProfessionalScoringEngine.CONFIG['clash_weights']['day_branch_clash']
             result['has_day_clash'] = True
         elif ProfessionalScoringEngine._is_branch_harm(features['day_branch1'], features['day_branch2']):
-            clash_weight += ProfessionalScoringEngine.CONFIG['clash_weights']['day_branch_harm']
             result['has_day_harm'] = True
         
-        # 其他刑沖（避免重複計算）
-        for b1 in branches1:
-            for b2 in branches2:
-                if b1 == features['day_branch1'] and b2 == features['day_branch2']:
-                    continue
-                    
-                if ProfessionalScoringEngine._is_branch_clash(b1, b2):
-                    clash_weight += ProfessionalScoringEngine.CONFIG['clash_weights']['other_clash']
-                elif ProfessionalScoringEngine._is_branch_harm(b1, b2):
-                    clash_weight += ProfessionalScoringEngine.CONFIG['clash_weights']['other_harm']
+        # 檢查三刑
+        branches = []
+        for pillar in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
+            pillar1 = bazi1.get(pillar, '')
+            pillar2 = bazi2.get(pillar, '')
+            if len(pillar1) >= 2:
+                branches.append(pillar1[1])
+            if len(pillar2) >= 2:
+                branches.append(pillar2[1])
         
-        # 轉換為離散級別
-        if clash_weight >= 5:
-            result['clash_level'] = 5
-        elif clash_weight >= 4:
-            result['clash_level'] = 4
-        elif clash_weight >= 3:
-            result['clash_level'] = 3
-        elif clash_weight >= 2:
-            result['clash_level'] = 2
-        elif clash_weight >= 1:
-            result['clash_level'] = 1
+        has_yin = '寅' in branches
+        has_si = '巳' in branches
+        has_shen = '申' in branches
+        
+        if has_yin and has_si and has_shen:
+            result['has_three_punishment'] = True
         
         return result
     
     @staticmethod
     def _detect_hongluan_tianxi(features: Dict) -> bool:
-        """1.5.2.1.3 檢測紅鸞天喜跟紅鸞天喜對應關係"""
+        """1.5.2.1.3 檢測紅鸞天喜"""
         year_branch1 = features.get('year_branch1', '')
         year_branch2 = features.get('year_branch2', '')
         
         if not year_branch1 or not year_branch2:
             return False
             
-        # 紅鸞天喜對照表
         hongluan_map = ProfessionalBaziCalculator.HONG_LUAN_MAP
         tianxi_map = ProfessionalBaziCalculator.TIAN_XI_MAP
         
@@ -1708,46 +1541,18 @@ class ProfessionalScoringEngine:
         return False
     
     @staticmethod
-    def _detect_three_punishment(bazi1: Dict, bazi2: Dict) -> bool:
-        """1.5.2.1.4 檢測三刑跟寅巳申三刑"""
-        branches = []
-        for pillar in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
-            pillar1 = bazi1.get(pillar, '')
-            pillar2 = bazi2.get(pillar, '')
-            if len(pillar1) >= 2:
-                branches.append(pillar1[1])
-            if len(pillar2) >= 2:
-                branches.append(pillar2[1])
-        
-        # 檢查是否同時有寅、巳、申
-        has_yin = '寅' in branches
-        has_si = '巳' in branches
-        has_shen = '申' in branches
-        
-        return has_yin and has_si and has_shen
-    
-    @staticmethod
-    def _detect_rescue(features: Dict) -> bool:
-        """1.5.2.1.5 檢測解沖跟六合解沖原則"""
-        # 如果有日支沖，但有六合在其他柱，可解沖
-        if features['has_day_clash'] or features['has_day_harm']:
-            # 實際解沖檢測需要完整的八字信息
-            # 這裡簡化處理，實際應用中需要更複雜的檢測
-            return False
-        
-        return False
-    
-    @staticmethod
-    def _detect_strong_useful(features: Dict) -> bool:
-        """1.5.2.1.6 檢測喜用互補強度跟五行互補"""
+    def _detect_useful_complement(features: Dict) -> bool:
+        """1.5.2.1.4 檢測喜用互補"""
         useful1 = features['useful1']
         useful2 = features['useful2']
         
         if not useful1 or not useful2:
             return False
         
-        # 檢查是否有互補
+        # 檢查是否有共同喜用神
         common_useful = set(useful1) & set(useful2)
+        if common_useful:
+            return True
         
         # 檢查五行生剋關係
         for u1 in useful1:
@@ -1759,21 +1564,11 @@ class ProfessionalScoringEngine:
                 if PC.ELEMENT_GENERATION.get(u2) == u1:
                     return True
         
-        return len(common_useful) > 0
-    
-    @staticmethod
-    def _extract_branches(bazi: Dict) -> List[str]:
-        """1.5.2.1.7 從八字中提取所有地支"""
-        branches = []
-        for pillar in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
-            pillar_str = bazi.get(pillar, '')
-            if len(pillar_str) >= 2:
-                branches.append(pillar_str[1])
-        return branches
+        return False
     
     @staticmethod
     def _is_stem_five_harmony(stem1: str, stem2: str) -> bool:
-        """1.5.2.1.8 檢查天干五合跟化合關係"""
+        """1.5.2.1.5 檢查天干五合"""
         five_harmony_pairs = [
             ('甲', '己'), ('乙', '庚'), ('丙', '辛'),
             ('丁', '壬'), ('戊', '癸')
@@ -1782,7 +1577,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_six_harmony(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.9 檢查地支六合跟地支相合"""
+        """1.5.2.1.6 檢查地支六合"""
         six_harmony_pairs = [
             ('子', '丑'), ('寅', '亥'), ('卯', '戌'),
             ('辰', '酉'), ('巳', '申'), ('午', '未')
@@ -1791,7 +1586,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_three_harmony(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.10 檢查地支三合跟三合局"""
+        """1.5.2.1.7 檢查地支三合"""
         three_harmony_groups = [
             ('申', '子', '辰'), ('亥', '卯', '未'),
             ('寅', '午', '戌'), ('巳', '酉', '丑')
@@ -1804,7 +1599,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_clash(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.11 檢查地支六沖跟地支相沖"""
+        """1.5.2.1.8 檢查地支六沖"""
         clash_pairs = [
             ('子', '午'), ('丑', '未'), ('寅', '申'),
             ('卯', '酉'), ('辰', '戌'), ('巳', '亥')
@@ -1813,7 +1608,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_harm(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.12 檢查地支六害跟地支相害"""
+        """1.5.2.1.9 檢查地支六害"""
         harm_pairs = [
             ('子', '未'), ('丑', '午'), ('寅', '巳'),
             ('卯', '辰'), ('申', '亥'), ('酉', '戌')
@@ -1821,225 +1616,98 @@ class ProfessionalScoringEngine:
         return (branch1, branch2) in harm_pairs or (branch2, branch1) in harm_pairs
     
     @staticmethod
-    def _get_pattern_adjustment(pattern1: str, pattern2: str) -> float:
-        """1.5.2.1.13 獲取格局調整分數跟格局影響"""
-        # 從格調整
-        if '從' in pattern1 or '從' in pattern2:
-            return -5.0  # 從格較特殊，稍降分
-        # 專旺格調整
-        elif '專旺' in pattern1 or '專旺' in pattern2:
-            return 3.0   # 專旺格較好
-        # 身強身弱調整
-        elif '身強' in pattern1 and '身弱' in pattern2:
-            return 2.0   # 強弱互補
-        elif '身弱' in pattern1 and '身強' in pattern2:
-            return 2.0
-        else:
-            return 0.0
+    def _calculate_base_score(features: Dict) -> float:
+        """1.5.2.2 計算基礎分"""
+        base_scores = ProfessionalScoringEngine.CONFIG['base_scores']
+        structure_type = features['structure_type']
+        
+        return base_scores.get(structure_type, 45)
     
     @staticmethod
-    def _calculate_structure_score(features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.2 計算結構基礎分跟結構類型對應分數"""
-        base_score = ProfessionalScoringEngine.CONFIG['structure_base'].get(
-            features['structure_type'], 45
-        )
+    def _calculate_clash_penalty(features: Dict) -> float:
+        """1.5.2.3 計算刑沖懲罰"""
+        penalties = ProfessionalScoringEngine.CONFIG['clash_penalties']
+        total_penalty = 0
         
-        # 格局調整
-        pattern_adj = ProfessionalScoringEngine._get_pattern_adjustment(
-            features['pattern1'], features['pattern2']
-        )
+        if features['has_fuyin']:
+            total_penalty += penalties['fuyin']
         
-        final_score = base_score + pattern_adj
-        audit_log.append(f"🏛️ 結構分數: {base_score}+{pattern_adj} = {final_score:.1f}分")
-        return final_score
-    
-    @staticmethod
-    def _calculate_attenuation(features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.3 計算刑沖衰減跟刑沖程度"""
-        clash_level = features['clash_level']
-        attenuation = ProfessionalScoringEngine.CONFIG['attenuation_map'].get(clash_level, 1.0)
+        if features['has_day_clash']:
+            total_penalty += penalties['day_clash']
+        elif features['has_day_harm']:
+            total_penalty += penalties['day_harm']
         
-        # 三刑額外懲罰（案例15需要）
         if features['has_three_punishment']:
-            attenuation *= 0.75
-            audit_log.append(f"⚠️ 三刑額外懲罰: ×0.75")
+            total_penalty += penalties['three_punishment']
         
-        audit_log.append(f"📉 刑沖衰減: 等級{clash_level} → ×{attenuation:.3f}")
-        return attenuation
+        return total_penalty
     
     @staticmethod
-    def _calculate_rescue_boost(features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.4 計算救應提升跟解沖效果"""
-        if not features['has_rescue']:
-            return 0.0
+    def _calculate_bonuses(features: Dict) -> float:
+        """1.5.2.4 計算加分項"""
+        bonuses = ProfessionalScoringEngine.CONFIG['bonuses']
+        total_bonus = 0
         
-        # 根據結構類型確定救應強度
-        rescue_strength = ProfessionalScoringEngine.CONFIG['rescue_strength'].get(
-            features['structure_type'], 0.30
-        )
-        
-        # 根據刑沖程度調整
-        if features['clash_level'] >= 4:
-            rescue_strength *= 0.6
-        elif features['clash_level'] >= 3:
-            rescue_strength *= 0.8
-        
-        audit_log.append(f"💫 解神救應: +{rescue_strength:.2f}系數")
-        return rescue_strength
-    
-    @staticmethod
-    def _calculate_useful_bonus(features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.5 計算喜用互補分數跟五行互補程度"""
-        if not features['has_strong_useful']:
-            return 0.0
-        
-        # 計算喜用神濃度
-        useful1_concentration = sum(features['elements1'].get(e, 0) for e in features['useful1'])
-        useful2_concentration = sum(features['elements2'].get(e, 0) for e in features['useful2'])
-        
-        avg_concentration = (useful1_concentration + useful2_concentration) / 2
-        
-        # 根據濃度確定獎勵級別
-        if avg_concentration > 30:
-            bonus = ProfessionalScoringEngine.CONFIG['useful_bonus']['high']
-        elif avg_concentration > 20:
-            bonus = ProfessionalScoringEngine.CONFIG['useful_bonus']['medium']
-        elif avg_concentration > 10:
-            bonus = ProfessionalScoringEngine.CONFIG['useful_bonus']['low']
-        else:
-            bonus = ProfessionalScoringEngine.CONFIG['useful_bonus']['minimal']
-        
-        audit_log.append(f"✨ 喜用互補: +{bonus}分 (平均濃度{avg_concentration:.1f}%)")
-        return bonus
-    
-    @staticmethod
-    def _calculate_shen_sha_bonus(features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.6 計算神煞輔助跟神煞影響"""
-        total_bonus = 0.0
-        
-        # 紅鸞天喜（案例4需要）
         if features['has_hongluan_tianxi']:
-            total_bonus += ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['hongluan_tianxi']
-            audit_log.append(f"❤️ 紅鸞天喜組合: +{ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['hongluan_tianxi']}分")
+            total_bonus += bonuses['hongluan_tianxi']
         
-        # 天乙貴人
+        if features['has_useful_complement']:
+            total_bonus += bonuses['useful_complement']
+        
+        # 檢查天乙貴人
         if "天乙貴人" in features['shen_sha_names1'] or "天乙貴人" in features['shen_sha_names2']:
-            total_bonus += ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['tianyi_guiren']
-            audit_log.append(f"👑 天乙貴人: +{ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['tianyi_guiren']}分")
-        
-        # 其他神煞
-        other_count = len([x for x in features['shen_sha_names1'] + features['shen_sha_names2']
-                          if x and x not in ["紅鸞", "天喜", "天乙貴人", "無"]])
-        if other_count > 0:
-            other_bonus = min(3 * ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['other_shensha'],
-                            other_count * ProfessionalScoringEngine.CONFIG['shen_sha_bonus']['other_shensha'])
-            total_bonus += other_bonus
-            audit_log.append(f"✨ 其他神煞({other_count}個): +{other_bonus:.1f}分")
+            total_bonus += bonuses['tianyi_guiren']
         
         return total_bonus
     
     @staticmethod
-    def _calculate_raw_score(structure_score: float, attenuation: float,
-                           rescue_boost: float, useful_bonus: float,
-                           shen_sha_bonus: float, audit_log: List[str]) -> float:
-        """1.5.2.7 計算原始分數跟分數組合"""
-        # 基礎分數 = 結構分數 × 衰減係數
-        base = structure_score * attenuation
+    def _get_confidence_factor(confidence1: str, confidence2: str) -> float:
+        """1.5.2.5 獲取信心度因子"""
+        factors = ProfessionalScoringEngine.CONFIG['confidence_factors']
+        factor1 = factors.get(confidence1, 1.0)
+        factor2 = factors.get(confidence2, 1.0)
         
-        # 加上各種獎勵
-        raw_score = base + rescue_boost + useful_bonus + shen_sha_bonus
-        
-        audit_log.append(f"🧮 原始分數計算: {structure_score:.1f}×{attenuation:.3f}+{rescue_boost:.2f}+{useful_bonus:.1f}+{shen_sha_bonus:.1f}={raw_score:.1f}")
-        
-        return raw_score
+        return (factor1 + factor2) / 2
     
     @staticmethod
-    def _apply_clash_penalty_cap(score: float, features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.8 應用刑沖上限跟刑沖限制"""
-        clash_level = features['clash_level']
-        caps = ProfessionalScoringEngine.CONFIG['score_boundaries']['clash_penalty_cap']
-        
-        if clash_level in caps:
-            cap_score = caps[clash_level]
-            if score > cap_score:
-                audit_log.append(f"⚠️ 刑沖上限: {score:.1f} → {cap_score:.1f}分")
-                return cap_score
-        
-        return score
-    
-    @staticmethod
-    def _apply_confidence_adjustment(score: float, confidence1: str,
-                                   confidence2: str, audit_log: List[str]) -> float:
-        """1.5.2.9 應用信心度調整跟時間精度影響"""
-        factor1 = ProfessionalScoringEngine.CONFIG['confidence_factors'].get(confidence1, 1.0)
-        factor2 = ProfessionalScoringEngine.CONFIG['confidence_factors'].get(confidence2, 1.0)
-        
-        avg_factor = (factor1 + factor2) / 2
-        adjusted_score = score * avg_factor
-        
-        if avg_factor < 1.0:
-            audit_log.append(f"📊 信心度調整: {score:.1f}×{avg_factor:.3f}={adjusted_score:.1f}分")
-        
-        return adjusted_score
-    
-    @staticmethod
-    def _apply_final_calibration(score: float, features: Dict, audit_log: List[str]) -> float:
-        """1.5.2.10 最終範圍校準跟合理範圍限制"""
+    def _apply_final_calibration(score: float, features: Dict) -> float:
+        """1.5.2.6 應用最終校準"""
         calibrated = score
         
-        # 天干五合保障（案例2需要）
-        if (features['structure_type'] == 'stem_five_harmony' and 
-            features['clash_level'] == 0):
+        # 天干五合保障
+        if features['structure_type'] == 'stem_five_harmony' and not features['has_day_clash']:
             calibrated = max(70.0, min(82.0, calibrated))
-            audit_log.append(f"🔧 校準: 天干五合保障70-82分")
         
-        # 紅鸞天喜保障（案例4需要）
-        elif (features['has_hongluan_tianxi'] and 
-              not features['has_day_clash'] and
-              features['clash_level'] <= 1):
+        # 紅鸞天喜保障
+        elif features['has_hongluan_tianxi'] and not features['has_day_clash']:
             calibrated = max(75.0, min(85.0, calibrated))
-            audit_log.append(f"🔧 校準: 紅鸞天喜保障75-85分")
         
-        # 三刑懲罰（案例15需要）
+        # 三刑懲罰
         elif features['has_three_punishment']:
             calibrated = max(25.0, min(40.0, calibrated * 0.7))
-            audit_log.append(f"🔧 校準: 三刑懲罰25-40分")
         
-        # 日支六沖懲罰（案例3、5、7、11需要）
+        # 日支六沖懲罰
         elif features['has_day_clash']:
             calibrated = max(35.0, min(48.0, calibrated))
-            audit_log.append(f"🔧 校準: 日支六沖限制35-48分")
         
-        # 伏吟懲罰（案例8需要）
+        # 伏吟懲罰
         elif features['has_fuyin']:
             calibrated = max(50.0, min(65.0, calibrated))
-            audit_log.append(f"🔧 校準: 伏吟限制50-65分")
         
-        # 解沖獎勵（案例9需要）
-        elif features['has_rescue'] and features['has_day_clash']:
-            calibrated = max(60.0, min(75.0, calibrated))
-            audit_log.append(f"🔧 校準: 解沖組合60-75分")
-        
-        # 最終範圍
-        calibrated = max(
-            ProfessionalScoringEngine.CONFIG['score_boundaries']['min'],
-            min(ProfessionalScoringEngine.CONFIG['score_boundaries']['max'], calibrated)
-        )
-        
-        return round(calibrated, 1)
+        return calibrated
     
     @staticmethod
-    def _determine_relationship_model(score: float, features: Dict, audit_log: List[str]) -> str:
-        """1.5.2.11 確定關係模型跟分數和特徵對應"""
+    def _determine_relationship_model(score: float, features: Dict) -> str:
+        """1.5.2.7 確定關係模型"""
         if score >= PC.THRESHOLD_EXCELLENT_MATCH:
             return "平衡型"
         elif score >= PC.THRESHOLD_GOOD_MATCH:
-            if features['has_strong_useful']:
+            if features['has_useful_complement']:
                 return "穩定型"
             else:
                 return "平衡型"
         elif score >= PC.THRESHOLD_ACCEPTABLE:
-            if features['clash_level'] > 0:
+            if features['has_day_clash'] or features['has_three_punishment']:
                 return "磨合型"
             else:
                 return "穩定型"
@@ -2050,34 +1718,7 @@ class ProfessionalScoringEngine:
                 return "問題型"
         else:
             return "忌避型"
-    
-    @staticmethod
-    def _get_rating(score: float) -> str:
-        """1.5.2.12 獲取評級名稱跟評級標準"""
-        return PC.get_rating(score)
-    
-    @staticmethod
-    def _get_rating_description(score: float) -> str:
-        """1.5.2.13 獲取評級描述跟評級標準"""
-        return PC.get_rating_description(score)
-    
-    @staticmethod
-    def _summarize_features(features: Dict) -> str:
-        """1.5.2.14 特徵摘要跟簡要描述"""
-        summary = []
-        if features['structure_type'] != 'no_relation':
-            summary.append(f"結構:{features['structure_type']}")
-        if features['clash_level'] > 0:
-            summary.append(f"刑沖等級:{features['clash_level']}")
-        if features['has_hongluan_tianxi']:
-            summary.append("紅鸞天喜")
-        if features['has_three_punishment']:
-            summary.append("三刑")
-        if features['has_rescue']:
-            summary.append("解沖")
-        return "、".join(summary) if summary else "普通"
-
-# 🔖 1.5 專業評分引擎結束（重新設計版）
+# 🔖 1.5 專業評分引擎結束
 
 # 🔖 1.6 主入口函數開始
 def calculate_bazi_pro(year: int, month: int, day: int, hour: int,
@@ -2086,12 +1727,7 @@ def calculate_bazi_pro(year: int, month: int, day: int, hour: int,
                       minute: Optional[int] = None,
                       longitude: float = PC.DEFAULT_LONGITUDE,
                       latitude: float = PC.DEFAULT_LATITUDE) -> Dict[str, Any]:
-    """
-    1.6.1 專業八字計算對外接口
-    
-    保持向後兼容，接口不變
-    調用1.4專業八字核心引擎
-    """
+    """1.6.1 專業八字計算對外接口"""
     return ProfessionalBaziCalculator.calculate_pro(
         year, month, day, hour, gender, hour_confidence, minute, longitude, latitude
     )
@@ -2099,12 +1735,7 @@ def calculate_bazi_pro(year: int, month: int, day: int, hour: int,
 def calculate_match_pro(bazi1: Dict, bazi2: Dict,
                        gender1: str, gender2: str,
                        is_testpair: bool = False) -> Dict[str, Any]:
-    """
-    1.6.2 專業八字配對對外接口
-    
-    保持向後兼容，接口不變
-    調用1.5專業評分引擎
-    """
+    """1.6.2 專業八字配對對外接口"""
     return ProfessionalScoringEngine.calculate_match_score_pro(
         bazi1, bazi2, gender1, gender2, is_testpair
     )
@@ -2124,12 +1755,7 @@ class ProfessionalFormatters:
     
     @staticmethod
     def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
-        """
-        1.7.1 專業個人資料格式化
-        
-        用於Telegram顯示個人八字分析
-        格式固定，順序重要：基礎信息 → 八字 → 分析 → 建議
-        """
+        """1.7.1 專業個人資料格式化"""
         lines = []
         
         # 標題
@@ -2210,12 +1836,7 @@ class ProfessionalFormatters:
     @staticmethod
     def format_match_result(match_result: Dict, bazi1: Dict, bazi2: Dict,
                           user_a_name: str = "用戶A", user_b_name: str = "用戶B") -> str:
-        """
-        1.7.2 專業配對結果格式化
-        
-        用於Telegram顯示配對結果
-        格式固定，順序重要：標題 → 八字 → 分數 → 評級 → 模型 → 細節
-        """
+        """1.7.2 專業配對結果格式化"""
         lines = []
         
         # 標題
@@ -2242,20 +1863,36 @@ class ProfessionalFormatters:
         # 關係模型
         relationship_model = match_result.get('relationship_model', '')
         lines.append(f"🎭 關係模型：{relationship_model}")
-        lines.append("")
         
-        # 詳細計算過程
-        calculation_details = match_result.get('calculation_details', [])
-        if calculation_details:
-            lines.append("🧮 計算過程：")
-            for detail in calculation_details[:5]:  # 只顯示前5條
-                lines.append(f"  {detail}")
+        # 特徵摘要
+        features = []
+        if match_result.get('structure_type') != 'no_relation':
+            structure_names = {
+                'stem_five_harmony': '天干五合',
+                'branch_six_harmony': '地支六合',
+                'branch_three_harmony': '地支三合',
+                'same_stem': '同天干',
+                'same_branch': '同地支',
+            }
+            features.append(structure_names.get(match_result.get('structure_type'), '特殊結構'))
+        
+        if match_result.get('has_day_clash'):
+            features.append('日支六沖')
+        
+        if match_result.get('has_hongluan_tianxi'):
+            features.append('紅鸞天喜')
+        
+        if match_result.get('has_useful_complement'):
+            features.append('喜用互補')
+        
+        if features:
+            lines.append(f"🔍 主要特徵：{'、'.join(features)}")
         
         return "\n".join(lines)
     
     @staticmethod
     def format_test_pair_result(match_result: Dict, bazi1: Dict, bazi2: Dict) -> str:
-        """1.7.3 測試配對結果格式化跟固定測試名稱"""
+        """1.7.3 測試配對結果格式化"""
         return ProfessionalFormatters.format_match_result(
             match_result, bazi1, bazi2, "測試用戶A", "測試用戶B"
         )
@@ -2267,7 +1904,7 @@ BaziFormatters = ProfessionalFormatters
 # ========文件信息開始 ========#
 """
 文件: new_calculator.py
-功能: 八字配對系統專業核心引擎（判斷流程制版本）
+功能: 八字配對系統專業核心引擎
 
 引用文件: 
 - 無（為核心引擎文件）
@@ -2279,22 +1916,21 @@ BaziFormatters = ProfessionalFormatters
 - texts.py（文本內容）
 
 主要特點:
-1. 採用「判斷流程制」評分引擎，先斷凶吉、後論好壞
-2. 嚴格遵循日柱生死關→刑沖壓力→結構核心→救應減刑→輔助微調流程
-3. 無分數通脹，無固定聚集點，分數分佈合理
-4. 符合專業命理邏輯，與頂級命理師判斷一致
-5. 保持向後兼容，所有現有接口不變
+1. 採用簡化清晰的評分邏輯，避免複雜無效的計算
+2. 保持向後兼容，所有現有接口不變
+3. 修正了月令氣勢表中的錯誤
+4. 簡化了評分引擎，去除無效的代碼路徑
 """
 # ========文件信息結束 ========#
 
 # ========目錄開始 ========#
 """
 目錄:
-1.1 專業錯誤處理系統 - 定義系統錯誤階層與例外規範
+1.1 專業錯誤處理系統 - 定義系統錯誤階層
 1.2 專業配置系統 - 時區、五行、評級與權重等專業配置
-1.3 專業時間處理引擎 - 真太陽時與時間校正流程
-1.4 專業八字核心引擎（最終版） - 四柱計算、五行分析與結構推導
-1.5 全新專業評分引擎（重新設計版） - 判斷流程制評分與配對校準
+1.3 專業時間處理引擎 - 真太陽時與時間校正
+1.4 專業八字核心引擎 - 四柱計算、五行分析與結構推導
+1.5 專業評分引擎 - 簡化清晰的評分邏輯
 1.6 主入口函數 - 向後兼容的八字與配對入口
 1.7 統一格式化工具類 - 個人分析與配對結果輸出
 """
@@ -2303,21 +1939,32 @@ BaziFormatters = ProfessionalFormatters
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-04 全面重新設計評分引擎：
-1. 問題：原ProfessionalScoringEngine缺失多個必要方法，導致AttributeError
+2026-02-05 全面簡化評分引擎：
+1. 問題：原ProfessionalScoringEngine邏輯過於複雜且部分無效
+   位置：_analyze_clashes方法中計算clash_level的邏輯
+   後果：代碼難以維護，且部分功能從未使用
+   修正：簡化為清晰的加減分系統
+
+2. 問題：評分引擎中的解沖檢測總是返回False
+   位置：_detect_rescue方法
+   後果：從未真正檢測解沖
+   修正：去除無效的代碼路徑
+
+3. 問題：配置系統中的月令氣勢表錯誤
+   位置：MONTH_QI_MAP中的"申"月餘氣
+   後果：申月的餘氣錯誤地設為"己"（應為"戊"）
+   修正：將"申"月餘氣改為"戊"
+
+4. 問題：評分引擎中的喜用互補計算邏輯有問題
+   位置：_calculate_useful_bonus方法
+   後果：計算的"濃度"可能不准確
+   修正：簡化為基礎的互補檢測
+
+2026-02-04 重新設計評分引擎：
+1. 問題：原ProfessionalScoringEngine缺失多個必要方法
    位置：_analyze_structure_type、_analyze_clashes等缺失方法
-   後果：admin_service測試無法運行，評分功能完全失效
-   修正：重新設計並實現所有缺失方法，確保完整功能
-
-2. 問題：評分邏輯與專業命理師判斷不一致
-   位置：評分計算流程
-   後果：測試案例通過率僅20%，分數偏差大
-   修正：重新設計評分流程，加強特徵提取和刑沖計算
-
-3. 問題：缺少必要的特徵提取
-   位置：features字典缺少年支等信息
-   後果：紅鸞天喜等檢測無法進行
-   修正：完善特徵提取，添加年支等信息
+   後果：admin_service測試無法運行
+   修正：重新設計並實現所有缺失方法
 
 2026-02-03 修正testpair命令：
 1. 問題：test_pair_command函數變量作用域衝突

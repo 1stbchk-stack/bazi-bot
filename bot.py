@@ -11,6 +11,7 @@ from typing import Dict, List, Tuple, Any, Optional
 
 import psycopg2
 from psycopg2.extras import RealDictCursor
+from psycopg2 import pool
 
 from telegram import (
     Update,
@@ -31,24 +32,13 @@ from telegram.ext import (
 
 # 導入新的計算核心
 from new_calculator import (
-    # 八字計算器
     BaziCalculator,
-    
-    # 評分引擎
     ScoringEngine,
-    
-    # 主入口函數
     calculate_match,
     calculate_bazi,
-    
-    # 錯誤處理
     BaziError,
     MatchError,
-    
-    # 配置常數
     ProfessionalConfig as Config,
-    
-    # 統一格式化工具類
     BaziFormatters
 )
 
@@ -108,6 +98,9 @@ if ADMIN_USER_IDS_STR:
     except Exception as e:
         logger.error(f"解析管理員ID失敗: {e}")
         ADMIN_USER_IDS = []
+
+# 數據庫連接池
+db_pool = None
 
 # 對話狀態
 (
@@ -177,197 +170,273 @@ def check_admin_only(func):
 # ========1.3 維護模式檢查結束 ========#
 
 # ========1.4 數據庫工具開始 ========#
-def get_conn():
-    """獲取 PostgreSQL 數據庫連接"""
+def init_db_pool():
+    """初始化數據庫連接池"""
+    global db_pool
     try:
-        conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+        db_pool = psycopg2.pool.SimpleConnectionPool(
+            1,  # 最小連接數
+            10, # 最大連接數
+            DATABASE_URL,
+            sslmode='require'
+        )
+        logger.info("數據庫連接池初始化成功")
+    except Exception as e:
+        logger.error(f"數據庫連接池初始化失敗: {e}")
+        raise
+
+def get_db_connection():
+    """從連接池獲取數據庫連接"""
+    global db_pool
+    if db_pool is None:
+        init_db_pool()
+    
+    try:
+        conn = db_pool.getconn()
         return conn
     except Exception as e:
-        logger.error(f"PostgreSQL 連接失敗: {e}")
-        raise
+        logger.error(f"從連接池獲取連接失敗: {e}")
+        # 嘗試直接連接
+        try:
+            conn = psycopg2.connect(DATABASE_URL, sslmode='require')
+            return conn
+        except Exception as e2:
+            logger.error(f"直接連接也失敗: {e2}")
+            raise
+
+def release_db_connection(conn):
+    """釋放數據庫連接回連接池"""
+    global db_pool
+    if db_pool and conn:
+        try:
+            db_pool.putconn(conn)
+        except Exception as e:
+            logger.error(f"釋放連接回連接池失敗: {e}")
+            try:
+                conn.close()
+            except:
+                pass
 
 def init_db():
     """初始化 PostgreSQL 數據庫"""
+    conn = None
     try:
-        with closing(get_conn()) as conn:
-            cur = conn.cursor()
-            
-            logger.info("創建 PostgreSQL 表...")
-            
-            # 創建 users 表
-            cur.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
-                telegram_id BIGINT UNIQUE NOT NULL,
-                username TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                active INTEGER DEFAULT 1
-            )
-            ''')
-            
-            # 創建 profiles 表
-            cur.execute('''
-            CREATE TABLE IF NOT EXISTS profiles (
-                user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
-                birth_year INTEGER,
-                birth_month INTEGER,
-                birth_day INTEGER,
-                birth_hour INTEGER,
-                birth_minute INTEGER DEFAULT 0,
-                hour_confidence TEXT DEFAULT '高',
-                gender TEXT,
-                target_gender TEXT DEFAULT '異性',
-                year_pillar TEXT,
-                month_pillar TEXT,
-                day_pillar TEXT,
-                hour_pillar TEXT,
-                zodiac TEXT,
-                day_stem TEXT,
-                day_stem_element TEXT,
-                wood REAL,
-                fire REAL,
-                earth REAL,
-                metal REAL,
-                water REAL,
-                day_stem_strength TEXT,
-                strength_score REAL,
-                useful_elements TEXT,
-                harmful_elements TEXT,
-                spouse_star_status TEXT,
-                spouse_star_effective TEXT DEFAULT '未知',
-                spouse_palace_status TEXT,
-                pressure_score REAL DEFAULT 0,
-                cong_ge_type TEXT DEFAULT '正常',
-                shi_shen_structure TEXT,
-                shen_sha_data TEXT
-            )
-            ''')
-            
-            # 創建 matches 表
-            cur.execute('''
-            CREATE TABLE IF NOT EXISTS matches (
-                id SERIAL PRIMARY KEY,
-                user_a INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                user_b INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                score REAL,
-                user_a_accepted INTEGER DEFAULT 0,
-                user_b_accepted INTEGER DEFAULT 0,
-                match_details TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                UNIQUE(user_a, user_b)
-            )
-            ''')
-            
-            # 創建 daily_limits 表
-            cur.execute('''
-            CREATE TABLE IF NOT EXISTS daily_limits (
-                id SERIAL PRIMARY KEY,
-                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-                date DATE DEFAULT CURRENT_DATE,
-                match_count INTEGER DEFAULT 0,
-                UNIQUE(user_id, date)
-            )
-            ''')
-            
-            # 創建索引
-            cur.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
-            cur.execute('CREATE INDEX IF NOT EXISTS idx_matches_users ON matches(user_a, user_b)')
-            
-            conn.commit()
-            logger.info("PostgreSQL 數據庫初始化完成")
-            
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        logger.info("創建 PostgreSQL 表...")
+        
+        # 創建 users 表
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            telegram_id BIGINT UNIQUE NOT NULL,
+            username TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            active INTEGER DEFAULT 1
+        )
+        ''')
+        
+        # 創建 profiles 表
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS profiles (
+            user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+            birth_year INTEGER,
+            birth_month INTEGER,
+            birth_day INTEGER,
+            birth_hour INTEGER,
+            birth_minute INTEGER DEFAULT 0,
+            hour_confidence TEXT DEFAULT '高',
+            gender TEXT,
+            target_gender TEXT DEFAULT '異性',
+            year_pillar TEXT,
+            month_pillar TEXT,
+            day_pillar TEXT,
+            hour_pillar TEXT,
+            zodiac TEXT,
+            day_stem TEXT,
+            day_stem_element TEXT,
+            wood REAL,
+            fire REAL,
+            earth REAL,
+            metal REAL,
+            water REAL,
+            day_stem_strength TEXT,
+            strength_score REAL,
+            useful_elements TEXT,
+            harmful_elements TEXT,
+            spouse_star_status TEXT,
+            spouse_star_effective TEXT DEFAULT '未知',
+            spouse_palace_status TEXT,
+            pressure_score REAL DEFAULT 0,
+            cong_ge_type TEXT DEFAULT '正常',
+            shi_shen_structure TEXT,
+            shen_sha_data TEXT
+        )
+        ''')
+        
+        # 創建 matches 表
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS matches (
+            id SERIAL PRIMARY KEY,
+            user_a INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            user_b INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            score REAL,
+            user_a_accepted INTEGER DEFAULT 0,
+            user_b_accepted INTEGER DEFAULT 0,
+            match_details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_a, user_b)
+        )
+        ''')
+        
+        # 創建 daily_limits 表
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS daily_limits (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            date DATE DEFAULT CURRENT_DATE,
+            match_count INTEGER DEFAULT 0,
+            UNIQUE(user_id, date)
+        )
+        ''')
+        
+        # 創建索引
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_users_telegram_id ON users(telegram_id)')
+        cur.execute('CREATE INDEX IF NOT EXISTS idx_matches_users ON matches(user_a, user_b)')
+        
+        conn.commit()
+        logger.info("PostgreSQL 數據庫初始化完成")
+        
     except Exception as e:
         logger.error(f"數據庫初始化失敗: {e}")
         raise
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def check_daily_limit(user_id):
     """檢查每日配對限制"""
+    conn = None
     try:
-        with closing(get_conn()) as conn:
-            cur = conn.cursor()
-            today = datetime.now().date()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        today = datetime.now().date()
 
-            cur.execute("""
-                INSERT INTO daily_limits (user_id, date, match_count)
-                VALUES (%s, %s, 1)
-                ON CONFLICT (user_id, date)
-                DO UPDATE SET match_count = daily_limits.match_count + 1
-                RETURNING match_count
-            """, (user_id, today))
+        cur.execute("""
+            INSERT INTO daily_limits (user_id, date, match_count)
+            VALUES (%s, %s, 1)
+            ON CONFLICT (user_id, date)
+            DO UPDATE SET match_count = daily_limits.match_count + 1
+            RETURNING match_count
+        """, (user_id, today))
 
-            result = cur.fetchone()
-            conn.commit()
-            match_count = result[0] if result else 1
+        result = cur.fetchone()
+        conn.commit()
+        match_count = result[0] if result else 1
 
-            if match_count > DAILY_MATCH_LIMIT:
-                return False, match_count
-            return True, match_count
+        if match_count > DAILY_MATCH_LIMIT:
+            return False, match_count
+        return True, match_count
     except Exception as e:
         logger.error(f"檢查每日限制失敗: {e}")
         return True, 0
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def clear_user_data(telegram_id):
     """清除用戶所有資料"""
+    conn = None
     try:
-        with closing(get_conn()) as conn:
-            cur = conn.cursor()
-            conn.autocommit = False
+        conn = get_db_connection()
+        cur = conn.cursor()
+        conn.autocommit = False
+        
+        try:
+            cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
+            user_row = cur.fetchone()
             
-            try:
-                cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
-                user_row = cur.fetchone()
-                
-                if not user_row:
-                    conn.commit()
-                    return True
-                    
-                user_id = user_row[0]
-                
-                cur.execute("DELETE FROM matches WHERE user_a = %s OR user_b = %s", (user_id, user_id))
-                cur.execute("DELETE FROM daily_limits WHERE user_id = %s", (user_id,))
-                cur.execute("DELETE FROM profiles WHERE user_id = %s", (user_id,))
-                cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
-                
+            if not user_row:
                 conn.commit()
-                logger.info(f"已完全清除用戶 {telegram_id} 的所有資料")
                 return True
                 
-            except Exception as e:
-                conn.rollback()
-                logger.error(f"清除失敗（事務回滾）: {e}")
-                return False
-                
+            user_id = user_row[0]
+            
+            cur.execute("DELETE FROM matches WHERE user_a = %s OR user_b = %s", (user_id, user_id))
+            cur.execute("DELETE FROM daily_limits WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM profiles WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+            
+            conn.commit()
+            logger.info(f"已完全清除用戶 {telegram_id} 的所有資料")
+            return True
+            
+        except Exception as e:
+            conn.rollback()
+            logger.error(f"清除失敗（事務回滾）: {e}")
+            return False
+            
     except Exception as e:
         logger.error(f"清除用戶資料失敗: {e}")
         return False
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def get_internal_user_id(telegram_id):
     """獲取內部用戶ID"""
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
         row = cur.fetchone()
         return row[0] if row else None
+    except Exception as e:
+        logger.error(f"獲取內部用戶ID失敗: {e}")
+        return None
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def get_telegram_id(internal_user_id):
     """獲取Telegram ID"""
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT telegram_id FROM users WHERE id = %s", (internal_user_id,))
         row = cur.fetchone()
         return row[0] if row else None
+    except Exception as e:
+        logger.error(f"獲取Telegram ID失敗: {e}")
+        return None
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def get_username(internal_user_id):
     """獲取用戶名"""
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("SELECT username FROM users WHERE id = %s", (internal_user_id,))
         row = cur.fetchone()
         return row[0] if row else None
+    except Exception as e:
+        logger.error(f"獲取用戶名失敗: {e}")
+        return None
+    finally:
+        if conn:
+            release_db_connection(conn)
 
 def get_profile_data(internal_user_id):
     """獲取完整的個人資料數據"""
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         cur.execute("""
             SELECT 
@@ -424,10 +493,16 @@ def get_profile_data(internal_user_id):
             "spouse_palace_status": row[27],
             "pressure_score": float(row[28]),
             "cong_ge_type": row[29],
-            "shi_shen_structure": row[30],  # 修正：使用正確的字段名
+            "shi_shen_structure": row[30],
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
+    except Exception as e:
+        logger.error(f"獲取個人資料失敗: {e}")
+        return None
+    finally:
+        if conn:
+            release_db_connection(conn)
 # ========1.4 數據庫工具結束 ========#
 
 # ========1.5 隱私條款模組開始 ========#
@@ -717,7 +792,9 @@ async def complete_registration(update, context):
         )
         return ConversationHandler.END
     
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         
         cur.execute("""
@@ -797,6 +874,14 @@ async def complete_registration(update, context):
         ))
         
         conn.commit()
+        
+    except Exception as e:
+        logger.error(f"數據庫操作失敗: {e}")
+        await update.message.reply_text("資料儲存失敗，請重試", reply_markup=ReplyKeyboardRemove())
+        return ConversationHandler.END
+    finally:
+        if conn:
+            release_db_connection(conn)
     
     bazi_data_for_display = {
         "year_pillar": bazi.get("year_pillar", ""),
@@ -911,71 +996,15 @@ async def profile(update, context):
         await update.message.reply_text("未找到紀錄，請先 /start 註冊。")
         return
     
-    with closing(get_conn()) as conn:
-        cur = conn.cursor()
-        cur.execute("SELECT username FROM users WHERE id = %s", (internal_user_id,))
-        user_row = cur.fetchone()
-        uname = user_row[0] if user_row else "未知"
-        
-        cur.execute("""
-            SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
-                   year_pillar, month_pillar, day_pillar, hour_pillar,
-                   zodiac, day_stem, day_stem_element,
-                   wood, fire, earth, metal, water,
-                   day_stem_strength, strength_score, useful_elements, harmful_elements,
-                   spouse_star_status, spouse_star_effective, spouse_palace_status, pressure_score,
-                   cong_ge_type, shi_shen_structure, shen_sha_data
-            FROM profiles WHERE user_id = %s
-        """, (internal_user_id,))
-        p = cur.fetchone()
+    profile_data = get_profile_data(internal_user_id)
     
-    if p is None:
+    if not profile_data:
         await update.message.reply_text("尚未完成資料輸入。請輸入 /start 開始註冊。")
         return
     
-    (
-        by, bm, bd, bh, bmin, hour_conf, g,
-        yp, mp, dp, hp,
-        zodiac, day_stem, day_stem_element,
-        w, f, e, m, wt,
-        strength, strength_score, useful, harmful,
-        spouse_star, spouse_star_effective, spouse_palace, pressure_score,
-        cong_ge, shi_shen, shen_sha_json
-    ) = p
+    username = profile_data.get("username", "未知用戶")
     
-    shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
-    shen_sha_names = shen_sha_data.get("names", "無")
-    
-    bazi_data = {
-        "year_pillar": yp,
-        "month_pillar": mp,
-        "day_pillar": dp,
-        "hour_pillar": hp,
-        "zodiac": zodiac,
-        "day_stem": day_stem,
-        "day_stem_element": day_stem_element,
-        "gender": g,
-        "cong_ge_type": cong_ge if cong_ge else '正格',
-        "shi_shen_structure": shi_shen if shi_shen else '普通結構',
-        "day_stem_strength": strength,
-        "strength_score": strength_score,
-        "useful_elements": useful.split(',') if useful else [],
-        "harmful_elements": harmful.split(',') if harmful else [],
-        "spouse_star_status": spouse_star,
-        "spouse_star_effective": spouse_star_effective if spouse_star_effective else '未知',
-        "spouse_palace_status": spouse_palace,
-        "pressure_score": pressure_score,
-        "shen_sha_names": shen_sha_names,
-        "elements": {"木": w, "火": f, "土": e, "金": m, "水": wt},
-        "hour_confidence": hour_conf,
-        "birth_year": by,
-        "birth_month": bm,
-        "birth_day": bd,
-        "birth_hour": bh,
-        "birth_minute": bmin
-    }
-    
-    profile_text = BaziFormatters.format_personal_data(bazi_data, uname)
+    profile_text = BaziFormatters.format_personal_data(profile_data, username)
     
     import random
     health_quote = random.choice(HEALTH_QUOTES)
@@ -1002,7 +1031,9 @@ async def match(update, context):
         )
         return
     
-    with closing(get_conn()) as conn:
+    conn = None
+    try:
+        conn = get_db_connection()
         cur = conn.cursor()
         
         cur.execute("""
@@ -1114,6 +1145,14 @@ async def match(update, context):
         
         cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
         rows = cur.fetchall()
+        
+    except Exception as e:
+        logger.error(f"數據庫查詢失敗: {e}")
+        await update.message.reply_text("配對查詢失敗，請稍後再試。")
+        return
+    finally:
+        if conn:
+            release_db_connection(conn)
     
     if not rows:
         await update.message.reply_text("暫時未有合適的配對對象。\n建議稍後再試或使用 /find_soulmate 搜尋最佳配對。")
@@ -1134,14 +1173,6 @@ async def match(update, context):
             )
             
             score = match_result.get("score", 0)
-            rating = match_result.get("rating", "未知")
-            relationship_model = match_result.get("relationship_model", "")
-            details = match_result.get("details", [])
-            module_scores = match_result.get("module_scores", {})
-            a_to_b_score = match_result.get("a_to_b_score", 0)
-            b_to_a_score = match_result.get("b_to_a_score", 0)
-            
-            logger.debug(f"配對計算完成: {score}分")
             
             matches.append({
                 "internal_id": other_internal_id,
@@ -1149,13 +1180,6 @@ async def match(update, context):
                 "username": r[2] or "匿名用戶",
                 "profile": other_profile,
                 "score": score,
-                "rating": rating,
-                "relationship_model": relationship_model,
-                "details": details,
-                "module_scores": module_scores,
-                "a_to_b_score": a_to_b_score,
-                "b_to_a_score": b_to_a_score,
-                "confidence_level": me_profile.get("hour_confidence", "中"),
                 "match_result": match_result
             })
             
@@ -1203,31 +1227,33 @@ async def match(update, context):
         "score": best["score"],
         "token": token,
         "timestamp": timestamp,
-        "match_result": match_result
+        "match_result": match_result,
+        "username_a": update.effective_user.username or "未知用戶",
+        "username_b": best["username"]
     }
     
     match_text = BaziFormatters.format_match_result(
         match_result, me_profile, op, 
-        user_a_name="您", user_b_name=best["username"]
+        user_a_name=update.effective_user.username or "您", 
+        user_b_name=best["username"]
     )
     
-    await update.message.reply_text(match_text)
+    # 只顯示八字和分數，不顯示對方用戶名
+    display_text = f"""🎯 配對結果
+{'='*40}
+
+📊 配對分數：{best['score']:.1f}分
+✨ 評級：{match_result.get('rating', '未知')}
+📝 描述：{match_result.get('rating_description', '')}
+
+🔍 主要特徵：{match_result.get('structure_type', '普通結構')}"""
+
+    await update.message.reply_text(display_text)
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
     
-    try:
-        await context.bot.send_message(
-            chat_id=best["telegram_id"],
-            text=match_text
-        )
-        
-        await context.bot.send_message(
-            chat_id=best["telegram_id"],
-            text="是否想認識對方？",
-            reply_markup=reply_markup
-        )
-        
-    except Exception as e:
-        logger.error(f"無法通知對方: {e}")
+    # 不直接通知對方，等待雙方同意後再通知
+    
+    return
 
 @check_maintenance
 async def test_command(update, context):
@@ -1267,7 +1293,7 @@ async def clear_command(update, context):
 
 @check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對 - 修正變量作用域問題"""
+    """獨立測試任意兩個八字配對"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1317,7 +1343,6 @@ async def test_pair_command(update, context):
             await update.message.reply_text("經度必須在 -180 到 180 之間")
             return
         
-        # 修正：明確調用calculate_bazi函數
         bazi1_result = calculate_bazi(
             year1, month1, day1, hour1, 
             gender=gender1,
@@ -1337,14 +1362,9 @@ async def test_pair_command(update, context):
             await update.message.reply_text("八字計算失敗，請檢查輸入參數")
             return
         
-        # 修正：使用正確的變量名
         match_result = calculate_match(bazi1_result, bazi2_result, gender1, gender2, is_testpair=True)
         
-        # 使用修復後的格式化函數，輸出詳細分析
-        match_text = BaziFormatters.format_match_result(
-            match_result, bazi1_result, bazi2_result, 
-            user_a_name="測試用戶A", user_b_name="測試用戶B"
-        )
+        match_text = BaziFormatters.format_test_pair_result(match_result, bazi1_result, bazi2_result)
         
         await update.message.reply_text(match_text)
         
@@ -1510,7 +1530,9 @@ async def find_soulmate_purpose(update, context):
         telegram_id = update.effective_user.id
         internal_user_id = get_internal_user_id(telegram_id)
         
-        with closing(get_conn()) as conn:
+        conn = None
+        try:
+            conn = get_db_connection()
             cur = conn.cursor()
             cur.execute("""
                 SELECT birth_year, birth_month, birth_day, birth_hour, birth_minute, hour_confidence, gender,
@@ -1523,6 +1545,13 @@ async def find_soulmate_purpose(update, context):
                 FROM profiles WHERE user_id = %s
             """, (internal_user_id,))
             me_p = cur.fetchone()
+        except Exception as e:
+            logger.error(f"數據庫查詢失敗: {e}")
+            await calculating_msg.edit_text("找不到用戶資料，請先使用 /start 註冊")
+            return ConversationHandler.END
+        finally:
+            if conn:
+                release_db_connection(conn)
         
         if not me_p:
             await calculating_msg.edit_text("找不到用戶資料，請先使用 /start 註冊")
@@ -1651,7 +1680,7 @@ async def find_soulmate_cancel(update, context):
 
 # ========1.9 按鈕回調處理函數開始 ========#
 async def button_callback(update, context):
-    """處理按鈕回調"""
+    """處理按鈕回調 - 修復配對邏輯"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1696,7 +1725,9 @@ async def button_callback(update, context):
         
         other_id = user_b_id if internal_user_id == user_a_id else user_a_id
         
-        with closing(get_conn()) as conn:
+        conn = None
+        try:
+            conn = get_db_connection()
             cur = conn.cursor()
             
             user_a_accepted = 0
@@ -1745,6 +1776,7 @@ async def button_callback(update, context):
                         await query.edit_message_text("配對記錄創建失敗。")
                         return
             
+            # 更新接受狀態
             if internal_user_id == user_a_id:
                 user_a_accepted = 1
                 cur.execute("""
@@ -1762,6 +1794,7 @@ async def button_callback(update, context):
             
             conn.commit()
             
+            # 檢查是否雙方都接受
             if user_a_accepted == 1 and user_b_accepted == 1:
                 cur.execute("SELECT score FROM matches WHERE id = %s", (match_id,))
                 score_row = cur.fetchone()
@@ -1782,29 +1815,43 @@ async def button_callback(update, context):
                 from new_calculator import ScoringEngine
                 rating = ScoringEngine.get_rating(actual_score)
                 
-                match_text = f"{rating} 配對成功！\n\n"
-                match_text += f"🎯 配對分數：{actual_score:.1f}分\n"
-                match_text += f"📱 雙方已交換聯絡方式\n\n"
-                match_text += f"👤 用戶A: @{a_username}\n"
-                match_text += f"👤 用戶B: @{b_username}\n\n"
-                match_text += "✨ 祝你們交流愉快！"
+                # 通知雙方
+                match_text = f"🎉 {rating} 配對成功！\n\n"
+                match_text += f"📊 配對分數：{actual_score:.1f}分\n"
+                match_text += "✨ 雙方已同意交換聯絡方式\n\n"
+                match_text += f"👤 你的配對對象：@{b_username if internal_user_id == user_a_id else a_username}\n\n"
+                match_text += "💬 可以開始聊天了！"
                 
                 if a_username == "未設定用戶名" or b_username == "未設定用戶名":
                     match_text += "\n\n⚠️ 注意：如無法聯絡對方，請對方在 Telegram 設定中設定用戶名。"
                 
-                try:
-                    await context.bot.send_message(chat_id=a_telegram_id, text=match_text)
-                except Exception as e:
-                    logger.error(f"無法發送消息給用戶A: {e}")
+                await query.edit_message_text(match_text)
                 
+                # 通知對方
                 try:
-                    await context.bot.send_message(chat_id=b_telegram_id, text=match_text)
+                    other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
+                    other_username = b_username if internal_user_id == user_a_id else a_username
+                    
+                    other_text = f"🎉 {rating} 配對成功！\n\n"
+                    other_text += f"📊 配對分數：{actual_score:.1f}分\n"
+                    other_text += "✨ 雙方已同意交換聯絡方式\n\n"
+                    other_text += f"👤 你的配對對象：@{a_username if internal_user_id == user_a_id else b_username}\n\n"
+                    other_text += "💬 可以開始聊天了！"
+                    
+                    await context.bot.send_message(chat_id=other_telegram_id, text=other_text)
+                    
                 except Exception as e:
-                    logger.error(f"無法發送消息給用戶B: {e}")
-                
-                await query.edit_message_text("🎉 配對成功！已交換聯絡方式。")
+                    logger.error(f"無法通知對方: {e}")
             else:
-                await query.edit_message_text("已記錄你的意願，等待對方回應...")
+                # 只有一方接受
+                await query.edit_message_text("✅ 已記錄你的意願，等待對方回應...")
+                
+        except Exception as e:
+            logger.error(f"處理接受按鈕失敗: {e}")
+            await query.edit_message_text("處理失敗，請稍後再試。")
+        finally:
+            if conn:
+                release_db_connection(conn)
     
     elif data.startswith("reject_"):
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
@@ -1912,6 +1959,10 @@ def main():
     logger.info("⏳ 等待舊實例清理...")
     time.sleep(1)
     
+    # 初始化數據庫連接池
+    init_db_pool()
+    
+    # 初始化數據庫
     init_db()
     
     token = os.getenv("BOT_TOKEN", "").strip()
@@ -2014,25 +2065,11 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修改：
-1. 修正了test_pair_command函數中的變量作用域問題
-2. 修復了get_profile_data函數中的字段名錯誤
-3. 保持所有四方功能結果格式一致
-
-修改記錄：
-2026-02-03 修正testpair命令：
-1. 修正test_pair_command函數中的變量作用域問題：bazi1和bazi2變量名衝突
-2. 明確使用bazi1_result和bazi2_result避免變量名衝突
-3. 修正format_match_result調用，使用正確的格式化函數
-
-2026-02-03 第一次修正：
-1. 修正test_pair_command函數：明確調用calculate_bazi函數，避免變量作用域問題
-2. 修正get_profile_data函數：將shi_shen_structure字段名修正
-3. 保持所有用戶功能不變，維持向後兼容
-
-問題原因：
-原錯誤信息：name 'bazi1' is not defined
-原因：test_pair_command函數中局部變量和全局變量名稱衝突
-解決：使用明確的變量名bazi1_result和bazi2_result
+1. 添加了數據庫連接池，提高連接穩定性和性能
+2. 修復了配對流程邏輯：不再直接顯示對方用戶名
+3. 修復了按鈕回調邏輯：雙方都接受後才交換聯絡方式
+4. 優化了數據庫連接管理，添加了錯誤處理
+5. 簡化了配對結果顯示，避免信息洩露
 """
 # ========文件信息結束 ========#
 
@@ -2042,13 +2079,51 @@ if __name__ == "__main__":
 1.1 導入模組 - 導入所需庫和模組
 1.2 配置與初始化 - 環境變數、常量設定
 1.3 維護模式檢查 - 維護模式裝飾器和權限檢查
-1.4 數據庫工具 - PostgreSQL數據庫連接和操作
+1.4 數據庫工具 - PostgreSQL數據庫連接池和操作
 1.5 隱私條款模組 - 處理用戶隱私條款同意
 1.6 簡化註冊流程 - 用戶註冊和八字計算
 1.7 命令處理函數 - 基本用戶命令（start, help, profile等）
 1.8 Find Soulmate流程函數 - 真命天子搜尋功能
-1.9 按鈕回調處理函數 - 處理配對選擇按鈕
+1.9 按鈕回調處理函數 - 處理配對選擇按鈕（修復版）
 1.10 管理員專用命令 - 管理員測試和統計功能
 1.11 主程序 - 機器人啟動和事件循環
 """
 # ========目錄結束 ========#
+
+# ========修正紀錄開始 ========#
+"""
+修正紀錄:
+2026-02-05 全面修復配對流程：
+1. 問題：match命令完成後直接顯示對方username
+   位置：match函數中的配對結果顯示
+   後果：用戶隱私洩露，不符合雙方同意後才交換聯絡方式的原則
+   修正：修改為只顯示分數和評級，不顯示對方用戶名
+
+2. 問題：只有一方點擊"有興趣"時有動作，另一方點擊"有興趣"無動作
+   位置：button_callback函數中的邏輯
+   後果：只有一方接受時不會通知對方，雙方都接受後才交換聯絡方式
+   修正：修改邏輯，雙方都接受後才交換聯絡方式並通知雙方
+
+3. 問題：數據庫連接不穩定，經常超時
+   位置：get_conn函數
+   後果：系統無法正常運行
+   修正：添加數據庫連接池，提高連接穩定性和性能
+
+4. 問題：數據庫連接沒有正確釋放
+   位置：多個數據庫操作函數
+   後果：連接洩漏，可能導致連接耗盡
+   修正：添加release_db_connection函數，確保連接正確釋放
+
+2026-02-03 修正testpair命令：
+1. 問題：test_pair_command函數變量作用域衝突
+   位置：bot.py中的test_pair_command
+   後果：name 'bazi1' is not defined錯誤
+   修正：明確使用bazi1_result和bazi2_result避免衝突
+
+2026-02-03 第一次修正：
+1. 問題：get_profile_data函數字段名錯誤
+   位置：bot.py中的get_profile_data
+   後果：shi_shen_structure字段不正確
+   修正：將字段名修正
+"""
+# ========修正紀錄結束 ========#
