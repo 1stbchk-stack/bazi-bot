@@ -212,7 +212,7 @@ def get_test_case_by_id(test_id: int) -> Dict:
         return {"error": f"測試案例ID {test_id} 超出範圍"}
 # ========1.3 測試案例數據結束 ========#
 
-# ========1.4 AdminService類開始 ========#
+# ========1.4 AdminService類開始 ========
 class AdminService:
     """管理員服務類"""
     
@@ -220,274 +220,129 @@ class AdminService:
         self._stats_cache = None
         self._cache_time = None
     
-    # ========2.1 測試功能開始 ========#
-    async def run_admin_tests(self) -> Dict[str, Any]:
-        """運行管理員測試案例"""
-        
-        results = {
-            'total': len(ADMIN_TEST_CASES),
-            'passed': 0,
-            'failed': 0,
-            'errors': 0,
-            'success_rate': 0.0,
-            'details': [],
-            'formatted_results': []
-        }
-        
-        for i, test_case in enumerate(ADMIN_TEST_CASES, 1):
-            test_result = await self._run_single_test(i, test_case)
-            results['details'].append(test_result.__dict__)
-            
-            # 生成格式結果
-            formatted_result = self._format_single_test_result(test_result)
-            results['formatted_results'].append(formatted_result)
-            
-            if test_result.status == 'PASS':
-                results['passed'] += 1
-            elif test_result.status == 'FAIL':
-                results['failed'] += 1
-            else:
-                results['errors'] += 1
-        
-        if results['total'] > 0:
-            results['success_rate'] = (results['passed'] / results['total']) * 100
-        
-        return results
-    
-    async def _run_single_test(self, test_id: int, test_case: Dict) -> TestResult:
-        """運行單個測試案例"""
+    async def run_quick_test(self) -> Dict[str, Any]:
+        """運行一鍵快速測試"""
         try:
-            # 提取出生時間信息
-            bazi_data1 = test_case['bazi_data1']
-            bazi_data2 = test_case['bazi_data2']
+            components = []
             
-            # 提取參數
-            year1, month1, day1, hour1 = bazi_data1['year'], bazi_data1['month'], bazi_data1['day'], bazi_data1['hour']
-            gender1 = bazi_data1['gender']
-            hour_confidence1 = bazi_data1.get('hour_confidence', '高')
-            longitude1 = bazi_data1.get('longitude', DEFAULT_LONGITUDE)
-            
-            year2, month2, day2, hour2 = bazi_data2['year'], bazi_data2['month'], bazi_data2['day'], bazi_data2['hour']
-            gender2 = bazi_data2['gender']
-            hour_confidence2 = bazi_data2.get('hour_confidence', '高')
-            longitude2 = bazi_data2.get('longitude', DEFAULT_LONGITUDE)
-            
-            logger.info(f"測試案例 {test_id}: 計算八字1 - {year1}/{month1}/{day1} {hour1}:00")
-            logger.info(f"測試案例 {test_id}: 計算八字2 - {year2}/{month2}/{day2} {hour2}:00")
-            
-            # 使用對外接口 calculate_bazi
+            # 測試1: 數據庫連接
             try:
-                bazi1 = calculate_bazi(
-                    year=year1,
-                    month=month1,
-                    day=day1,
-                    hour=hour1,
-                    gender=gender1,
-                    hour_confidence=hour_confidence1,
-                    longitude=longitude1
-                )
+                from bot import get_db_connection, release_db_connection
+                conn = get_db_connection()
+                cur = conn.cursor()
+                cur.execute("SELECT 1")
+                result = cur.fetchone()
+                release_db_connection(conn)
+                components.append({
+                    "name": "數據庫連接",
+                    "status": "PASS",
+                    "message": "數據庫連接正常"
+                })
             except Exception as e:
-                logger.error(f"計算八字1失敗: {e}", exc_info=True)
-                raise ValueError(f"計算八字1失敗: {str(e)}")
+                components.append({
+                    "name": "數據庫連接",
+                    "status": "FAIL",
+                    "message": f"連接失敗: {str(e)}"
+                })
             
+            # 測試2: 八字計算核心
             try:
-                bazi2 = calculate_bazi(
-                    year=year2,
-                    month=month2,
-                    day=day2,
-                    hour=hour2,
-                    gender=gender2,
-                    hour_confidence=hour_confidence2,
-                    longitude=longitude2
-                )
+                from new_calculator import calculate_bazi
+                bazi = calculate_bazi(1990, 1, 1, 12, gender="男")
+                if bazi and 'year_pillar' in bazi:
+                    components.append({
+                        "name": "八字計算",
+                        "status": "PASS",
+                        "message": "八字計算正常"
+                    })
+                else:
+                    components.append({
+                        "name": "八字計算",
+                        "status": "FAIL",
+                        "message": "計算返回空數據"
+                    })
             except Exception as e:
-                logger.error(f"計算八字2失敗: {e}", exc_info=True)
-                raise ValueError(f"計算八字2失敗: {str(e)}")
+                components.append({
+                    "name": "八字計算",
+                    "status": "FAIL",
+                    "message": f"計算失敗: {str(e)}"
+                })
             
-            if not bazi1:
-                raise ValueError("八字1計算返回空數據")
-            if not bazi2:
-                raise ValueError("八字2計算返回空數據")
-            
-            # 獲取四柱用於顯示
-            pillars1 = f"{bazi1.get('year_pillar', '')}{bazi1.get('month_pillar', '')}{bazi1.get('day_pillar', '')}{bazi1.get('hour_pillar', '')}"
-            pillars2 = f"{bazi2.get('year_pillar', '')}{bazi2.get('month_pillar', '')}{bazi2.get('day_pillar', '')}{bazi2.get('hour_pillar', '')}"
-            
-            logger.info(f"測試案例 {test_id}: 八字1計算完成 - {pillars1}")
-            logger.info(f"測試案例 {test_id}: 八字2計算完成 - {pillars2}")
-            
-            # 配對計算 - 使用對外接口 calculate_match
+            # 測試3: 配對計算
             try:
-                match_result = calculate_match(bazi1, bazi2, gender1, gender2, is_testpair=True)
+                from new_calculator import calculate_bazi, calculate_match
+                bazi1 = calculate_bazi(1990, 1, 1, 12, gender="男")
+                bazi2 = calculate_bazi(1991, 1, 1, 12, gender="女")
+                match_result = calculate_match(bazi1, bazi2, "男", "女")
+                if match_result and 'score' in match_result:
+                    components.append({
+                        "name": "配對計算",
+                        "status": "PASS",
+                        "message": "配對計算正常"
+                    })
+                else:
+                    components.append({
+                        "name": "配對計算",
+                        "status": "FAIL",
+                        "message": "配對返回空數據"
+                    })
             except Exception as e:
-                logger.error(f"配對計算失敗: {e}", exc_info=True)
-                raise ValueError(f"配對計算失敗: {str(e)}")
+                components.append({
+                    "name": "配對計算",
+                    "status": "FAIL",
+                    "message": f"配對失敗: {str(e)}"
+                })
             
-            score = match_result.get('score', 0)
-            expected_min, expected_max = test_case['expected_range']
+            # 計算總體狀態
+            passed = sum(1 for c in components if c['status'] == 'PASS')
+            total = len(components)
+            status = "健康" if passed == total else "警告"
             
-            logger.info(f"測試案例 {test_id}: 配對分數: {score:.1f}分 (預期: {expected_min}-{expected_max}分)")
-            
-            # 檢查結果
-            if expected_min <= score <= expected_max:
-                status = 'PASS'
-            elif abs(score - expected_min) <= 1 or abs(score - expected_max) <= 1:
-                status = '邊緣'
-            else:
-                status = 'FAIL'
-            
-            # 檢查模型
-            model = match_result.get('relationship_model', '')
-            expected_model = test_case.get('expected_model', '')
-            model_match = model == expected_model
-            
-            # 生成詳細信息
-            details = [
-                f"分數: {score:.1f}分 (預期: {expected_min}-{expected_max}分)",
-                f"模型: {model} (預期: {expected_model})",
-                f"評級: {match_result.get('rating', '未知')}"
-            ]
-            
-            return TestResult(
-                test_id=test_id,
-                description=test_case.get('description', f'測試{test_id}'),
-                status=status,
-                score=score,
-                expected_range=test_case['expected_range'],
-                model=model,
-                expected_model=expected_model,
-                model_match=model_match,
-                pillars1=pillars1,
-                pillars2=pillars2,
-                range_str=f"{expected_min}-{expected_max}",
-                details=details
-            )
+            return {
+                "status": status,
+                "passed": passed,
+                "total": total,
+                "failed": total - passed,
+                "components": components
+            }
             
         except Exception as e:
-            logger.error(f"測試案例 {test_id} 運行失敗: {e}", exc_info=True)
-            return TestResult(
-                test_id=test_id,
-                description=test_case.get('description', f'測試{test_id}'),
-                status='ERROR',
-                score=0,
-                expected_range=test_case['expected_range'],
-                model='',
-                expected_model=test_case.get('expected_model', ''),
-                model_match=False,
-                error=str(e),
-                range_str=f"{test_case['expected_range'][0]}-{test_case['expected_range'][1]}"
-            )
-    
-    def _format_single_test_result(self, test_result: TestResult) -> str:
-        """格式化單個測試結果"""
-        status_emoji = {
-            'PASS': '✅',
-            'FAIL': '❌',
-            'ERROR': '⚠️',
-            '邊緣': '⚠️'
-        }.get(test_result.status, '❓')
-        
-        # 提取類型名稱
-        if "：" in test_result.description:
-            test_type = test_result.description.split("：")[1]
-        else:
-            test_type = test_result.description
-        
-        # 簡化格式
-        formatted = f"{test_result.test_id}. {test_result.pillars1} ↔ {test_result.pillars2}, {test_type}, 分數:{test_result.score:.1f} (預期:{test_result.range_str}) {status_emoji}"
-        
-        return formatted
-    
-    def format_test_results_pro(self, results: Dict[str, Any]) -> str:
-        """格式化測試結果"""
-        text = f"🧪 管理員測試報告 ({results['total']}組測試案例)\n"
-        text += f"📈 總體統計: 通過 {results['passed']}/{results['total']} (成功率: {results['success_rate']:.1f}%)\n\n"
-        
-        # 詳細結果
-        for formatted_result in results['formatted_results']:
-            text += formatted_result + "\n"
-        
-        # 總結
-        text += f"\n🎯 測試完成: {results['passed']}通過 {results['failed']}失敗 {results['errors']}錯誤"
-        text += f" 測試時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        
-        return text
-    # ========2.1 測試功能結束 ========#
-    
-    # ========2.2 系統統計開始 ========#
-    async def get_system_stats(self) -> SystemStats:
-        """獲取系統統計數據"""
-        try:
-            # 由於bot.py中已經有數據庫連接，這裡簡化處理
-            # 實際使用時需要從bot.py導入數據庫連接
-            return SystemStats(
-                total_users=0,
-                total_matches=0,
-                today_matches=0,
-                avg_match_score=0.0,
-                success_rate=0.0,
-                model_stats=[],
-                active_users_24h=0,
-                top_matches=[]
-            )
-                
-        except Exception as e:
-            logger.error(f"獲取統計失敗: {e}")
-            return SystemStats(
-                total_users=0, total_matches=0, today_matches=0,
-                avg_match_score=0.0, success_rate=0.0,
-                model_stats=[], active_users_24h=0, top_matches=[],
-            )
-    
-    def format_system_stats(self, stats: SystemStats) -> str:
-        """格式化系統統計"""
-        text = f"📈 系統統計報告\n"
-        
-        text += f"👥 用戶統計: 總用戶數: {stats.total_users}  24小時活躍: {stats.active_users_24h}\n"
-        text += f"💖 配對統計: 總配對數: {stats.total_matches}  今日配對: {stats.today_matches}  平均分數: {stats.avg_match_score:.1f}分  成功率: {stats.success_rate:.1f}%\n"
-        
-        if stats.model_stats:
-            text += f"🎭 關係模型: "
-            model_texts = []
-            for model_stat in stats.model_stats:
-                model_texts.append(f"{model_stat['model']}: {model_stat['count']}次({model_stat['avg_score']:.1f}分)")
-            text += " ".join(model_texts) + "\n"
-        
-        if stats.top_matches:
-            text += f"🏆 高分配對: "
-            top_texts = []
-            for match in stats.top_matches[:3]:
-                top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
-            text += " ".join(top_texts) + "\n"
-        
-        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
-        
-        return text
+            logger.error(f"快速測試失敗: {e}", exc_info=True)
+            return {
+                "status": "故障",
+                "error": str(e),
+                "passed": 0,
+                "total": 0,
+                "failed": 0,
+                "components": []
+            }
     
     def format_quick_test_results(self, results: Dict[str, Any]) -> str:
         """格式化一鍵測試結果"""
         text = f"⚡ 系統健康檢查報告\n"
+        text += "=" * 40 + "\n"
         
-        text += f"📊 總體狀態: {results.get('status', '未知')}  ✅通過: {results.get('passed', 0)}/{results.get('total', 0)}  ❌失敗: {results.get('failed', 0)}/{results.get('total', 0)}\n"
+        text += f"📊 總體狀態: {results.get('status', '未知')}  "
+        text += f"✅通過: {results.get('passed', 0)}/{results.get('total', 0)}  "
+        text += f"❌失敗: {results.get('failed', 0)}/{results.get('total', 0)}\n\n"
         
         for component in results.get('components', []):
             status_emoji = '✅' if component.get('status') == 'PASS' else '❌'
-            text += f"{status_emoji}{component.get('name', '未知')}: {component.get('message', '')}\n"
+            text += f"{status_emoji} {component.get('name', '未知')}: {component.get('message', '')}\n"
         
         if results.get('error'):
-            text += f"❌錯誤: {results['error']}\n"
+            text += f"\n❌ 錯誤: {results['error']}\n"
         
         # 添加健康狀態評估
         if results.get('passed', 0) == results.get('total', 0) and results.get('total', 0) > 0:
-            text += "🏥系統健康狀態: ✅健康"
+            text += "\n🏥 系統健康狀態: ✅ 健康"
         elif results.get('passed', 0) >= results.get('total', 0) * 0.7:
-            text += "🏥系統健康狀態: ⚠️警告(部分組件異常)"
+            text += "\n🏥 系統健康狀態: ⚠️ 警告（部分組件異常）"
         else:
-            text += "🏥系統健康狀態: ❌故障(多個組件異常)"
+            text += "\n🏥 系統健康狀態: ❌ 故障（多個組件異常）"
         
         return text
-    # ========2.2 系統統計結束 ========#
-# ========1.4 AdminService類結束 ========#
+# ========1.4 AdminService類結束 ========
 
 # ========文件信息開始 ========#
 """

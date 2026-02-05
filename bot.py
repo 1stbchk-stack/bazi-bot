@@ -433,7 +433,7 @@ def get_username(internal_user_id):
             release_db_connection(conn)
 
 def get_profile_data(internal_user_id):
-    """獲取完整的個人資料數據"""
+    """獲取完整的個人資料數據 - 修正版"""
     conn = None
     try:
         conn = get_db_connection()
@@ -457,8 +457,9 @@ def get_profile_data(internal_user_id):
         
         if not row:
             return None
-            
-        shen_sha_data = json.loads(row[30]) if row[30] else {"names": "無", "bonus": 0}
+        
+        # 修正：第30個字段是shi_shen_structure
+        shen_sha_data = json.loads(row[29]) if row[29] else {"names": "無", "bonus": 0}
         
         return {
             "username": row[0],
@@ -478,22 +479,22 @@ def get_profile_data(internal_user_id):
             "day_stem": row[14],
             "day_stem_element": row[15],
             "elements": {
-                "木": float(row[16]),
-                "火": float(row[17]),
-                "土": float(row[18]),
-                "金": float(row[19]),
-                "水": float(row[20])
+                "木": float(row[16] or 0),
+                "火": float(row[17] or 0),
+                "土": float(row[18] or 0),
+                "金": float(row[19] or 0),
+                "水": float(row[20] or 0)
             },
-            "day_stem_strength": row[21],
-            "strength_score": float(row[22]),
+            "day_stem_strength": row[21] or "中",
+            "strength_score": float(row[22] or 50),
             "useful_elements": row[23].split(',') if row[23] else [],
             "harmful_elements": row[24].split(',') if row[24] else [],
-            "spouse_star_status": row[25],
-            "spouse_star_effective": row[26],
-            "spouse_palace_status": row[27],
-            "pressure_score": float(row[28]),
-            "cong_ge_type": row[29],
-            "shi_shen_structure": row[30],
+            "spouse_star_status": row[25] or "未知",
+            "spouse_star_effective": row[26] or "未知",
+            "spouse_palace_status": row[27] or "未知",
+            "pressure_score": float(row[28] or 0),
+            "cong_ge_type": row[29] or "正格",
+            "shi_shen_structure": row[30] or "普通結構",
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
