@@ -161,6 +161,24 @@ class ProfessionalConfig:
         "估算": 0.85, # 估算時間
     }
     
+    # ========== 1.2.10 地支關係映射表（固定不變）==========
+    BRANCH_CLASH_PAIRS = [  # 地支六沖
+        ("子", "午"), ("丑", "未"), ("寅", "申"),
+        ("卯", "酉"), ("辰", "戌"), ("巳", "亥")
+    ]
+    
+    BRANCH_HARM_PAIRS = [  # 地支六害
+        ("子", "未"), ("丑", "午"), ("寅", "巳"),
+        ("卯", "辰"), ("申", "亥"), ("酉", "戌")
+    ]
+    
+    BRANCH_THREE_PUNISHMENT_SETS = [  # 地支三刑
+        ("寅", "巳", "申"),  # 無恩之刑
+        ("丑", "戌", "未"),  # 恃勢之刑
+        ("子", "卯"),        # 無禮之刑（子刑卯，卯刑子）
+        ("辰", "午", "酉", "亥")  # 自刑（辰辰、午午、酉酉、亥亥）
+    ]
+    
     @classmethod
     def get_rating(cls, score: float) -> str:
         """根據分數取得評級名稱。跟評級標準匹配"""
@@ -181,6 +199,44 @@ class ProfessionalConfig:
     def get_confidence_factor(cls, confidence: str) -> float:
         """根據時間信心度字串取得數值因子。跟信心度影響權重"""
         return cls.TIME_CONFIDENCE_LEVELS.get(confidence, 0.90)
+    
+    @classmethod
+    def is_branch_clash(cls, branch1: str, branch2: str) -> bool:
+        """檢查地支六沖"""
+        for pair in cls.BRANCH_CLASH_PAIRS:
+            if (branch1 == pair[0] and branch2 == pair[1]) or (branch1 == pair[1] and branch2 == pair[0]):
+                return True
+        return False
+    
+    @classmethod
+    def is_branch_harm(cls, branch1: str, branch2: str) -> bool:
+        """檢查地支六害"""
+        for pair in cls.BRANCH_HARM_PAIRS:
+            if (branch1 == pair[0] and branch2 == pair[1]) or (branch1 == pair[1] and branch2 == pair[0]):
+                return True
+        return False
+    
+    @classmethod
+    def has_three_punishment(cls, branches: List[str]) -> bool:
+        """檢查地支三刑"""
+        # 檢查寅巳申三刑
+        if "寅" in branches and "巳" in branches and "申" in branches:
+            return True
+        
+        # 檢查丑戌未三刑
+        if "丑" in branches and "戌" in branches and "未" in branches:
+            return True
+        
+        # 檢查子卯刑
+        if "子" in branches and "卯" in branches:
+            return True
+        
+        # 檢查自刑
+        for branch in branches:
+            if branches.count(branch) >= 2 and branch in ["辰", "午", "酉", "亥"]:
+                return True
+        
+        return False
 
 # 創建專業配置實例（保持向後兼容：PC 名稱在其他文件大量使用）
 PC = ProfessionalConfig
@@ -1344,40 +1400,31 @@ class ProfessionalScoringEngine:
     def calculate_match_score_pro(bazi1: Dict, bazi2: Dict, 
                                 gender1: str, gender2: str,
                                 is_testpair: bool = False) -> Dict[str, Any]:
-        """1.5.2 專業命理評分主函數 - 修正版"""
+        """1.5.2 專業命理評分主函數"""
         audit_log = []
         
         try:
             audit_log.append("🎯 開始專業命理評分")
             
             # 分析特徵
-            features = ProfessionalScoringEngine._analyze_features(bazi1, bazi2, audit_log)
+            features = ProfessionalScoringEngine._analyze_features(bazi1, bazi2)
             
             # 計算基礎分
             base_score = ProfessionalScoringEngine._calculate_base_score(features)
-            audit_log.append(f"📊 基礎分: {base_score}分")
             
             # 計算刑沖懲罰
             clash_penalty = ProfessionalScoringEngine._calculate_clash_penalty(features)
-            if clash_penalty != 0:
-                audit_log.append(f"⚠️ 刑沖懲罰: {clash_penalty}分")
             
             # 計算加分項
             bonuses = ProfessionalScoringEngine._calculate_bonuses(features)
-            if bonuses != 0:
-                audit_log.append(f"✨ 加分項: {bonuses}分")
             
             # 計算原始分數
             raw_score = base_score + clash_penalty + bonuses
-            audit_log.append(f"🧮 原始分數: {raw_score:.1f}分")
             
             # 應用信心度調整
             confidence_factor = ProfessionalScoringEngine._get_confidence_factor(
                 features['confidence1'], features['confidence2']
             )
-            if confidence_factor != 1.0:
-                audit_log.append(f"📉 信心度調整因子: {confidence_factor:.2f}")
-            
             adjusted_score = raw_score * confidence_factor
             
             # 最終校準
@@ -1404,15 +1451,7 @@ class ProfessionalScoringEngine:
                 "has_day_clash": features['has_day_clash'],
                 "has_hongluan_tianxi": features['has_hongluan_tianxi'],
                 "has_useful_complement": features['has_useful_complement'],
-                "audit_log": audit_log,
-                "details": {
-                    "base_score": base_score,
-                    "clash_penalty": clash_penalty,
-                    "bonuses": bonuses,
-                    "confidence_factor": confidence_factor,
-                    "raw_score": raw_score,
-                    "adjusted_score": adjusted_score
-                }
+                "audit_log": audit_log
             }
             
         except Exception as e:
@@ -1420,8 +1459,8 @@ class ProfessionalScoringEngine:
             raise MatchScoringError(f"評分失敗: {str(e)}")
     
     @staticmethod
-    def _analyze_features(bazi1: Dict, bazi2: Dict, audit_log: List[str]) -> Dict[str, Any]:
-        """1.5.2.1 分析所有特徵 - 修正版"""
+    def _analyze_features(bazi1: Dict, bazi2: Dict) -> Dict[str, Any]:
+        """1.5.2.1 分析所有特徵"""
         features = {
             'day_stem1': bazi1.get('day_stem', ''),
             'day_stem2': bazi2.get('day_stem', ''),
@@ -1448,26 +1487,51 @@ class ProfessionalScoringEngine:
         
         # 分析結構類型
         features['structure_type'] = ProfessionalScoringEngine._analyze_structure_type(features)
-        audit_log.append(f"🏗️ 結構類型: {features['structure_type']}")
         
         # 分析刑沖
-        clash_info = ProfessionalScoringEngine._analyze_clashes(bazi1, bazi2, features, audit_log)
+        clash_info = ProfessionalScoringEngine._analyze_clashes(bazi1, bazi2, features)
         features.update(clash_info)
         
         # 分析紅鸞天喜
         features['has_hongluan_tianxi'] = ProfessionalScoringEngine._detect_hongluan_tianxi(features)
-        if features['has_hongluan_tianxi']:
-            audit_log.append(f"💕 紅鸞天喜: 有")
         
         # 分析喜用互補
         features['has_useful_complement'] = ProfessionalScoringEngine._detect_useful_complement(features)
-        if features['has_useful_complement']:
-            audit_log.append(f"🔄 喜用互補: 有")
         
         return features
     
     @staticmethod
-    def _analyze_clashes(bazi1: Dict, bazi2: Dict, features: Dict, audit_log: List[str]) -> Dict[str, Any]:
+    def _analyze_structure_type(features: Dict) -> str:
+        """1.5.2.1.1 分析日柱結構類型"""
+        day_stem1 = features['day_stem1']
+        day_stem2 = features['day_stem2']
+        day_branch1 = features['day_branch1']
+        day_branch2 = features['day_branch2']
+        
+        # 天干五合檢查
+        if ProfessionalScoringEngine._is_stem_five_harmony(day_stem1, day_stem2):
+            return 'stem_five_harmony'
+        
+        # 地支六合檢查
+        if ProfessionalScoringEngine._is_branch_six_harmony(day_branch1, day_branch2):
+            return 'branch_six_harmony'
+        
+        # 地支三合檢查
+        if ProfessionalScoringEngine._is_branch_three_harmony(day_branch1, day_branch2):
+            return 'branch_three_harmony'
+        
+        # 相同天干
+        if day_stem1 == day_stem2:
+            return 'same_stem'
+        
+        # 相同地支
+        if day_branch1 == day_branch2:
+            return 'same_branch'
+        
+        return 'no_relation'
+    
+    @staticmethod
+    def _analyze_clashes(bazi1: Dict, bazi2: Dict, features: Dict) -> Dict[str, Any]:
         """1.5.2.1.2 分析刑沖 - 修正版"""
         result = {
             'has_day_clash': False,
@@ -1476,58 +1540,183 @@ class ProfessionalScoringEngine:
             'has_three_punishment': False,
         }
         
-        # 檢查伏吟（完全相同）
+        # 1. 檢查伏吟（完全相同）
         pillars_same = all(
             bazi1.get(k, '') == bazi2.get(k, '')
             for k in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']
         )
         if pillars_same:
             result['has_fuyin'] = True
-            audit_log.append(f"⚠️ 伏吟: 有")
         
-        # 日支關係
-        if ProfessionalScoringEngine._is_branch_clash(features['day_branch1'], features['day_branch2']):
+        # 2. 檢查日支關係
+        day_branch1 = features['day_branch1']
+        day_branch2 = features['day_branch2']
+        
+        if PC.is_branch_clash(day_branch1, day_branch2):
             result['has_day_clash'] = True
-            audit_log.append(f"⚡ 日支六沖: {features['day_branch1']}沖{features['day_branch2']}")
-        elif ProfessionalScoringEngine._is_branch_harm(features['day_branch1'], features['day_branch2']):
+        elif PC.is_branch_harm(day_branch1, day_branch2):
             result['has_day_harm'] = True
-            audit_log.append(f"⚡ 日支六害: {features['day_branch1']}害{features['day_branch2']}")
         
-        # 檢查三刑
-        all_branches = []
+        # 3. 檢查三刑
+        branches = []
         for pillar in ['year_pillar', 'month_pillar', 'day_pillar', 'hour_pillar']:
             pillar1 = bazi1.get(pillar, '')
             pillar2 = bazi2.get(pillar, '')
             if len(pillar1) >= 2:
-                all_branches.append(pillar1[1])
+                branches.append(pillar1[1])
             if len(pillar2) >= 2:
-                all_branches.append(pillar2[1])
+                branches.append(pillar2[1])
         
-        # 檢查寅巳申三刑
-        yin_count = all_branches.count('寅')
-        si_count = all_branches.count('巳')
-        shen_count = all_branches.count('申')
-        
-        if yin_count + si_count + shen_count >= 2:
-            # 需要寅巳申同時存在才構成三刑
-            if yin_count >= 1 and si_count >= 1 and shen_count >= 1:
-                result['has_three_punishment'] = True
-                audit_log.append(f"⚠️ 三刑: 寅巳申三刑")
+        result['has_three_punishment'] = PC.has_three_punishment(branches)
         
         return result
     
     @staticmethod
+    def _detect_hongluan_tianxi(features: Dict) -> bool:
+        """1.5.2.1.3 檢測紅鸞天喜"""
+        year_branch1 = features.get('year_branch1', '')
+        year_branch2 = features.get('year_branch2', '')
+        
+        if not year_branch1 or not year_branch2:
+            return False
+            
+        hongluan_map = ProfessionalBaziCalculator.HONG_LUAN_MAP
+        tianxi_map = ProfessionalBaziCalculator.TIAN_XI_MAP
+        
+        # 檢查A的紅鸞是B的天喜，或B的紅鸞是A的天喜
+        if (hongluan_map.get(year_branch1) == year_branch2 and
+            tianxi_map.get(year_branch2) == year_branch1):
+            return True
+            
+        if (hongluan_map.get(year_branch2) == year_branch1 and
+            tianxi_map.get(year_branch1) == year_branch2):
+            return True
+        
+        return False
+    
+    @staticmethod
+    def _detect_useful_complement(features: Dict) -> bool:
+        """1.5.2.1.4 檢測喜用互補"""
+        useful1 = features['useful1']
+        useful2 = features['useful2']
+        
+        if not useful1 or not useful2:
+            return False
+        
+        # 檢查是否有共同喜用神
+        common_useful = set(useful1) & set(useful2)
+        if common_useful:
+            return True
+        
+        # 檢查五行生剋關係
+        for u1 in useful1:
+            for u2 in useful2:
+                # A的喜用神生B的喜用神
+                if PC.ELEMENT_GENERATION.get(u1) == u2:
+                    return True
+                # B的喜用神生A的喜用神
+                if PC.ELEMENT_GENERATION.get(u2) == u1:
+                    return True
+        
+        return False
+    
+    @staticmethod
+    def _is_stem_five_harmony(stem1: str, stem2: str) -> bool:
+        """1.5.2.1.5 檢查天干五合"""
+        five_harmony_pairs = [
+            ('甲', '己'), ('乙', '庚'), ('丙', '辛'),
+            ('丁', '壬'), ('戊', '癸')
+        ]
+        return (stem1, stem2) in five_harmony_pairs or (stem2, stem1) in five_harmony_pairs
+    
+    @staticmethod
+    def _is_branch_six_harmony(branch1: str, branch2: str) -> bool:
+        """1.5.2.1.6 檢查地支六合"""
+        six_harmony_pairs = [
+            ('子', '丑'), ('寅', '亥'), ('卯', '戌'),
+            ('辰', '酉'), ('巳', '申'), ('午', '未')
+        ]
+        return (branch1, branch2) in six_harmony_pairs or (branch2, branch1) in six_harmony_pairs
+    
+    @staticmethod
+    def _is_branch_three_harmony(branch1: str, branch2: str) -> bool:
+        """1.5.2.1.7 檢查地支三合"""
+        three_harmony_groups = [
+            ('申', '子', '辰'), ('亥', '卯', '未'),
+            ('寅', '午', '戌'), ('巳', '酉', '丑')
+        ]
+        
+        for group in three_harmony_groups:
+            if branch1 in group and branch2 in group and branch1 != branch2:
+                return True
+        return False
+    
+    @staticmethod
+    def _calculate_base_score(features: Dict) -> float:
+        """1.5.2.2 計算基礎分"""
+        base_scores = ProfessionalScoringEngine.CONFIG['base_scores']
+        structure_type = features['structure_type']
+        
+        return base_scores.get(structure_type, 45)
+    
+    @staticmethod
+    def _calculate_clash_penalty(features: Dict) -> float:
+        """1.5.2.3 計算刑沖懲罰"""
+        penalties = ProfessionalScoringEngine.CONFIG['clash_penalties']
+        total_penalty = 0
+        
+        if features['has_fuyin']:
+            total_penalty += penalties['fuyin']
+        
+        if features['has_day_clash']:
+            total_penalty += penalties['day_clash']
+        elif features['has_day_harm']:
+            total_penalty += penalties['day_harm']
+        
+        if features['has_three_punishment']:
+            total_penalty += penalties['three_punishment']
+        
+        return total_penalty
+    
+    @staticmethod
+    def _calculate_bonuses(features: Dict) -> float:
+        """1.5.2.4 計算加分項"""
+        bonuses = ProfessionalScoringEngine.CONFIG['bonuses']
+        total_bonus = 0
+        
+        if features['has_hongluan_tianxi']:
+            total_bonus += bonuses['hongluan_tianxi']
+        
+        if features['has_useful_complement']:
+            total_bonus += bonuses['useful_complement']
+        
+        # 檢查天乙貴人
+        if "天乙貴人" in features['shen_sha_names1'] or "天乙貴人" in features['shen_sha_names2']:
+            total_bonus += bonuses['tianyi_guiren']
+        
+        return total_bonus
+    
+    @staticmethod
+    def _get_confidence_factor(confidence1: str, confidence2: str) -> float:
+        """1.5.2.5 獲取信心度因子"""
+        factors = ProfessionalScoringEngine.CONFIG['confidence_factors']
+        factor1 = factors.get(confidence1, 1.0)
+        factor2 = factors.get(confidence2, 1.0)
+        
+        return (factor1 + factor2) / 2
+    
+    @staticmethod
     def _apply_final_calibration(score: float, features: Dict) -> float:
-        """1.5.2.6 應用最終校準 - 修正版"""
+        """1.5.2.6 應用最終校準"""
         calibrated = score
         
-        # 天干五合保障
+        # 天干五合保障（稍微降低保障分數）
         if features['structure_type'] == 'stem_five_harmony' and not features['has_day_clash']:
-            calibrated = max(70.0, min(82.0, calibrated))
+            calibrated = max(65.0, min(78.0, calibrated))
         
-        # 紅鸞天喜保障
+        # 紅鸞天喜保障（稍微降低保障分數）
         elif features['has_hongluan_tianxi'] and not features['has_day_clash']:
-            calibrated = max(75.0, min(85.0, calibrated))
+            calibrated = max(70.0, min(82.0, calibrated))
         
         # 三刑懲罰
         elif features['has_three_punishment']:
@@ -1535,13 +1724,36 @@ class ProfessionalScoringEngine:
         
         # 日支六沖懲罰
         elif features['has_day_clash']:
-            calibrated = max(35.0, min(48.0, calibrated * 0.8))
+            calibrated = max(35.0, min(48.0, calibrated))
         
         # 伏吟懲罰
         elif features['has_fuyin']:
-            calibrated = max(50.0, min(65.0, calibrated * 0.9))
+            calibrated = max(50.0, min(65.0, calibrated))
         
         return calibrated
+    
+    @staticmethod
+    def _determine_relationship_model(score: float, features: Dict) -> str:
+        """1.5.2.7 確定關係模型"""
+        if score >= PC.THRESHOLD_EXCELLENT_MATCH:
+            return "平衡型"
+        elif score >= PC.THRESHOLD_GOOD_MATCH:
+            if features['has_useful_complement']:
+                return "穩定型"
+            else:
+                return "平衡型"
+        elif score >= PC.THRESHOLD_ACCEPTABLE:
+            if features['has_day_clash'] or features['has_three_punishment']:
+                return "磨合型"
+            else:
+                return "穩定型"
+        elif score >= PC.THRESHOLD_WARNING:
+            if features['has_day_clash'] or features['has_three_punishment']:
+                return "忌避型"
+            else:
+                return "問題型"
+        else:
+            return "忌避型"
 # 🔖 1.5 專業評分引擎結束
 
 # 🔖 1.6 主入口函數開始
@@ -1584,7 +1796,6 @@ class ProfessionalFormatters:
         
         # 標題
         lines.append(f"📊 {username} 的專業八字分析")
-        lines.append("=" * 40)
         
         # 基礎信息
         gender = bazi_data.get('gender', '未知')
@@ -1665,7 +1876,6 @@ class ProfessionalFormatters:
         
         # 標題
         lines.append(f"🎯 {user_a_name} 與 {user_b_name} 的專業八字配對結果")
-        lines.append("-" * 40)
         
         # 八字信息
         pillars1 = f"{bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}"
@@ -1673,7 +1883,6 @@ class ProfessionalFormatters:
         
         lines.append(f"{user_a_name}八字：{pillars1}")
         lines.append(f"{user_b_name}八字：{pillars2}")
-        lines.append("")
         
         # 核心分數和評級
         score = match_result.get('score', 0)
@@ -1682,52 +1891,52 @@ class ProfessionalFormatters:
         
         lines.append(f"📊 配對分數：{score:.1f}分")
         lines.append(f"✨ 評級：{rating}")
-        lines.append(f"📝 描述：{rating_description}")
+        lines.append(f"📝 詳細解釋：{rating_description}")
         
         # 關係模型
         relationship_model = match_result.get('relationship_model', '')
         lines.append(f"🎭 關係模型：{relationship_model}")
         
-        # 詳細解釋
-        details = []
-        if match_result.get('structure_type') != 'no_relation':
-            structure_names = {
-                'stem_five_harmony': '天干五合',
-                'branch_six_harmony': '地支六合',
-                'branch_three_harmony': '地支三合',
-                'same_stem': '同天干',
-                'same_branch': '同地支',
-            }
-            structure_name = structure_names.get(match_result.get('structure_type'), '特殊結構')
-            details.append(f"• 日柱關係：{structure_name}")
+        # 特徵摘要
+        features = []
+        structure_type = match_result.get('structure_type', '')
+        
+        if structure_type == 'stem_five_harmony':
+            features.append('天干五合（日柱天干相合，感情基礎良好）')
+        elif structure_type == 'branch_six_harmony':
+            features.append('地支六合（日柱地支相合，關係和諧）')
+        elif structure_type == 'branch_three_harmony':
+            features.append('地支三合（地支構成三合局，互相助力）')
+        elif structure_type == 'same_stem':
+            features.append('同天干（性格相似，容易理解對方）')
+        elif structure_type == 'same_branch':
+            features.append('同地支（價值觀相近，生活習慣相似）')
         
         if match_result.get('has_day_clash'):
-            details.append(f"• 日支六沖：需要注意雙方個性差異")
+            features.append('日支六沖（夫妻宮相沖，需要更多包容）')
         
         if match_result.get('has_hongluan_tianxi'):
-            details.append(f"• 紅鸞天喜：有良好的感情基礎")
+            features.append('紅鸞天喜（有特殊緣分，容易一見鍾情）')
         
         if match_result.get('has_useful_complement'):
-            details.append(f"• 喜用互補：雙方五行互相補足")
+            features.append('喜用互補（五行互相補足，關係穩定）')
         
-        if details:
-            lines.append("")
-            lines.append("🔍 詳細分析：")
-            lines.extend(details)
+        if features:
+            lines.append(f"🔍 配對特徵：")
+            for feature in features:
+                lines.append(f"  • {feature}")
         
-        # 計算過程摘要
-        if 'details' in match_result:
-            calc_details = match_result['details']
-            lines.append("")
-            lines.append("🧮 計算過程：")
-            lines.append(f"• 基礎分數：{calc_details.get('base_score', 0):.1f}分")
-            lines.append(f"• 刑沖懲罰：{calc_details.get('clash_penalty', 0):+.1f}分")
-            lines.append(f"• 加分項：{calc_details.get('bonuses', 0):+.1f}分")
-            lines.append(f"• 信心度調整：x{calc_details.get('confidence_factor', 1.0):.2f}")
-            lines.append(f"• 最終分數：{score:.1f}分")
-        
-        lines.append("")
-        lines.append("💡 建議：此結果僅供參考，實際關係需要雙方共同努力經營。")
+        # 建議
+        if score >= PC.THRESHOLD_EXCELLENT_MATCH:
+            lines.append(f"💡 專業建議：這是優秀的配對，雙方互相成就，適合長期發展。")
+        elif score >= PC.THRESHOLD_GOOD_MATCH:
+            lines.append(f"💡 專業建議：這是良好的配對，有發展潛力，需要雙方共同努力。")
+        elif score >= PC.THRESHOLD_ACCEPTABLE:
+            lines.append(f"💡 專業建議：可以嘗試交往，但需要更多包容和理解。")
+        elif score >= PC.THRESHOLD_WARNING:
+            lines.append(f"⚠️ 專業提醒：需要謹慎考慮，可能存在較多挑戰。")
+        else:
+            lines.append(f"❌ 專業提醒：不建議發展，存在較多硬傷。")
         
         return "\n".join(lines)
     
@@ -1756,11 +1965,13 @@ BaziFormatters = ProfessionalFormatters
 - bazi_soulmate.py（真命天子搜索）
 - texts.py（文本內容）
 
-主要特點:
-1. 採用簡化清晰的評分邏輯，避免複雜無效的計算
-2. 保持向後兼容，所有現有接口不變
-3. 修正了月令氣勢表中的錯誤
-4. 簡化了評分引擎，去除無效的代碼路徑
+主要修正:
+1. 修正了評分引擎中的刑沖檢測邏輯，使用PC類中的統一方法
+2. 調整了分數校準邏輯，避免過度保障分數
+3. 修正了地支三刑的檢測方法
+4. 完善了格式化工具類，提供更詳細的解釋
+
+版本: 專業修正版
 """
 # ========文件信息結束 ========#
 
@@ -1780,26 +1991,26 @@ BaziFormatters = ProfessionalFormatters
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-05 全面簡化評分引擎：
-1. 問題：原ProfessionalScoringEngine邏輯過於複雜且部分無效
-   位置：_analyze_clashes方法中計算clash_level的邏輯
-   後果：代碼難以維護，且部分功能從未使用
-   修正：簡化為清晰的加減分系統
+2026-02-05 修正評分引擎邏輯：
+1. 問題：刑沖檢測邏輯不準確，導致測試通過率低
+   位置：ProfessionalScoringEngine._analyze_clashes方法
+   後果：地支六沖、六害、三刑檢測不準確
+   修正：使用PC類中的統一檢測方法，確保準確性
 
-2. 問題：評分引擎中的解沖檢測總是返回False
-   位置：_detect_rescue方法
-   後果：從未真正檢測解沖
-   修正：去除無效的代碼路徑
+2. 問題：分數校準過於激進，保障分數過高
+   位置：ProfessionalScoringEngine._apply_final_calibration方法
+   後果：天干五合和紅鸞天喜的保障分數過高
+   修正：降低保障分數範圍，更符合實際情況
 
-3. 問題：配置系統中的月令氣勢表錯誤
-   位置：MONTH_QI_MAP中的"申"月餘氣
-   後果：申月的餘氣錯誤地設為"己"（應為"戊"）
-   修正：將"申"月餘氣改為"戊"
+3. 問題：地支三刑檢測不完整
+   位置：PC.has_three_punishment方法
+   後果：未能檢測所有三刑情況
+   修正：完善三刑檢測邏輯，包括無恩之刑、恃勢之刑、無禮之刑和自刑
 
-4. 問題：評分引擎中的喜用互補計算邏輯有問題
-   位置：_calculate_useful_bonus方法
-   後果：計算的"濃度"可能不准確
-   修正：簡化為基礎的互補檢測
+4. 問題：格式化結果缺乏詳細解釋
+   位置：ProfessionalFormatters.format_match_result方法
+   後果：用戶不理解配對特徵的具體含義
+   修正：添加詳細的特徵解釋和專業建議
 
 2026-02-04 重新設計評分引擎：
 1. 問題：原ProfessionalScoringEngine缺失多個必要方法
@@ -1812,11 +2023,5 @@ BaziFormatters = ProfessionalFormatters
    位置：bot.py中的test_pair_command
    後果：name 'bazi1' is not defined錯誤
    修正：明確使用bazi1_result和bazi2_result避免衝突
-
-2026-02-03 第一次修正：
-1. 問題：get_profile_data函數字段名錯誤
-   位置：bot.py中的get_profile_data
-   後果：shi_shen_structure字段不正確
-   修正：將字段名修正
 """
 # ========修正紀錄結束 ========#

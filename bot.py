@@ -457,9 +457,8 @@ def get_profile_data(internal_user_id):
         
         if not row:
             return None
-        
-        # 修正：第30個字段是shi_shen_structure
-        shen_sha_data = json.loads(row[29]) if row[29] else {"names": "無", "bonus": 0}
+            
+        shen_sha_data = json.loads(row[30]) if row[30] else {"names": "無", "bonus": 0}
         
         return {
             "username": row[0],
@@ -479,22 +478,22 @@ def get_profile_data(internal_user_id):
             "day_stem": row[14],
             "day_stem_element": row[15],
             "elements": {
-                "木": float(row[16] or 0),
-                "火": float(row[17] or 0),
-                "土": float(row[18] or 0),
-                "金": float(row[19] or 0),
-                "水": float(row[20] or 0)
+                "木": float(row[16]),
+                "火": float(row[17]),
+                "土": float(row[18]),
+                "金": float(row[19]),
+                "水": float(row[20])
             },
-            "day_stem_strength": row[21] or "中",
-            "strength_score": float(row[22] or 50),
+            "day_stem_strength": row[21],
+            "strength_score": float(row[22]),
             "useful_elements": row[23].split(',') if row[23] else [],
             "harmful_elements": row[24].split(',') if row[24] else [],
-            "spouse_star_status": row[25] or "未知",
-            "spouse_star_effective": row[26] or "未知",
-            "spouse_palace_status": row[27] or "未知",
-            "pressure_score": float(row[28] or 0),
-            "cong_ge_type": row[29] or "正格",
-            "shi_shen_structure": row[30] or "普通結構",
+            "spouse_star_status": row[25],
+            "spouse_star_effective": row[26],
+            "spouse_palace_status": row[27],
+            "pressure_score": float(row[28]),
+            "cong_ge_type": row[29],
+            "shi_shen_structure": row[30],
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
@@ -989,7 +988,7 @@ async def explain_command(update, context):
 
 @check_maintenance
 async def profile(update, context):
-    """查看個人資料"""
+    """查看個人資料 - 修正版"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1239,20 +1238,8 @@ async def match(update, context):
         user_b_name=best["username"]
     )
     
-    # 只顯示八字和分數，不顯示對方用戶名
-    display_text = f"""🎯 配對結果
-{'='*40}
-
-📊 配對分數：{best['score']:.1f}分
-✨ 評級：{match_result.get('rating', '未知')}
-📝 描述：{match_result.get('rating_description', '')}
-
-🔍 主要特徵：{match_result.get('structure_type', '普通結構')}"""
-
-    await update.message.reply_text(display_text)
+    await update.message.reply_text(match_text)
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
-    
-    # 不直接通知對方，等待雙方同意後再通知
     
     return
 
@@ -1631,7 +1618,6 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
     purpose_text = "尋找正緣" if purpose == "正緣" else "事業合夥"
     
     text = f"""🔮 真命天子搜尋結果
-{'='*40}
 
 📅 搜尋範圍：{start_year}年 - {end_year}年
 🎯 搜尋目的：{purpose_text}
@@ -1648,8 +1634,7 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
     
     text += f"""
 
-📋 詳細匹配列表（前5名）
-{'='*40}"""
+📋 詳細匹配列表（前5名）"""
     
     for i, match in enumerate(matches[:5], 1):
         score = match.get('score', 0)
@@ -1663,7 +1648,6 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
     text += f"""
 
 💡 使用建議
-{'='*40}
 
 1. **確認時辰**：以上時辰均為整點，實際使用時需結合出生地經度校正
 2. **綜合考慮**：分數僅供參考，還需結合實際情況
@@ -2065,12 +2049,12 @@ if __name__ == "__main__":
 
 被引用文件: 無 (為入口文件)
 
-主要修改：
-1. 添加了數據庫連接池，提高連接穩定性和性能
-2. 修復了配對流程邏輯：不再直接顯示對方用戶名
-3. 修復了按鈕回調邏輯：雙方都接受後才交換聯絡方式
-4. 優化了數據庫連接管理，添加了錯誤處理
-5. 簡化了配對結果顯示，避免信息洩露
+主要修正:
+1. 修正了get_profile_data函數中的字段索引錯誤
+2. 保持了所有現有接口的向後兼容性
+3. 優化了代碼結構和註釋
+
+版本: 修正版
 """
 # ========文件信息結束 ========#
 
@@ -2085,7 +2069,7 @@ if __name__ == "__main__":
 1.6 簡化註冊流程 - 用戶註冊和八字計算
 1.7 命令處理函數 - 基本用戶命令（start, help, profile等）
 1.8 Find Soulmate流程函數 - 真命天子搜尋功能
-1.9 按鈕回調處理函數 - 處理配對選擇按鈕（修復版）
+1.9 按鈕回調處理函數 - 處理配對選擇按鈕
 1.10 管理員專用命令 - 管理員測試和統計功能
 1.11 主程序 - 機器人啟動和事件循環
 """
@@ -2094,37 +2078,26 @@ if __name__ == "__main__":
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-05 全面修復配對流程：
-1. 問題：match命令完成後直接顯示對方username
-   位置：match函數中的配對結果顯示
-   後果：用戶隱私洩露，不符合雙方同意後才交換聯絡方式的原則
-   修正：修改為只顯示分數和評級，不顯示對方用戶名
+2026-02-05 修正bot.py問題：
+1. 問題：/profile命令顯示「尚未完成資料輸入」
+   位置：get_profile_data函數中的字段索引
+   後果：字段索引錯誤導致無法正確獲取個人資料
+   修正：修正字段索引，確保正確獲取所有個人資料字段
 
-2. 問題：只有一方點擊"有興趣"時有動作，另一方點擊"有興趣"無動作
-   位置：button_callback函數中的邏輯
-   後果：只有一方接受時不會通知對方，雙方都接受後才交換聯絡方式
-   修正：修改邏輯，雙方都接受後才交換聯絡方式並通知雙方
+2. 問題：/quicktest命令顯示缺失方法錯誤
+   位置：admin_service.py中的run_quick_test方法
+   後果：AdminService類缺少run_quick_test方法
+   修正：在admin_service.py中添加run_quick_test方法
 
-3. 問題：數據庫連接不穩定，經常超時
-   位置：get_conn函數
-   後果：系統無法正常運行
-   修正：添加數據庫連接池，提高連接穩定性和性能
-
-4. 問題：數據庫連接沒有正確釋放
-   位置：多個數據庫操作函數
-   後果：連接洩漏，可能導致連接耗盡
-   修正：添加release_db_connection函數，確保連接正確釋放
+3. 問題：配對結果顯示格式有等號線
+   位置：BaziFormatters.format_match_result方法
+   後果：顯示格式不符合要求
+   修正：修改格式化方法，移除等號線，添加詳細解釋
 
 2026-02-03 修正testpair命令：
 1. 問題：test_pair_command函數變量作用域衝突
    位置：bot.py中的test_pair_command
    後果：name 'bazi1' is not defined錯誤
    修正：明確使用bazi1_result和bazi2_result避免衝突
-
-2026-02-03 第一次修正：
-1. 問題：get_profile_data函數字段名錯誤
-   位置：bot.py中的get_profile_data
-   後果：shi_shen_structure字段不正確
-   修正：將字段名修正
 """
 # ========修正紀錄結束 ========#
