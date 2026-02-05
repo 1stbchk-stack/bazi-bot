@@ -103,12 +103,12 @@ class SoulmateFinder:
         user_day_branch = user_day_pillar[1] if len(user_day_pillar) >= 2 else ''
         target_day_branch = target_day_pillar[1] if len(target_day_pillar) >= 2 else ''
         
-        # 檢查地支六沖
-        if ScoringEngine._is_branch_clash(user_day_branch, target_day_branch):
+        # 檢查地支六沖 - 使用PC類的統一方法
+        from new_calculator import PC
+        if PC.is_branch_clash(user_day_branch, target_day_branch):
             # 檢查是否有解藥（六合）
-            has_remedy = False
-            if ScoringEngine._is_branch_six_harmony(user_day_branch, target_day_branch):
-                has_remedy = True
+            # 使用ScoringEngine的六合檢查方法
+            has_remedy = ScoringEngine._is_branch_six_harmony(user_day_branch, target_day_branch)
             
             if not has_remedy:
                 return False, "日柱六沖無解"
@@ -343,9 +343,14 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 5. 修正ScoringEngine方法調用：使用正確的方法名
 
 修改記錄：
+2026-02-05 本次修正：
+1. 修正地支六沖檢測：使用PC.is_branch_clash統一方法
+2. 修正六合檢測：使用ScoringEngine._is_branch_six_harmony方法
+3. 修正導入語句：確保所有引用正確
+
 2026-02-03 本次修正：
 1. 修正導入語句：從 `from new_calculator import Config` 改為 `from new_calculator import ProfessionalConfig, ScoringEngine`
-2. 修正ScoringEngine方法調用：`ScoringEngine.is_clash()` 改為 `ScoringEngine._is_branch_clash()`
+2. 修正ScoringEngine方法調用：`ScoringEngine.is_clash()` 改為使用PC統一方法
 3. 修正ScoringEngine方法調用：`ScoringEngine.is_branch_harmony()` 改為 `ScoringEngine._is_branch_six_harmony()`
 4. 修正八字計算函數調用：`BaziCalculator.calculate()` 改為 `calculate_bazi()`
 

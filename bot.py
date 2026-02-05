@@ -457,8 +457,9 @@ def get_profile_data(internal_user_id):
         
         if not row:
             return None
-            
-        shen_sha_data = json.loads(row[30]) if row[30] else {"names": "無", "bonus": 0}
+        
+        # 修正：正確的字段索引，從0開始
+        shen_sha_data = json.loads(row[31]) if row[31] else {"names": "無", "bonus": 0}
         
         return {
             "username": row[0],
@@ -2050,7 +2051,7 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修正了get_profile_data函數中的字段索引錯誤
+1. 修正了get_profile_data函數中的字段索引錯誤（從30改為31）
 2. 保持了所有現有接口的向後兼容性
 3. 優化了代碼結構和註釋
 
@@ -2082,7 +2083,7 @@ if __name__ == "__main__":
 1. 問題：/profile命令顯示「尚未完成資料輸入」
    位置：get_profile_data函數中的字段索引
    後果：字段索引錯誤導致無法正確獲取個人資料
-   修正：修正字段索引，確保正確獲取所有個人資料字段
+   修正：修正字段索引，從30改為31，確保正確獲取shen_sha_data字段
 
 2. 問題：/quicktest命令顯示缺失方法錯誤
    位置：admin_service.py中的run_quick_test方法
