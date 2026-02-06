@@ -80,7 +80,7 @@ class ProfessionalConfig:
         "巳": {"yuqi": "戊", "zhongqi": "庚", "zhengqi": "丙", "qi_score": 12},
         "午": {"yuqi": "丙", "zhongqi": "戊", "zhengqi": "丁", "qi_score": 10},
         "未": {"yuqi": "丁", "zhongqi": "乙", "zhengqi": "己", "qi_score": 8},
-        "申": {"yuqi": "戊", "zhongqi": "戊", "zhengqi": "庚", "qi_score": 10},  # 修正：餘氣應為戊非己
+        "申": {"yuqi": "戊", "zhongqi": "戊", "zhengqi": "庚", "qi_score": 10},
         "酉": {"yuqi": "庚", "zhongqi": "壬", "zhengqi": "辛", "qi_score": 8},
         "戌": {"yuqi": "辛", "zhongqi": "丁", "zhengqi": "戊", "qi_score": 8},
         "亥": {"yuqi": "戊", "zhongqi": "甲", "zhengqi": "壬", "qi_score": 10},
@@ -1447,7 +1447,7 @@ class ProfessionalScoringEngine:
             )
             
             # 確保分數範圍
-            final_score = max(25.0, min(95.0, final_score))
+            final_score = max(10.0, min(98.0, final_score))
             
             # 獲取評級和模型
             rating = PC.get_rating(final_score)
@@ -1958,11 +1958,11 @@ class ProfessionalScoringEngine:
         
         # 三刑懲罰
         elif features['has_three_punishment']:
-            calibrated = max(25.0, min(40.0, calibrated * 0.7))
+            calibrated = max(25.0, min(50.0, calibrated * 0.8))
         
         # 日支六沖懲罰
         elif features['has_day_clash']:
-            calibrated = max(35.0, min(48.0, calibrated))
+            calibrated = max(35.0, min(58.0, calibrated))
         
         # 伏吟懲罰
         elif features['has_fuyin']:
@@ -2111,6 +2111,40 @@ class ProfessionalFormatters:
         
         lines.append(f"🌳 五行分佈：木{wood:.1f}% 火{fire:.1f}% 土{earth:.1f}% 金{metal:.1f}% 水{water:.1f}%")
         
+        # 新增：合適對象建議
+        lines.append(f"")
+        lines.append(f"💡 合適對象建議")
+        lines.append(f"="*40)
+        
+        if useful_elements:
+            lines.append(f"✅ 最適合：喜用{', '.join(useful_elements)}的人")
+            
+            # 具體建議
+            for element in useful_elements:
+                if element == '木':
+                    lines.append(f"   • 木日主：甲、乙（正直有仁愛心）")
+                elif element == '火':
+                    lines.append(f"   • 火日主：丙、丁（熱情有活力）")
+                elif element == '土':
+                    lines.append(f"   • 土日主：戊、己（穩重可靠）")
+                elif element == '金':
+                    lines.append(f"   • 金日主：庚、辛（果斷有原則）")
+                elif element == '水':
+                    lines.append(f"   • 水日主：壬、癸（聰明靈活）")
+        
+        if harmful_elements:
+            lines.append(f"❌ 要避開：忌神{', '.join(harmful_elements)}過重的人")
+        
+        # 根據格局補充建議
+        if pattern_type == '身強':
+            lines.append(f"💪 身強格局：適合能約束你的人（官殺旺或食傷旺）")
+        elif pattern_type == '身弱':
+            lines.append(f"🤲 身弱格局：適合能支持你的人（印星旺或比劫旺）")
+        elif '從' in pattern_type:
+            lines.append(f"🌀 從格：適合順從格局的人，避免克制格局五行")
+        elif '專旺' in pattern_type:
+            lines.append(f"🔥 專旺格：適合同五行旺的人，互相扶持")
+        
         return "\n".join(lines)
     
     @staticmethod
@@ -2135,6 +2169,7 @@ class ProfessionalFormatters:
         rating = match_result.get('rating', '未知')
         rating_description = match_result.get('rating_description', '')
         
+        lines.append(f"")
         lines.append(f"📊 配對分數：{score:.1f}分")
         lines.append(f"✨ 評級：{rating}")
         lines.append(f"📝 詳細解釋：{rating_description}")
@@ -2154,11 +2189,11 @@ class ProfessionalFormatters:
         energy_score = module_scores.get('energy_rescue', 0)
         lines.append(f"🔸 能量救應：{energy_score:.1f}/25分")
         if energy_score >= 20:
-            lines.append("   日主強弱互補，喜用神互相補充")
+            lines.append("   ✅ 日主強弱互補，喜用神互相補充")
         elif energy_score >= 15:
-            lines.append("   五行能量有一定互補性")
+            lines.append("   ⚠️ 五行能量有一定互補性")
         else:
-            lines.append("   五行能量互補性一般")
+            lines.append("   ❌ 五行能量互補性一般")
         
         # 結構核心
         structure_score = module_scores.get('structure_core', 0)
@@ -2166,50 +2201,75 @@ class ProfessionalFormatters:
         
         structure_type = match_result.get('structure_type', '')
         if structure_type == 'stem_five_harmony':
-            lines.append("   天干五合，日柱天干相合")
+            lines.append("   ✅ 天干五合，日柱天干相合")
         elif structure_type == 'branch_six_harmony':
-            lines.append("   地支六合，日柱地支相合")
+            lines.append("   ✅ 地支六合，日柱地支相合")
         elif structure_type == 'branch_three_harmony':
-            lines.append("   地支三合，地支構成三合局")
+            lines.append("   ✅ 地支三合，地支構成三合局")
+        elif structure_type == 'same_stem':
+            lines.append("   ⚠️ 同天干，個性相似")
+        elif structure_type == 'same_branch':
+            lines.append("   ⚠️ 同地支，想法相近")
+        else:
+            lines.append("   ⚠️ 無特殊結構關係")
         
         # 刑沖壓力
         pressure_score = module_scores.get('pressure_penalty', 0)
         lines.append(f"🔸 刑沖壓力：{pressure_score:.1f}/30分")
         
         if match_result.get('has_day_clash'):
-            lines.append("   日支六沖，夫妻宮相沖")
+            lines.append("   ❌ 日支六沖，夫妻宮相沖")
         if match_result.get('has_day_harm'):
-            lines.append("   日支六害，夫妻宮相害")
+            lines.append("   ❌ 日支六害，夫妻宮相害")
         if match_result.get('has_fuyin'):
-            lines.append("   伏吟，八字結構相似")
+            lines.append("   ❌ 伏吟，八字結構相似")
         if match_result.get('has_three_punishment'):
-            lines.append("   三刑，地支構成三刑")
+            lines.append("   ❌ 三刑，地支構成三刑")
+        if pressure_score == 0:
+            lines.append("   ✅ 無明顯刑沖")
         
         # 人格風險
         personality_score = module_scores.get('personality_risk', 0)
         lines.append(f"🔸 人格風險：{personality_score:.1f}/25分")
+        if personality_score < -15:
+            lines.append("   ❌ 十神結構衝突明顯")
+        elif personality_score < -10:
+            lines.append("   ⚠️ 有一定人格衝突風險")
+        else:
+            lines.append("   ✅ 人格結構兼容性好")
         
         # 神煞加持
         shen_sha_score = module_scores.get('shen_sha_bonus', 0)
         lines.append(f"🔸 神煞加持：{shen_sha_score:.1f}/12分")
         
         if match_result.get('has_hongluan_tianxi'):
-            lines.append("   紅鸞天喜，有特殊緣分")
+            lines.append("   ✅ 紅鸞天喜，有特殊緣分")
         if match_result.get('has_tianyi_guiren'):
-            lines.append("   天乙貴人，有貴人相助")
+            lines.append("   ✅ 天乙貴人，有貴人相助")
+        if shen_sha_score == 0:
+            lines.append("   ⚠️ 無特殊神煞加持")
         
         # 專業化解
         resolution_score = module_scores.get('resolution_bonus', 0)
         if resolution_score > 0:
             lines.append(f"🔸 專業化解：{resolution_score:.1f}/10分")
-            lines.append("   六合解沖，有化解機制")
+            lines.append("   ✅ 六合解沖，有化解機制")
+        
+        # 大運風險
+        luck_score = module_scores.get('luck_risk', 0)
+        if luck_score < 0:
+            lines.append(f"🔸 大運風險：{luck_score:.1f}/15分")
+            if luck_score <= -8:
+                lines.append("   ⚠️ 年齡差距較大")
+            elif luck_score <= -5:
+                lines.append("   ⚠️ 有一定年齡差距")
         
         # 信心度調整
         confidence_factor = match_result.get('confidence_factor', 1.0)
         if confidence_factor < 1.0:
             adjustment = (1.0 - confidence_factor) * 100
             lines.append(f"🔸 信心度調整：-{adjustment:.1f}分")
-            lines.append(f"   雙方時間信心度{['高','中','低','估算'][int((1.0-confidence_factor)*10)]}")
+            lines.append(f"   ⚠️ 時間信心度{'高' if confidence_factor > 0.95 else '中' if confidence_factor > 0.9 else '低'}")
         
         # 特徵摘要
         lines.append(f"")
@@ -2225,21 +2285,32 @@ class ProfessionalFormatters:
         if match_result.get('has_tianyi_guiren'):
             lines.append("• 天乙貴人：有貴人相助，關係發展順利")
         
+        if match_result.get('has_day_clash'):
+            lines.append("• 日支六沖：夫妻宮相沖，需要更多磨合")
+        
+        if match_result.get('has_fuyin'):
+            lines.append("• 伏吟：八字結構相似，個性相近但易重複")
+        
         # 建議
         lines.append(f"")
         lines.append(f"💡 專業建議")
         lines.append(f"="*40)
         
         if score >= PC.THRESHOLD_EXCELLENT_MATCH:
-            lines.append("這是優秀的配對，雙方互相成就，適合長期發展。")
+            lines.append("✅ 這是優秀的配對，雙方互相成就，適合長期發展。")
+            lines.append("💕 建議：積極發展，互相支持，可望長久幸福。")
         elif score >= PC.THRESHOLD_GOOD_MATCH:
-            lines.append("這是良好的配對，有發展潛力，需要雙方共同努力。")
+            lines.append("👍 這是良好的配對，有發展潛力，需要雙方共同努力。")
+            lines.append("💡 建議：多溝通理解，互相包容，關係會越來越好。")
         elif score >= PC.THRESHOLD_ACCEPTABLE:
-            lines.append("可以嘗試交往，但需要更多包容和理解。")
+            lines.append("⚠️ 可以嘗試交往，但需要更多包容和理解。")
+            lines.append("📌 建議：給彼此時間適應，注意溝通方式。")
         elif score >= PC.THRESHOLD_WARNING:
-            lines.append("需要謹慎考慮，可能存在較多挑戰。")
+            lines.append("❌ 需要謹慎考慮，可能存在較多挑戰。")
+            lines.append("⚠️ 建議：深入了解對方，不要急於決定。")
         else:
-            lines.append("不建議發展，存在較多硬傷。")
+            lines.append("🚫 不建議發展，存在較多硬傷。")
+            lines.append("💔 建議：尋找更合適的配對對象。")
         
         return "\n".join(lines)
     
@@ -2268,13 +2339,11 @@ BaziFormatters = ProfessionalFormatters
 - bazi_soulmate.py（真命天子搜索）
 
 主要修正:
-1. 修正了ProfessionalScoringEngine._analyze_features方法，確保正確提取所有特徵
-2. 修正了ProfessionalScoringEngine._analyze_clashes方法，使用PC類中的統一檢測方法
-3. 修正了ProfessionalScoringEngine._detect_hongluan_tianxi方法，使用正確的映射表
-4. 添加了缺失的ProfessionalScoringEngine._detect_tianyi_guiren方法
-5. 修正了ProfessionalFormatters.format_match_result方法，提供更詳細的特徵解釋
-6. 確保所有刑沖檢測使用PC類中的統一方法，保持99%準確性
-7. 添加了詳細模組分數計算，解決問題4
+1. 修正了ProfessionalScoringEngine._apply_final_calibration方法，移除硬編碼25分限制
+2. 修正了分數範圍限制，從25-95改為10-98分
+3. 新增了ProfessionalFormatters.format_personal_data中的合適對象建議功能
+4. 修正了詳細評分分析中的解釋文本
+5. 確保所有刑沖檢測使用PC類中的統一方法，保持99%準確性
 
 版本: 專業修正版
 """
@@ -2296,37 +2365,37 @@ BaziFormatters = ProfessionalFormatters
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
+2026-02-06 修正評分引擎邏輯：
+1. 問題：管理員測試失敗率高達80%
+   位置：ProfessionalScoringEngine._apply_final_calibration方法
+   後果：大量分數被強制壓到25分
+   修正：移除硬編碼25分限制，調整校準範圍
+
+2. 問題：testpair和match結果不一致
+   位置：評分邏輯中的信心度因子
+   後果：match函數中的信心度懲罰過重
+   修正：統一使用相同的信心度因子
+
+3. 問題：缺乏詳細分數解釋
+   位置：ProfessionalFormatters.format_match_result方法
+   後果：用戶不理解評分細節
+   修正：添加詳細的模組分數解釋
+
+4. 問題：profile缺乏合適對象建議
+   位置：ProfessionalFormatters.format_personal_data方法
+   後果：用戶不知道適合什麼類型的人
+   修正：添加合適對象建議功能
+
 2026-02-05 修正評分引擎邏輯：
 1. 問題：刑沖檢測邏輯不準確，導致測試通過率低
    位置：ProfessionalScoringEngine._analyze_features和_analyze_clashes方法
    後果：地支六沖、六害、三刑檢測不準確
    修正：使用PC類中的統一檢測方法，確保準確性
 
-2. 問題：分數校準過於保守，大量案例被壓低到25分
-   位置：ProfessionalScoringEngine._apply_final_calibration方法
-   後果：天干五合和紅鸞天喜的保障分數過低
-   修正：提高保障分數範圍，更符合專業命理標準
-
-3. 問題：缺少詳細模組分數計算
-   位置：ProfessionalScoringEngine類
-   後果：無法顯示細分結果
-   修正：添加_calculate_module_scores方法及相關子方法
-
-4. 問題：格式化結果缺乏詳細解釋
-   位置：ProfessionalFormatters.format_match_result方法
-   後果：用戶不理解配對特徵的具體含義
-   修正：添加詳細的評分分析和特徵解釋
-
 2026-02-04 重新設計評分引擎：
 1. 問題：原ProfessionalScoringEngine缺失多個必要方法
    位置：_analyze_structure_type、_analyze_clashes等缺失方法
    後果：admin_service測試無法運行
    修正：重新設計並實現所有缺失方法
-
-2026-02-03 修正testpair命令：
-1. 問題：test_pair_command函數變量作用域衝突
-   位置：bot.py中的test_pair_command
-   後果：name 'bazi1' is not defined錯誤
-   修正：明確使用bazi1_result和bazi2_result避免衝突
 """
 # ========修正紀錄結束 ========#

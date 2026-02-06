@@ -417,8 +417,108 @@ class AdminService:
     async def get_system_stats(self) -> SystemStats:
         """獲取系統統計數據"""
         try:
-            # 由於bot.py中已經有數據庫連接，這裡簡化處理
-            # 實際使用時需要從bot.py導入數據庫連接
+            # 需要從bot.py導入數據庫連接
+            from bot import get_db_connection
+            
+            conn = None
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+                
+                # 獲取總用戶數
+                cur.execute("SELECT COUNT(*) FROM users WHERE active = 1")
+                total_users = cur.fetchone()[0]
+                
+                # 獲取總配對數
+                cur.execute("SELECT COUNT(*) FROM matches")
+                total_matches = cur.fetchone()[0]
+                
+                # 獲取今日配對數
+                today = datetime.now().date()
+                cur.execute("SELECT COUNT(*) FROM matches WHERE DATE(created_at) = %s", (today,))
+                today_matches = cur.fetchone()[0]
+                
+                # 獲取平均分數
+                cur.execute("SELECT AVG(score) FROM matches WHERE score > 0")
+                avg_score_result = cur.fetchone()[0]
+                avg_match_score = float(avg_score_result) if avg_score_result else 0.0
+                
+                # 獲取成功率（分數≥55分的比例）
+                cur.execute("SELECT COUNT(*) FROM matches WHERE score >= 55")
+                good_matches = cur.fetchone()[0]
+                success_rate = (good_matches / total_matches * 100) if total_matches > 0 else 0.0
+                
+                # 獲取模型統計
+                cur.execute("""
+                    SELECT relationship_model, COUNT(*) as count, AVG(score) as avg_score
+                    FROM matches 
+                    WHERE relationship_model != ''
+                    GROUP BY relationship_model
+                    ORDER BY count DESC
+                """)
+                model_rows = cur.fetchall()
+                model_stats = []
+                for row in model_rows:
+                    model_stats.append({
+                        'model': row[0],
+                        'count': row[1],
+                        'avg_score': float(row[2]) if row[2] else 0.0
+                    })
+                
+                # 獲取24小時活躍用戶
+                yesterday = datetime.now() - timedelta(days=1)
+                cur.execute("SELECT COUNT(DISTINCT user_id) FROM matches WHERE created_at >= %s", (yesterday,))
+                active_users_24h = cur.fetchone()[0]
+                
+                # 獲取高分配對
+                cur.execute("""
+                    SELECT m.score, u1.username as user_a, u2.username as user_b
+                    FROM matches m
+                    JOIN users u1 ON m.user_a = u1.id
+                    JOIN users u2 ON m.user_b = u2.id
+                    WHERE m.score >= 70
+                    ORDER BY m.score DESC
+                    LIMIT 5
+                """)
+                top_rows = cur.fetchall()
+                top_matches = []
+                for row in top_rows:
+                    top_matches.append({
+                        'score': float(row[0]),
+                        'user_a': row[1] or '未知',
+                        'user_b': row[2] or '未知'
+                    })
+                
+                return SystemStats(
+                    total_users=total_users,
+                    total_matches=total_matches,
+                    today_matches=today_matches,
+                    avg_match_score=round(avg_match_score, 1),
+                    success_rate=round(success_rate, 1),
+                    model_stats=model_stats,
+                    active_users_24h=active_users_24h,
+                    top_matches=top_matches
+                )
+                    
+            except Exception as e:
+                logger.error(f"獲取統計數據失敗: {e}")
+                # 返回默認值
+                return SystemStats(
+                    total_users=0,
+                    total_matches=0,
+                    today_matches=0,
+                    avg_match_score=0.0,
+                    success_rate=0.0,
+                    model_stats=[],
+                    active_users_24h=0,
+                    top_matches=[]
+                )
+            finally:
+                if conn:
+                    conn.close()
+                
+        except ImportError:
+            # 如果無法導入，返回默認值
             return SystemStats(
                 total_users=0,
                 total_matches=0,
@@ -429,7 +529,6 @@ class AdminService:
                 active_users_24h=0,
                 top_matches=[]
             )
-                
         except Exception as e:
             logger.error(f"獲取統計失敗: {e}")
             return SystemStats(
@@ -459,127 +558,9 @@ class AdminService:
                 top_texts.append(f"{match['user_a']}↔{match['user_b']}:{match['score']:.1f}分")
             text += " ".join(top_texts) + "\n"
         
-        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-d %H:%M')}"
+        text += f"📅 統計時間: {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         
         return text
-    
-    def format_quick_test_results(self, results: Dict[str, Any]) -> str:
-        """格式化一鍵測試結果"""
-        text = f"⚡ 系統健康檢查報告\n"
-        
-        text += f"📊 總體狀態: {results.get('status', '未知')}  ✅通過: {results.get('passed', 0)}/{results.get('total', 0)}  ❌失敗: {results.get('failed', 0)}/{results.get('total', 0)}\n"
-        
-        for component in results.get('components', []):
-            status_emoji = '✅' if component.get('status') == 'PASS' else '❌'
-            text += f"{status_emoji}{component.get('name', '未知')}: {component.get('message', '')}\n"
-        
-        if results.get('error'):
-            text += f"❌錯誤: {results['error']}\n"
-        
-        # 添加健康狀態評估
-        if results.get('passed', 0) == results.get('total', 0) and results.get('total', 0) > 0:
-            text += "🏥系統健康狀態: ✅健康"
-        elif results.get('passed', 0) >= results.get('total', 0) * 0.7:
-            text += "🏥系統健康狀態: ⚠️警告(部分組件異常)"
-        else:
-            text += "🏥系統健康狀態: ❌故障(多個組件異常)"
-        
-        return text
-    # ========2.2 系統統計結束 ========#
-    
-    # ========2.3 快速測試功能開始 ========#
-    async def run_quick_test(self) -> Dict[str, Any]:
-        """運行快速系統健康檢查"""
-        components = []
-        
-        # 測試1：檢查八字計算
-        try:
-            bazi = calculate_bazi(1990, 1, 1, 12, gender="男")
-            if bazi and bazi.get('year_pillar'):
-                components.append({
-                    "name": "八字計算",
-                    "status": "PASS",
-                    "message": "八字計算功能正常"
-                })
-            else:
-                components.append({
-                    "name": "八字計算",
-                    "status": "FAIL",
-                    "message": "八字計算返回空數據"
-                })
-        except Exception as e:
-            components.append({
-                "name": "八字計算",
-                "status": "FAIL",
-                "message": f"八字計算失敗: {str(e)}"
-            })
-        
-        # 測試2：檢查配對計算
-        try:
-            bazi1 = calculate_bazi(1990, 1, 1, 12, gender="男")
-            bazi2 = calculate_bazi(1991, 2, 2, 13, gender="女")
-            match_result = calculate_match(bazi1, bazi2, "男", "女")
-            if match_result and 'score' in match_result:
-                components.append({
-                    "name": "配對計算",
-                    "status": "PASS",
-                    "message": f"配對計算正常，分數: {match_result.get('score', 0):.1f}"
-                })
-            else:
-                components.append({
-                    "name": "配對計算",
-                    "status": "FAIL",
-                    "message": "配對計算返回空數據"
-                })
-        except Exception as e:
-            components.append({
-                "name": "配對計算",
-                "status": "FAIL",
-                "message": f"配對計算失敗: {str(e)}"
-            })
-        
-        # 測試3：檢查測試案例
-        try:
-            from admin_service import ADMIN_TEST_CASES
-            if ADMIN_TEST_CASES and len(ADMIN_TEST_CASES) > 0:
-                components.append({
-                    "name": "測試案例",
-                    "status": "PASS",
-                    "message": f"載入{len(ADMIN_TEST_CASES)}個測試案例"
-                })
-            else:
-                components.append({
-                    "name": "測試案例",
-                    "status": "FAIL",
-                    "message": "測試案例載入失敗"
-                })
-        except Exception as e:
-            components.append({
-                "name": "測試案例",
-                "status": "FAIL",
-                "message": f"測試案例載入失敗: {str(e)}"
-            })
-        
-        # 計算總體狀態
-        passed = sum(1 for c in components if c["status"] == "PASS")
-        total = len(components)
-        
-        # 確定狀態
-        if passed == total and total > 0:
-            status = "健康"
-        elif passed >= total * 0.7:
-            status = "警告"
-        else:
-            status = "故障"
-        
-        return {
-            "status": status,
-            "passed": passed,
-            "total": total,
-            "failed": total - passed,
-            "components": components
-        }
-    # ========2.3 快速測試功能結束 ========#
 # ========1.4 AdminService類結束 ========#
 
 # ========文件信息開始 ========#
