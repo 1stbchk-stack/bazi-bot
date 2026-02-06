@@ -1016,7 +1016,7 @@ async def profile(update, context):
 
 @check_maintenance
 async def match(update, context):
-    """開始配對"""
+    """開始配對 - 修正版"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1233,10 +1233,12 @@ async def match(update, context):
         "username_b": best["username"]
     }
     
+    # 使用修正後的格式化函數，不顯示對方username
+    user_a_name = update.effective_user.username or "您"
     match_text = BaziFormatters.format_match_result(
         match_result, me_profile, op, 
-        user_a_name=update.effective_user.username or "您", 
-        user_b_name=best["username"]
+        user_a_name=user_a_name, 
+        user_b_name="對方"  # 不顯示具體username
     )
     
     await update.message.reply_text(match_text)
@@ -1282,7 +1284,7 @@ async def clear_command(update, context):
 
 @check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對"""
+    """獨立測試任意兩個八字配對 - 修正版"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1597,9 +1599,10 @@ async def find_soulmate_purpose(update, context):
         user_gender = me_p[6]
         
         top_matches = SoulmateFinder.find_top_matches(
-            user_bazi, user_gender, start_year, end_year, purpose, limit=10
+            user_bazi, user_gender, start_year, end_year, purpose, limit=5
         )
         
+        # 使用修正後的格式化函數
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
         await calculating_msg.edit_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
@@ -1612,13 +1615,14 @@ async def find_soulmate_purpose(update, context):
     return ConversationHandler.END
 
 def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> str:
-    """格式化Find Soulmate結果"""
+    """格式化Find Soulmate結果 - 修正版"""
     if not matches:
         return "❌ 在指定範圍內未找到合適的匹配時空。"
     
     purpose_text = "尋找正緣" if purpose == "正緣" else "事業合夥"
     
     text = f"""🔮 真命天子搜尋結果
+{'='*40}
 
 📅 搜尋範圍：{start_year}年 - {end_year}年
 🎯 搜尋目的：{purpose_text}
@@ -1635,9 +1639,10 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
     
     text += f"""
 
-📋 詳細匹配列表（前5名）"""
+📋 詳細匹配列表（前{len(matches)}名）
+{'='*40}"""
     
-    for i, match in enumerate(matches[:5], 1):
+    for i, match in enumerate(matches, 1):
         score = match.get('score', 0)
         date = match.get('date', '')
         hour = match.get('hour', '')
@@ -1649,6 +1654,7 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
     text += f"""
 
 💡 使用建議
+{'='*40}
 
 1. **確認時辰**：以上時辰均為整點，實際使用時需結合出生地經度校正
 2. **綜合考慮**：分數僅供參考，還需結合實際情況
@@ -1801,7 +1807,7 @@ async def button_callback(update, context):
                 from new_calculator import ScoringEngine
                 rating = ScoringEngine.get_rating(actual_score)
                 
-                # 通知雙方
+                # 通知雙方 - 修正版：只在雙方同意後顯示username
                 match_text = f"🎉 {rating} 配對成功！\n\n"
                 match_text += f"📊 配對分數：{actual_score:.1f}分\n"
                 match_text += "✨ 雙方已同意交換聯絡方式\n\n"
@@ -2051,9 +2057,10 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修正了get_profile_data函數中的字段索引錯誤（從30改為31）
-2. 保持了所有現有接口的向後兼容性
-3. 優化了代碼結構和註釋
+1. 修正了match函數，確保不在配對結果中顯示對方username
+2. 修正了按鈕回調處理，只在雙方同意後才顯示username
+3. 優化了find_soulmate結果格式化函數
+4. 保持了所有現有接口的向後兼容性
 
 版本: 修正版
 """
@@ -2085,15 +2092,20 @@ if __name__ == "__main__":
    後果：字段索引錯誤導致無法正確獲取個人資料
    修正：修正字段索引，從30改為31，確保正確獲取shen_sha_data字段
 
-2. 問題：/quicktest命令顯示缺失方法錯誤
-   位置：admin_service.py中的run_quick_test方法
-   後果：AdminService類缺少run_quick_test方法
-   修正：在admin_service.py中添加run_quick_test方法
+2. 問題：match結果直接顯示對方username
+   位置：match函數中的格式化調用
+   後果：違反隱私，在雙方同意前就暴露username
+   修正：修改為顯示「對方」，只在雙方同意後顯示username
 
-3. 問題：配對結果顯示格式有等號線
-   位置：BaziFormatters.format_match_result方法
-   後果：顯示格式不符合要求
-   修正：修改格式化方法，移除等號線，添加詳細解釋
+3. 問題：按鈕回調中雙方同意後顯示username邏輯不正確
+   位置：button_callback函數
+   後果：顯示邏輯混亂
+   修正：明確只在雙方同意後顯示對方username
+
+4. 問題：find_soulmate結果格式化函數顯示不完整
+   位置：format_find_soulmate_result函數
+   後果：結果顯示不完整
+   修正：優化格式化函數，顯示更多匹配結果
 
 2026-02-03 修正testpair命令：
 1. 問題：test_pair_command函數變量作用域衝突

@@ -1394,6 +1394,17 @@ class ProfessionalScoringEngine:
             "低": 0.92,
             "估算": 0.88,
         },
+        
+        # 詳細評分模組權重
+        'module_weights': {
+            'energy_rescue': 25,      # 能量救應
+            'structure_core': 20,     # 結構核心
+            'pressure_penalty': -30,  # 刑沖壓力
+            'personality_risk': -25,  # 人格風險
+            'shen_sha_bonus': 12,     # 神煞加持
+            'resolution_bonus': 10,   # 專業化解
+            'luck_risk': -15,         # 大運風險
+        }
     }
     
     @staticmethod
@@ -1408,6 +1419,9 @@ class ProfessionalScoringEngine:
             
             # 分析特徵
             features = ProfessionalScoringEngine._analyze_features(bazi1, bazi2)
+            
+            # 計算詳細模組分數
+            module_scores = ProfessionalScoringEngine._calculate_module_scores(features, bazi1, bazi2)
             
             # 計算基礎分
             base_score = ProfessionalScoringEngine._calculate_base_score(features)
@@ -1455,6 +1469,11 @@ class ProfessionalScoringEngine:
                 "has_hongluan_tianxi": features['has_hongluan_tianxi'],
                 "has_useful_complement": features['has_useful_complement'],
                 "has_tianyi_guiren": features['has_tianyi_guiren'],
+                "module_scores": module_scores,
+                "confidence_factor": round(confidence_factor, 3),
+                "base_score": round(base_score, 1),
+                "clash_penalty": round(clash_penalty, 1),
+                "bonuses": round(bonuses, 1),
                 "audit_log": audit_log
             }
             
@@ -1533,8 +1552,199 @@ class ProfessionalScoringEngine:
         return features
     
     @staticmethod
+    def _calculate_module_scores(features: Dict, bazi1: Dict, bazi2: Dict) -> Dict[str, float]:
+        """1.5.2.1.1 計算詳細模組分數"""
+        module_scores = {}
+        
+        # 1. 能量救應 (25分)
+        energy_rescue = ProfessionalScoringEngine._calculate_energy_rescue(bazi1, bazi2)
+        module_scores['energy_rescue'] = min(25, max(0, energy_rescue))
+        
+        # 2. 結構核心 (20分)
+        structure_core = ProfessionalScoringEngine._calculate_structure_core(features)
+        module_scores['structure_core'] = min(20, max(0, structure_core))
+        
+        # 3. 刑沖壓力 (-30分)
+        pressure_penalty = ProfessionalScoringEngine._calculate_pressure_penalty(features)
+        module_scores['pressure_penalty'] = max(-30, pressure_penalty)
+        
+        # 4. 人格風險 (-25分)
+        personality_risk = ProfessionalScoringEngine._calculate_personality_risk(bazi1, bazi2)
+        module_scores['personality_risk'] = max(-25, personality_risk)
+        
+        # 5. 神煞加持 (12分)
+        shen_sha_bonus = ProfessionalScoringEngine._calculate_shen_sha_bonus(features)
+        module_scores['shen_sha_bonus'] = min(12, max(0, shen_sha_bonus))
+        
+        # 6. 專業化解 (10分)
+        resolution_bonus = ProfessionalScoringEngine._calculate_resolution_bonus(features)
+        module_scores['resolution_bonus'] = min(10, max(0, resolution_bonus))
+        
+        # 7. 大運風險 (-15分)
+        luck_risk = ProfessionalScoringEngine._calculate_luck_risk(bazi1, bazi2)
+        module_scores['luck_risk'] = max(-15, luck_risk)
+        
+        return module_scores
+    
+    @staticmethod
+    def _calculate_energy_rescue(bazi1: Dict, bazi2: Dict) -> float:
+        """計算能量救應分數"""
+        score = 0
+        
+        # 日主強弱互補
+        strength1 = bazi1.get('strength_score', 50)
+        strength2 = bazi2.get('strength_score', 50)
+        
+        # 強弱差距適中加分
+        strength_diff = abs(strength1 - strength2)
+        if 20 <= strength_diff <= 40:
+            score += 8
+        elif strength_diff < 20:
+            score += 5
+        
+        # 喜用神互補
+        useful1 = bazi1.get('useful_elements', [])
+        useful2 = bazi2.get('useful_elements', [])
+        
+        # 檢查喜用神互相生助
+        for u1 in useful1:
+            for u2 in useful2:
+                # A的喜用神生B的喜用神
+                if PC.ELEMENT_GENERATION.get(u1) == u2:
+                    score += 6
+                # B的喜用神生A的喜用神
+                if PC.ELEMENT_GENERATION.get(u2) == u1:
+                    score += 6
+        
+        return min(25, score)
+    
+    @staticmethod
+    def _calculate_structure_core(features: Dict) -> float:
+        """計算結構核心分數"""
+        score = 0
+        
+        # 根據結構類型給分
+        structure_type = features['structure_type']
+        if structure_type == 'stem_five_harmony':
+            score += 15
+        elif structure_type == 'branch_six_harmony':
+            score += 12
+        elif structure_type == 'branch_three_harmony':
+            score += 10
+        elif structure_type == 'same_stem':
+            score += 5
+        elif structure_type == 'same_branch':
+            score += 4
+        
+        return min(20, score)
+    
+    @staticmethod
+    def _calculate_pressure_penalty(features: Dict) -> float:
+        """計算刑沖壓力懲罰"""
+        penalty = 0
+        
+        if features['has_fuyin']:
+            penalty -= 20
+        elif features['has_day_clash']:
+            penalty -= 15
+        elif features['has_day_harm']:
+            penalty -= 10
+        
+        if features['has_three_punishment']:
+            penalty -= 25
+        
+        return max(-30, penalty)
+    
+    @staticmethod
+    def _calculate_personality_risk(bazi1: Dict, bazi2: Dict) -> float:
+        """計算人格風險"""
+        risk = 0
+        
+        # 十神結構衝突檢查
+        structure1 = bazi1.get('shi_shen_structure', '')
+        structure2 = bazi2.get('shi_shen_structure', '')
+        
+        # 檢查明顯衝突
+        conflicts = [
+            ("比劫奪財", "正財"), ("傷官見官", "正官"),
+            ("食神制殺", "七殺"), ("財破印", "正印")
+        ]
+        
+        for pattern1, pattern2 in conflicts:
+            if pattern1 in structure1 and pattern2 in structure2:
+                risk -= 10
+            if pattern2 in structure1 and pattern1 in structure2:
+                risk -= 10
+        
+        # 格局差異過大
+        pattern1 = bazi1.get('pattern_type', '')
+        pattern2 = bazi2.get('pattern_type', '')
+        
+        if ("從" in pattern1 and "專旺" in pattern2) or ("專旺" in pattern1 and "從" in pattern2):
+            risk -= 8
+        
+        return max(-25, risk)
+    
+    @staticmethod
+    def _calculate_shen_sha_bonus(features: Dict) -> float:
+        """計算神煞加持分數"""
+        bonus = 0
+        
+        if features['has_hongluan_tianxi']:
+            bonus += 10
+        
+        if features['has_tianyi_guiren']:
+            bonus += 7
+        
+        return min(12, bonus)
+    
+    @staticmethod
+    def _calculate_resolution_bonus(features: Dict) -> float:
+        """計算專業化解分數"""
+        bonus = 0
+        
+        # 六合解沖
+        if features['has_day_clash']:
+            day_branch1 = features['day_branch1']
+            day_branch2 = features['day_branch2']
+            
+            # 檢查是否有六合解沖
+            six_harmony_pairs = [
+                ('子', '丑'), ('寅', '亥'), ('卯', '戌'),
+                ('辰', '酉'), ('巳', '申'), ('午', '未')
+            ]
+            
+            # 檢查其他地支是否有解沖的六合
+            all_branches = features['all_branches']
+            for branch1, branch2 in six_harmony_pairs:
+                if branch1 in all_branches and branch2 in all_branches:
+                    bonus += 5
+                    break
+        
+        return min(10, bonus)
+    
+    @staticmethod
+    def _calculate_luck_risk(bazi1: Dict, bazi2: Dict) -> float:
+        """計算大運風險"""
+        risk = 0
+        
+        # 年齡差距過大
+        year1 = bazi1.get('birth_year', 2000)
+        year2 = bazi2.get('birth_year', 2000)
+        age_diff = abs(year1 - year2)
+        
+        if age_diff > 15:
+            risk -= 8
+        elif age_diff > 10:
+            risk -= 5
+        elif age_diff > 5:
+            risk -= 2
+        
+        return max(-15, risk)
+    
+    @staticmethod
     def _analyze_structure_type(features: Dict) -> str:
-        """1.5.2.1.1 分析日柱結構類型"""
+        """1.5.2.1.2 分析日柱結構類型"""
         day_stem1 = features['day_stem1']
         day_stem2 = features['day_stem2']
         day_branch1 = features['day_branch1']
@@ -1564,7 +1774,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _analyze_clashes(features: Dict) -> Dict[str, Any]:
-        """1.5.2.1.2 分析刑沖"""
+        """1.5.2.1.3 分析刑沖"""
         result = {
             'has_day_clash': False,
             'has_day_harm': False,
@@ -1592,7 +1802,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _detect_hongluan_tianxi(features: Dict) -> bool:
-        """1.5.2.1.3 檢測紅鸞天喜"""
+        """1.5.2.1.4 檢測紅鸞天喜"""
         year_branch1 = features['year_branch1']
         year_branch2 = features['year_branch2']
         
@@ -1617,7 +1827,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _detect_useful_complement(features: Dict) -> bool:
-        """1.5.2.1.4 檢測喜用互補"""
+        """1.5.2.1.5 檢測喜用互補"""
         useful1 = features['useful1']
         useful2 = features['useful2']
         
@@ -1643,7 +1853,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _detect_tianyi_guiren(features: Dict) -> bool:
-        """1.5.2.1.5 檢測天乙貴人"""
+        """1.5.2.1.6 檢測天乙貴人"""
         shen_sha_names1 = features['shen_sha_names1']
         shen_sha_names2 = features['shen_sha_names2']
         
@@ -1651,7 +1861,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_stem_five_harmony(stem1: str, stem2: str) -> bool:
-        """1.5.2.1.6 檢查天干五合"""
+        """1.5.2.1.7 檢查天干五合"""
         five_harmony_pairs = [
             ('甲', '己'), ('乙', '庚'), ('丙', '辛'),
             ('丁', '壬'), ('戊', '癸')
@@ -1660,7 +1870,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_six_harmony(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.7 檢查地支六合"""
+        """1.5.2.1.8 檢查地支六合"""
         six_harmony_pairs = [
             ('子', '丑'), ('寅', '亥'), ('卯', '戌'),
             ('辰', '酉'), ('巳', '申'), ('午', '未')
@@ -1669,7 +1879,7 @@ class ProfessionalScoringEngine:
     
     @staticmethod
     def _is_branch_three_harmony(branch1: str, branch2: str) -> bool:
-        """1.5.2.1.8 檢查地支三合"""
+        """1.5.2.1.9 檢查地支三合"""
         three_harmony_groups = [
             ('申', '子', '辰'), ('亥', '卯', '未'),
             ('寅', '午', '戌'), ('巳', '酉', '丑')
@@ -1740,7 +1950,7 @@ class ProfessionalScoringEngine:
         
         # 天干五合保障
         if features['structure_type'] == 'stem_five_harmony' and not features['has_day_clash']:
-            calibrated = max(65.0, min(78.0, calibrated))
+            calibrated = max(68.0, min(78.0, calibrated))
         
         # 紅鸞天喜保障
         elif features['has_hongluan_tianxi'] and not features['has_day_clash']:
@@ -1933,44 +2143,92 @@ class ProfessionalFormatters:
         relationship_model = match_result.get('relationship_model', '')
         lines.append(f"🎭 關係模型：{relationship_model}")
         
-        # 特徵摘要
-        lines.append(f"🔍 配對特徵：")
+        # 詳細評分分析
+        lines.append(f"")
+        lines.append(f"📋 詳細評分分析")
+        lines.append(f"="*40)
+        
+        module_scores = match_result.get('module_scores', {})
+        
+        # 能量救應
+        energy_score = module_scores.get('energy_rescue', 0)
+        lines.append(f"🔸 能量救應：{energy_score:.1f}/25分")
+        if energy_score >= 20:
+            lines.append("   日主強弱互補，喜用神互相補充")
+        elif energy_score >= 15:
+            lines.append("   五行能量有一定互補性")
+        else:
+            lines.append("   五行能量互補性一般")
+        
+        # 結構核心
+        structure_score = module_scores.get('structure_core', 0)
+        lines.append(f"🔸 結構核心：{structure_score:.1f}/20分")
         
         structure_type = match_result.get('structure_type', '')
         if structure_type == 'stem_five_harmony':
-            lines.append("  • 天干五合：日柱天干相合，感情基礎良好")
+            lines.append("   天干五合，日柱天干相合")
         elif structure_type == 'branch_six_harmony':
-            lines.append("  • 地支六合：日柱地支相合，關係和諧")
+            lines.append("   地支六合，日柱地支相合")
         elif structure_type == 'branch_three_harmony':
-            lines.append("  • 地支三合：地支構成三合局，互相助力")
-        elif structure_type == 'same_stem':
-            lines.append("  • 同天干：性格相似，容易理解對方")
-        elif structure_type == 'same_branch':
-            lines.append("  • 同地支：價值觀相近，生活習慣相似")
+            lines.append("   地支三合，地支構成三合局")
+        
+        # 刑沖壓力
+        pressure_score = module_scores.get('pressure_penalty', 0)
+        lines.append(f"🔸 刑沖壓力：{pressure_score:.1f}/30分")
         
         if match_result.get('has_day_clash'):
-            lines.append("  • 日支六沖：夫妻宮相沖，需要更多包容")
-        
+            lines.append("   日支六沖，夫妻宮相沖")
         if match_result.get('has_day_harm'):
-            lines.append("  • 日支六害：夫妻宮相害，需要互相理解")
-        
+            lines.append("   日支六害，夫妻宮相害")
         if match_result.get('has_fuyin'):
-            lines.append("  • 伏吟：八字結構相似，易有重複問題")
-        
+            lines.append("   伏吟，八字結構相似")
         if match_result.get('has_three_punishment'):
-            lines.append("  • 三刑：地支構成三刑，關係較為複雜")
+            lines.append("   三刑，地支構成三刑")
+        
+        # 人格風險
+        personality_score = module_scores.get('personality_risk', 0)
+        lines.append(f"🔸 人格風險：{personality_score:.1f}/25分")
+        
+        # 神煞加持
+        shen_sha_score = module_scores.get('shen_sha_bonus', 0)
+        lines.append(f"🔸 神煞加持：{shen_sha_score:.1f}/12分")
         
         if match_result.get('has_hongluan_tianxi'):
-            lines.append("  • 紅鸞天喜：有特殊緣分，容易一見鍾情")
+            lines.append("   紅鸞天喜，有特殊緣分")
+        if match_result.get('has_tianyi_guiren'):
+            lines.append("   天乙貴人，有貴人相助")
+        
+        # 專業化解
+        resolution_score = module_scores.get('resolution_bonus', 0)
+        if resolution_score > 0:
+            lines.append(f"🔸 專業化解：{resolution_score:.1f}/10分")
+            lines.append("   六合解沖，有化解機制")
+        
+        # 信心度調整
+        confidence_factor = match_result.get('confidence_factor', 1.0)
+        if confidence_factor < 1.0:
+            adjustment = (1.0 - confidence_factor) * 100
+            lines.append(f"🔸 信心度調整：-{adjustment:.1f}分")
+            lines.append(f"   雙方時間信心度{['高','中','低','估算'][int((1.0-confidence_factor)*10)]}")
+        
+        # 特徵摘要
+        lines.append(f"")
+        lines.append(f"💡 配對特徵")
+        lines.append(f"="*40)
+        
+        if match_result.get('has_hongluan_tianxi'):
+            lines.append("• 紅鸞天喜：有特殊緣分，容易一見鍾情")
         
         if match_result.get('has_useful_complement'):
-            lines.append("  • 喜用互補：五行互相補足，關係穩定")
+            lines.append("• 喜用互補：五行互相補足，關係穩定")
         
         if match_result.get('has_tianyi_guiren'):
-            lines.append("  • 天乙貴人：有貴人相助，關係發展順利")
+            lines.append("• 天乙貴人：有貴人相助，關係發展順利")
         
         # 建議
-        lines.append(f"💡 專業建議：")
+        lines.append(f"")
+        lines.append(f"💡 專業建議")
+        lines.append(f"="*40)
         
         if score >= PC.THRESHOLD_EXCELLENT_MATCH:
             lines.append("這是優秀的配對，雙方互相成就，適合長期發展。")
@@ -2016,6 +2274,7 @@ BaziFormatters = ProfessionalFormatters
 4. 添加了缺失的ProfessionalScoringEngine._detect_tianyi_guiren方法
 5. 修正了ProfessionalFormatters.format_match_result方法，提供更詳細的特徵解釋
 6. 確保所有刑沖檢測使用PC類中的統一方法，保持99%準確性
+7. 添加了詳細模組分數計算，解決問題4
 
 版本: 專業修正版
 """
@@ -2043,20 +2302,20 @@ BaziFormatters = ProfessionalFormatters
    後果：地支六沖、六害、三刑檢測不準確
    修正：使用PC類中的統一檢測方法，確保準確性
 
-2. 問題：分數校準過於激進，保障分數過高
+2. 問題：分數校準過於保守，大量案例被壓低到25分
    位置：ProfessionalScoringEngine._apply_final_calibration方法
-   後果：天干五合和紅鸞天喜的保障分數過高
-   修正：降低保障分數範圍，更符合實際情況
+   後果：天干五合和紅鸞天喜的保障分數過低
+   修正：提高保障分數範圍，更符合專業命理標準
 
-3. 問題：缺少天乙貴人檢測方法
+3. 問題：缺少詳細模組分數計算
    位置：ProfessionalScoringEngine類
-   後果：無法檢測天乙貴人加分項
-   修正：添加_detect_tianyi_guiren方法
+   後果：無法顯示細分結果
+   修正：添加_calculate_module_scores方法及相關子方法
 
 4. 問題：格式化結果缺乏詳細解釋
    位置：ProfessionalFormatters.format_match_result方法
    後果：用戶不理解配對特徵的具體含義
-   修正：添加詳細的特徵解釋和專業建議
+   修正：添加詳細的評分分析和特徵解釋
 
 2026-02-04 重新設計評分引擎：
 1. 問題：原ProfessionalScoringEngine缺失多個必要方法
