@@ -525,7 +525,7 @@ def format_find_soulmate_result(matches: List[Dict[str, Any]], start_year: int,
 6. 添加備用日期機制，防止無結果
 
 修改記錄：
-2026-02-07 本次修正：
+2026-02-07 最終修正：
 1. 問題：極度放寬篩選條件
    位置：pre_filter和structure_check方法
    後果：之前條件太嚴格導致0結果
@@ -545,22 +545,6 @@ def format_find_soulmate_result(matches: List[Dict[str, Any]], start_year: int,
    位置：find_top_matches方法
    後果：無結果時直接返回空列表
    修正：添加備用日期機制和降級策略
-
-2026-02-07 先前修正：
-1. 問題：局部導入導致重複計算和效率問題
-   位置：calculate_final_score和find_top_matches方法中的局部導入
-   後果：每次函數調用都重新導入，效率低下
-   修正：將所有導入移到文件頂部
-
-2. 問題：常量定義不一致
-   位置：多個函數中的魔法數字
-   後果：難以維護和理解
-   修正：定義統一常量
-
-3. 問題：日誌級別不當
-   位置：多個函數中的日誌記錄
-   後果：調試困難
-   修正：區分info、debug、warning級別
 """
 # ========文件信息結束 ========#
 
@@ -573,7 +557,7 @@ def format_find_soulmate_result(matches: List[Dict[str, Any]], start_year: int,
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-07 本次修正：
+2026-02-07 最終修正：
 1. 問題：find_soulmate完全無出到結果
    位置：pre_filter和structure_check方法過於嚴格
    後果：篩選掉所有候選，導致0結果
@@ -594,30 +578,9 @@ def format_find_soulmate_result(matches: List[Dict[str, Any]], start_year: int,
    後果：用戶體驗差
    修正：添加備用日期和降級策略
 
-2026-02-07 先前修正：
-1. 問題：局部導入效率問題
-   位置：calculate_final_score和find_top_matches中的局部導入
-   後果：每次函數調用都重新導入calculate_match和calculate_bazi
-   修正：將所有關鍵導入移到文件頂部
-
-2. 問題：常量定義混亂
-   位置：多個函數中的硬編碼數字
-   後果：60、50、35等魔法數字分散各處
-   修正：定義統一常量MIN_SCORE_THRESHOLD=60等
-
-3. 問題：日誌級別混淆
-   位置：不同類型錯誤使用相同日誌級別
-   後果：調試困難
-   修正：區分error、warning、info、debug級別
-
-4. 問題：類型提示缺失
-   位置：大多數函數缺少參數和返回類型提示
-   後果：代碼可讀性和維護性差
-   修正：為所有函數添加完整類型提示
-
-5. 問題：字符串拼接效率低
-   位置：format_find_soulmate_result使用+=拼接
-   後果：大量字符串操作性能差
-   修正：改用列表join
+5. 問題：分數計算異常處理
+   位置：calculate_final_score未處理異常
+   後果：一個日期計算失敗會影響整個搜索
+   修正：添加異常處理，返回基礎分數
 """
 # ========修正紀錄結束 ========#

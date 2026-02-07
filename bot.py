@@ -524,14 +524,53 @@ def get_raw_profile_for_match(internal_user_id: int) -> Optional[Dict[str, Any]]
     """獲取原始個人資料數據，用於配對計算"""
     return _get_profile_base_data(internal_user_id, include_username=False)
 
-def check_user_has_profile(telegram_id: int) -> bool:
-    """檢查用戶是否有完整的個人資料"""
-    internal_user_id = get_internal_user_id(telegram_id)
-    if not internal_user_id:
-        return False
-    
-    profile_data = get_raw_profile_for_match(internal_user_id)
-    return profile_data is not None
+def check_user_has_profile(telegram_id: int) -> Tuple[bool, Optional[str]]:
+    """檢查用戶是否有完整的個人資料，返回(是否有資料, 錯誤訊息)"""
+    conn = None
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        # 1. 檢查用戶是否存在
+        cur.execute("SELECT id FROM users WHERE telegram_id = %s", (telegram_id,))
+        user_row = cur.fetchone()
+        
+        if not user_row:
+            return False, "未找到註冊記錄，請先使用 /start 註冊"
+        
+        user_id = user_row[0]
+        
+        # 2. 檢查是否有profiles資料
+        cur.execute("""
+            SELECT birth_year, birth_month, birth_day, birth_hour, gender 
+            FROM profiles WHERE user_id = %s
+        """, (user_id,))
+        profile_row = cur.fetchone()
+        
+        if not profile_row:
+            return False, "尚未完成個人資料輸入，請使用 /start 完成註冊流程"
+        
+        # 3. 檢查基本資料是否完整
+        birth_year, birth_month, birth_day, birth_hour, gender = profile_row
+        
+        if not all([birth_year, birth_month, birth_day, gender]):
+            return False, "個人資料不完整，請使用 /start 重新輸入完整資料"
+        
+        # 4. 檢查是否有八字數據
+        cur.execute("SELECT year_pillar FROM profiles WHERE user_id = %s", (user_id,))
+        bazi_row = cur.fetchone()
+        
+        if not bazi_row or not bazi_row[0]:
+            return False, "八字數據未生成，請使用 /start 重新計算"
+        
+        return True, None
+        
+    except Exception as e:
+        logger.error(f"檢查用戶資料失敗: {e}")
+        return False, f"系統錯誤：{str(e)}"
+    finally:
+        if conn:
+            release_db_connection(conn)
 # ========1.4 數據庫工具結束 ========#
 
 # ========1.5 隱私條款模組開始 ========#
@@ -1070,9 +1109,10 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始配對 - 主要配對功能，尋找合適對象"""
     telegram_id = update.effective_user.id
     
-    # 修正：先檢查用戶是否有個人資料
-    if not check_user_has_profile(telegram_id):
-        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
+    # 檢查用戶是否有完整的個人資料
+    has_profile, error_msg = check_user_has_profile(telegram_id)
+    if not has_profile:
+        await update.message.reply_text(f"{error_msg}")
         return
     
     internal_user_id = get_internal_user_id(telegram_id)
@@ -1094,7 +1134,7 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     me_profile = get_raw_profile_for_match(internal_user_id)
     
     if me_profile is None:
-        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
+        await update.message.reply_text("個人資料讀取失敗，請使用 /start 重新註冊。")
         return
     
     my_gender = me_profile.get("gender")
@@ -1469,9 +1509,10 @@ async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
     
-    # 修正：先檢查用戶是否有個人資料
-    if not check_user_has_profile(telegram_id):
-        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
+    # 檢查用戶是否有完整的個人資料
+    has_profile, error_msg = check_user_has_profile(telegram_id)
+    if not has_profile:
+        await update.message.reply_text(f"{error_msg}")
         return ConversationHandler.END
     
     internal_user_id = get_internal_user_id(telegram_id)
@@ -2045,14 +2086,12 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修正match函數用戶資料檢查邏輯，避免"請先完成資料輸入流程"錯誤
-2. 修正find_soulmate_start函數用戶資料檢查邏輯
-3. 統一常量定義，移除重複常量
-4. 添加check_user_has_profile輔助函數
-5. 修復_get_profile_base_data函數索引計算錯誤
-6. 優化錯誤處理和日誌記錄
+1. 徹底修正match和find_soulmate的用戶資料檢查邏輯
+2. 重新設計check_user_has_profile函數，詳細檢查資料完整性
+3. 提供明確的錯誤提示訊息
+4. 優化資料庫查詢，確保資料完整性檢查
 
-版本: 修正版
+版本: 最終修正版
 """
 # ========文件信息結束 ========#
 
@@ -2076,31 +2115,26 @@ if __name__ == "__main__":
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-07 本次修正：
-1. 問題：match函數提示"請先完成資料輸入流程"
-   位置：match函數開頭的用戶資料檢查
-   後果：即使已完成註冊的用戶也無法使用match功能
-   修正：添加check_user_has_profile輔助函數，正確檢查用戶資料完整性
+2026-02-07 最終修正：
+1. 問題：match和find_soulmate提示"請先完成資料輸入流程"
+   位置：check_user_has_profile函數邏輯錯誤
+   後果：即使已完成註冊的用戶也無法使用功能
+   修正：重新設計check_user_has_profile函數，詳細檢查資料完整性
 
-2. 問題：find_soulmate_start函數提示"請先完成資料輸入流程"
-   位置：find_soulmate_start函數開頭的用戶資料檢查
-   後果：即使已完成註冊的用戶也無法使用find_soulmate功能
-   修正：使用check_user_has_profile輔助函數，正確檢查用戶資料
+2. 問題：資料完整性檢查不充分
+   位置：之前的檢查只檢查用戶是否存在，未檢查資料完整性
+   後果：可能導致後續功能失敗
+   修正：檢查4個層次：用戶存在、profiles存在、基本資料完整、八字數據完整
 
-3. 問題：_get_profile_base_data函數索引計算錯誤
-   位置：shen_sha_json索引位置錯誤
-   後果：可能導致索引越界或數據解析錯誤
-   修正：正確計算索引位置，添加邊界檢查
+3. 問題：錯誤提示不明確
+   位置：之前的錯誤提示太籠統
+   後果：用戶不知道具體問題
+   修正：提供具體的錯誤訊息，告訴用戶具體缺少什麼
 
-4. 問題：常量不一致
-   位置：移除bot.py中的MAX_DATE_SAMPLE等重複常量
-   後果：代碼重複，維護困難
-   修正：只保留必要的常量，其他從bazi_soulmate導入
-
-5. 問題：數據庫查詢結果處理不完善
-   位置：_get_profile_base_data函數中的None值處理
-   後果：可能導致類型錯誤
-   修正：添加默認值處理和類型轉換
+4. 問題：match函數內部重複檢查
+   位置：match函數在check_user_has_profile後又調用get_raw_profile_for_match
+   後果：可能重複檢查和錯誤處理
+   修正：保留必要檢查，但優化錯誤處理
 
 2026-02-07 先前修正：
 1. 問題：match函數SQL參數不匹配
@@ -2117,10 +2151,5 @@ if __name__ == "__main__":
    位置：bot.py和bazi_soulmate.py中的分數閾值
    後果：不同功能使用不同標準
    修正：統一常量定義，從bazi_soulmate導入閾值
-
-4. 問題：日誌級別不當
-   位置：多個函數中的日誌記錄
-   後果：錯誤和調試信息混雜
-   修正：區分error、info、debug級別
 """
 # ========修正紀錄結束 ========#
