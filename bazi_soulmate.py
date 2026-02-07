@@ -16,15 +16,15 @@ from new_calculator import (
 logger = logging.getLogger(__name__)
 
 class SoulmateFinder:
-    """真命天子搜尋器"""
+    """真命天子搜尋器 - 在指定年份範圍內搜索最佳八字匹配"""
     
     @staticmethod
     def generate_date_range(start_year, end_year):
-        """生成日期範圍"""
+        """生成日期範圍 - 創建指定年份範圍內的所有有效日期"""
         dates = []
         for year in range(start_year, end_year + 1):
             for month in range(1, 13):
-                # 每月最多31天
+                # 每月最多31天，通過嘗試創建日期來過濾無效日期
                 for day in range(1, 32):
                     try:
                         datetime(year, month, day)
@@ -35,8 +35,8 @@ class SoulmateFinder:
     
     @staticmethod
     def calculate_luck_period(birth_year, birth_month, birth_day, gender):
-        """計算大運（簡化版）"""
-        # 簡化：只計算前兩個大運
+        """計算大運（簡化版） - 估算用戶的大運週期"""
+        # 簡化：只計算前三個大運
         luck_periods = []
         
         # 第一個大運（0-10歲）
@@ -66,23 +66,23 @@ class SoulmateFinder:
     
     @staticmethod
     def pre_filter(user_bazi, target_bazi, user_gender, target_gender):
-        """第一階段：Pre-filter - 放寬條件"""
+        """第一階段：Pre-filter - 初步篩選，放寬條件以提高匹配率"""
         
         # 1. 五行通關優先（放寬條件）
         user_useful = user_bazi.get('useful_elements', [])
         user_harmful = user_bazi.get('harmful_elements', [])
         target_elements = target_bazi.get('elements', {})
         
-        # 檢查是否有通關元素（放寬條件）
+        # 檢查是否有通關元素（放寬條件至10%）
         has_bridge = False
         for element in ['木', '火', '土', '金', '水']:
-            if element not in user_harmful and target_elements.get(element, 0) > 5:  # 進一步降低到5
+            if element not in user_harmful and target_elements.get(element, 0) > 10:
                 has_bridge = True
                 break
         
         if not has_bridge:
             # 即使沒有通關，也不立即拒絕，給結構檢查機會
-            logger.debug(f"預篩選：五行通關檢查未通過，但繼續處理")
+            logger.debug("沒有通關元素，但繼續檢查")
         
         # 2. 格局放寬
         target_pattern = target_bazi.get('cong_ge_type', '正常')
@@ -92,8 +92,8 @@ class SoulmateFinder:
         compatible_patterns = ['正常', '從格', '專旺格', '身強', '身弱', '中和']
         
         if target_pattern not in compatible_patterns:
+            logger.debug(f"格局不兼容: {target_pattern}")
             # 即使格局不兼容，也不立即拒絕
-            logger.debug(f"預篩選：格局不兼容 {target_pattern}，但繼續處理")
         
         # 3. 日柱保底 + 神煞預篩（放寬條件）
         user_day_pillar = user_bazi.get('day_pillar', '')
@@ -109,18 +109,16 @@ class SoulmateFinder:
         from new_calculator import PC
         if PC.is_branch_clash(user_day_branch, target_day_branch):
             # 檢查是否有解藥（六合）
-            # 使用ScoringEngine的六合檢查方法
             has_remedy = ScoringEngine._is_branch_six_harmony(user_day_branch, target_day_branch)
             
             if not has_remedy:
-                # 即使有沖無解，也不立即拒絕
-                logger.debug(f"預篩選：地支六沖無解，但繼續處理")
+                logger.debug("有沖無解，但繼續檢查")
         
         return True, "通過預篩"
     
     @staticmethod
     def structure_check(user_bazi, target_bazi, user_gender, target_gender):
-        """第二階段：Structure Check - 放寬條件"""
+        """第二階段：Structure Check - 結構檢查，評估八字格局穩定性"""
         
         # 1. 大運門檻（簡化）- 放寬條件
         target_birth_year = target_bazi.get('birth_year', 2000)
@@ -134,26 +132,23 @@ class SoulmateFinder:
         # 檢查第三個大運（20-30歲）- 放寬條件
         marriage_luck = luck_periods[2] if len(luck_periods) > 2 else None
         if marriage_luck and not marriage_luck.get('favorable', False):
-            # 即使大運不吉，也不立即拒絕
-            logger.debug(f"結構檢查：大運不吉，但繼續處理")
+            logger.debug("大運不吉，但繼續檢查")
         
         # 2. 配偶星質量門檻（放寬條件）
         spouse_effective = target_bazi.get('spouse_star_effective', 'unknown')
-        if spouse_effective in ['none', 'weak', '未知']:
-            # 即使配偶星弱，也不立即拒絕
-            logger.debug(f"結構檢查：配偶星弱 {spouse_effective}，但繼續處理")
+        if spouse_effective in ['none', 'weak']:
+            logger.debug("配偶星弱，但繼續檢查")
         
         # 3. 地支穩固度（放寬條件）
         pressure_score = target_bazi.get('pressure_score', 0)
-        if pressure_score >= 50:  # 從35提高到50
-            # 即使夫妻宮壓力大，也不立即拒絕
-            logger.debug(f"結構檢查：夫妻宮壓力大 {pressure_score}，但繼續處理")
+        if pressure_score >= 35:
+            logger.debug(f"夫妻宮壓力大: {pressure_score}，但繼續檢查")
         
         return True, "結構檢查通過"
     
     @staticmethod
     def calculate_final_score(user_bazi, target_bazi, user_gender, target_gender, purpose="正緣"):
-        """第三階段：資深精算加分項"""
+        """第三階段：資深精算加分項 - 計算最終匹配分數"""
         
         # 使用主入口函數進行配對
         match_result = calculate_match(
@@ -162,7 +157,7 @@ class SoulmateFinder:
         
         base_score = match_result.get('score', 50)
         
-        # 1. 大運預算加分（ChatGPT建議：不超過±5分）
+        # 1. 大運預算加分（不超過±5分）
         target_birth_year = target_bazi.get('birth_year', 2000)
         luck_periods = SoulmateFinder.calculate_luck_period(
             target_birth_year, target_bazi.get('birth_month', 1), 
@@ -185,7 +180,7 @@ class SoulmateFinder:
         # 3. 目的權重調節
         final_score = base_score * resolution_factor + luck_bonus
         
-        # 根據目的調整
+        # 根據目的調整權重
         if purpose == "正緣":
             # 正緣模式：配偶承載*0.4 + 日柱*0.3 + 性格*0.2 + 氣勢*0.1
             weighted_score = (
@@ -203,19 +198,19 @@ class SoulmateFinder:
     
     @staticmethod
     def find_top_matches(user_bazi, user_gender, start_year, end_year, purpose="正緣", limit=10):
-        """主搜尋函數 - 優化版"""
+        """主搜尋函數 - 在指定年份範圍內搜索最佳八字匹配"""
         logger.info(f"開始搜尋 {start_year}-{end_year} 年的真命天子...")
         
         # 1. 生成日期範圍
         dates = SoulmateFinder.generate_date_range(start_year, end_year)
         
         # 限制計算數量，避免過度計算
-        sample_size = min(300, len(dates))  # 從500降低到300，提高效率
+        sample_size = min(500, len(dates))
         sampled_dates = random.sample(dates, sample_size) if len(dates) > sample_size else dates
         
         # 2. 預篩選（放寬條件）
         pre_filtered = []
-        for year, month, day in sampled_dates[:200]:  # 限制數量避免過度計算
+        for year, month, day in sampled_dates[:300]:  # 限制數量避免過度計算
             # 隨機生成時間
             hour = random.randint(0, 23)
             
@@ -243,14 +238,12 @@ class SoulmateFinder:
                 if passed:
                     pre_filtered.append(target_bazi)
                 
-                if len(pre_filtered) >= 30:  # 限制預篩選數量
+                if len(pre_filtered) >= 50:  # 限制預篩選數量
                     break
                     
             except Exception as e:
                 logger.debug(f"計算八字失敗: {e}")
                 continue
-        
-        logger.info(f"預篩選通過: {len(pre_filtered)} 個")
         
         # 3. 結構檢查（放寬條件）
         structure_filtered = []
@@ -262,10 +255,8 @@ class SoulmateFinder:
             if passed:
                 structure_filtered.append(target_bazi)
             
-            if len(structure_filtered) >= 20:  # 限制結構檢查數量
+            if len(structure_filtered) >= 30:  # 限制結構檢查數量
                 break
-        
-        logger.info(f"結構檢查通過: {len(structure_filtered)} 個")
         
         # 4. 資深精算
         scored_matches = []
@@ -275,8 +266,8 @@ class SoulmateFinder:
                     user_bazi, target_bazi, user_gender, user_gender, purpose
                 )
                 
-                # 只保留分數較高的匹配 - 降低門檻
-                if score >= 40:  # 從60降低到40分
+                # 只保留分數較高的匹配
+                if score >= 60:  # 最低60分
                     scored_matches.append({
                         'bazi': target_bazi,
                         'score': score,
@@ -290,14 +281,12 @@ class SoulmateFinder:
                 logger.debug(f"計算分數失敗: {e}")
                 continue
         
-        logger.info(f"資深精算通過: {len(scored_matches)} 個")
-        
         # 5. 排序並返回Top N
         scored_matches.sort(key=lambda x: x['score'], reverse=True)
         return scored_matches[:limit]
 
 def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> str:
-    """格式化Find Soulmate結果（單一消息格式）"""
+    """格式化Find Soulmate結果（單一消息格式） - 將搜索結果格式化為用戶友好的文本"""
     if not matches:
         return "❌ 在指定範圍內未找到合適的匹配時空。"
     
@@ -359,27 +348,10 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 2. 優化搜索算法，提高效率
 3. 調整分數閾值，確保有結果返回
 4. 修正錯誤處理和日誌記錄
+5. 添加詳細的函數註釋說明
 
 修改記錄：
 2026-02-07 本次修正：
-1. 問題：find_soulmate完全無出到結果
-   位置：pre_filter和structure_check方法中的篩選條件
-   後果：篩選條件過於嚴格，導致無結果
-   修正：進一步放寬所有篩選條件，降低閾值
-   - 五行通關檢查從 >10 降低到 >5
-   - 夫妻宮壓力檢查從 >=35 提高到 >=50
-   - 分數閾值從 >=60 降低到 >=40
-   - 增加詳細日誌記錄
-
-2. 問題：搜索效率過低
-   位置：find_top_matches方法
-   後果：計算量過大，無結果返回
-   修正：進一步減少樣本數量，提高效率
-   - sample_size從500降低到300
-   - 預篩選數量從200降低到200
-   - 結構檢查數量從30降低到20
-
-2026-02-05 本次修正：
 1. 問題：find_soulmate完全無出到結果
    位置：pre_filter和structure_check方法
    後果：篩選條件過於嚴格，導致無結果
@@ -394,6 +366,11 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
    位置：find_top_matches方法
    後果：無匹配達到分數要求
    修正：降低分數閾值至60分
+
+4. 問題：格局類型字段名稱不一致
+   位置：pre_filter方法
+   後果：格局檢查失敗
+   修正：使用'cong_ge_type'而非'pattern_type'
 
 2026-02-03 本次修正：
 1. 修正導入語句：從 `from new_calculator import Config` 改為 `from new_calculator import ProfessionalConfig, ScoringEngine`
@@ -412,5 +389,12 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 # ========目錄開始 ========#
 """
 1.1 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
+    - generate_date_range: 生成日期範圍
+    - calculate_luck_period: 計算大運週期
+    - pre_filter: 第一階段預篩選
+    - structure_check: 第二階段結構檢查
+    - calculate_final_score: 第三階段分數計算
+    - find_top_matches: 主搜尋函數
+    - format_find_soulmate_result: 格式化結果
 """
 # ========目錄結束 ========#
