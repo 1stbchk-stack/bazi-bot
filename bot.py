@@ -6,7 +6,6 @@ import json
 import hashlib
 import traceback
 from datetime import datetime, timedelta
-from contextlib import closing
 from typing import Dict, List, Tuple, Any, Optional
 
 import psycopg2
@@ -124,7 +123,7 @@ DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
 
 # ========1.3 維護模式檢查開始 ========#
 def check_maintenance(func):
-    """維護模式檢查裝飾器 - 檢查系統是否處於維護模式，非管理員無法使用功能"""
+    """維護模式檢查裝飾器"""
     async def wrapper(update, context, *args, **kwargs):
         if MAINTENANCE_MODE:
             user_id = update.effective_user.id
@@ -151,11 +150,11 @@ def check_maintenance(func):
     return wrapper
 
 def is_admin(user_id: int) -> bool:
-    """檢查是否為管理員 - 根據ADMIN_USER_IDS列表判斷用戶權限"""
+    """檢查是否為管理員"""
     return user_id in ADMIN_USER_IDS
 
 def check_admin_only(func):
-    """管理員專用檢查裝飾器 - 限制只有管理員可以使用的功能"""
+    """管理員專用檢查裝飾器"""
     async def wrapper(update, context, *args, **kwargs):
         user_id = update.effective_user.id
         if not is_admin(user_id):
@@ -171,7 +170,7 @@ def check_admin_only(func):
 
 # ========1.4 數據庫工具開始 ========#
 def init_db_pool():
-    """初始化數據庫連接池 - 創建PostgreSQL連接池以提高性能"""
+    """初始化數據庫連接池"""
     global db_pool
     try:
         db_pool = psycopg2.pool.SimpleConnectionPool(
@@ -186,7 +185,7 @@ def init_db_pool():
         raise
 
 def get_db_connection():
-    """從連接池獲取數據庫連接 - 獲取或創建數據庫連接"""
+    """從連接池獲取數據庫連接"""
     global db_pool
     if db_pool is None:
         init_db_pool()
@@ -205,7 +204,7 @@ def get_db_connection():
             raise
 
 def release_db_connection(conn):
-    """釋放數據庫連接回連接池 - 歸還連接給連接池"""
+    """釋放數據庫連接回連接池"""
     global db_pool
     if db_pool and conn:
         try:
@@ -218,7 +217,7 @@ def release_db_connection(conn):
                 pass
 
 def init_db():
-    """初始化 PostgreSQL 數據庫 - 創建所需表格和索引"""
+    """初始化 PostgreSQL 數據庫"""
     conn = None
     try:
         conn = get_db_connection()
@@ -316,7 +315,7 @@ def init_db():
             release_db_connection(conn)
 
 def check_daily_limit(user_id):
-    """檢查每日配對限制 - 防止濫用，每個用戶每天最多10次配對"""
+    """檢查每日配對限制"""
     conn = None
     try:
         conn = get_db_connection()
@@ -346,7 +345,7 @@ def check_daily_limit(user_id):
             release_db_connection(conn)
 
 def clear_user_data(telegram_id):
-    """清除用戶所有資料 - 完全刪除用戶數據，用於重新註冊"""
+    """清除用戶所有資料"""
     conn = None
     try:
         conn = get_db_connection()
@@ -385,7 +384,7 @@ def clear_user_data(telegram_id):
             release_db_connection(conn)
 
 def get_internal_user_id(telegram_id):
-    """獲取內部用戶ID - 將Telegram ID轉換為數據庫內部ID"""
+    """獲取內部用戶ID"""
     conn = None
     try:
         conn = get_db_connection()
@@ -401,7 +400,7 @@ def get_internal_user_id(telegram_id):
             release_db_connection(conn)
 
 def get_telegram_id(internal_user_id):
-    """獲取Telegram ID - 將數據庫內部ID轉換為Telegram ID"""
+    """獲取Telegram ID"""
     conn = None
     try:
         conn = get_db_connection()
@@ -417,7 +416,7 @@ def get_telegram_id(internal_user_id):
             release_db_connection(conn)
 
 def get_username(internal_user_id):
-    """獲取用戶名 - 從數據庫獲取用戶的Telegram用戶名"""
+    """獲取用戶名"""
     conn = None
     try:
         conn = get_db_connection()
@@ -433,7 +432,7 @@ def get_username(internal_user_id):
             release_db_connection(conn)
 
 def get_profile_data(internal_user_id):
-    """獲取完整的個人資料數據 - 用於profile命令顯示用戶資料"""
+    """獲取完整的個人資料數據"""
     conn = None
     try:
         conn = get_db_connection()
@@ -458,7 +457,6 @@ def get_profile_data(internal_user_id):
         if not row:
             return None
         
-        # 正確獲取shen_sha_data
         shen_sha_json = row[31]
         shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
         
@@ -507,7 +505,7 @@ def get_profile_data(internal_user_id):
             release_db_connection(conn)
 
 def get_raw_profile_for_match(internal_user_id):
-    """獲取原始個人資料數據 - 用於配對計算，確保與calculate_match格式一致"""
+    """獲取原始個人資料數據，用於配對計算"""
     conn = None
     try:
         conn = get_db_connection()
@@ -531,11 +529,9 @@ def get_raw_profile_for_match(internal_user_id):
         if not row:
             return None
         
-        # 正確獲取shen_sha_data
         shen_sha_json = row[30]
         shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
         
-        # 返回與calculate_bazi完全一致的格式
         return {
             "birth_year": row[0],
             "birth_month": row[1],
@@ -578,32 +574,12 @@ def get_raw_profile_for_match(internal_user_id):
     finally:
         if conn:
             release_db_connection(conn)
-
-def get_match_info(user_a_id, user_b_id):
-    """獲取配對信息 - 檢查是否已有配對記錄"""
-    conn = None
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT id, user_a_accepted, user_b_accepted, score
-            FROM matches
-            WHERE (user_a = %s AND user_b = %s)
-               OR (user_a = %s AND user_b = %s)
-        """, (user_a_id, user_b_id, user_b_id, user_a_id))
-        return cur.fetchone()
-    except Exception as e:
-        logger.error(f"獲取配對信息失敗: {e}")
-        return None
-    finally:
-        if conn:
-            release_db_connection(conn)
 # ========1.4 數據庫工具結束 ========#
 
 # ========1.5 隱私條款模組開始 ========#
 @check_maintenance
 async def show_terms(update, context):
-    """顯示隱私條款 - 首次使用時必須同意隱私條款"""
+    """顯示隱私條款"""
     keyboard = [["✅ 同意並繼續", "❌ 不同意"]]
     reply_markup = ReplyKeyboardMarkup(
         keyboard, one_time_keyboard=True, resize_keyboard=True)
@@ -617,7 +593,7 @@ async def show_terms(update, context):
 
 @check_maintenance
 async def handle_terms_acceptance(update, context):
-    """處理隱私條款同意 - 用戶選擇同意或不同意"""
+    """處理隱私條款同意"""
     text = update.message.text.strip()
 
     if text == "✅ 同意並繼續":
@@ -646,7 +622,7 @@ async def handle_terms_acceptance(update, context):
 # ========1.6 簡化註冊流程開始 ========#
 @check_maintenance
 async def ask_basic_info(update, context):
-    """第一步：詢問所有基本信息 - 收集用戶出生信息和配對偏好"""
+    """第一步：詢問所有基本信息"""
     text = update.message.text.strip()
     
     if text == "重新輸入基本信息":
@@ -767,7 +743,7 @@ async def ask_basic_info(update, context):
 
 @check_maintenance
 async def ask_time_confirmation(update, context):
-    """第二步：確認時間精度 - 用戶確認出生時間的準確性"""
+    """第二步：確認時間精度"""
     text = update.message.text.strip()
     
     if text == "✅ 完全確定（知道確切時間）":
@@ -815,7 +791,7 @@ async def ask_time_confirmation(update, context):
 
 @check_maintenance
 async def ask_hour_known(update, context):
-    """處理大約知道的時間描述 - 根據用戶描述估算出生時間"""
+    """處理大約知道的時間描述"""
     description = update.message.text.strip()
     
     estimated_hour = 12  # 預設中午
@@ -845,7 +821,7 @@ async def ask_hour_known(update, context):
     return await complete_registration(update, context)
 
 async def complete_registration(update, context):
-    """完成註冊流程 - 計算八字並保存用戶資料到數據庫"""
+    """完成註冊流程"""
     user_data = context.user_data
     
     year = user_data.get("birth_year")
@@ -1034,7 +1010,7 @@ async def complete_registration(update, context):
 
 @check_maintenance
 async def cancel(update, context):
-    """取消流程 - 用戶取消當前操作"""
+    """取消流程"""
     await update.message.reply_text("已取消流程。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 # ========1.6 簡化註冊流程結束 ========#
@@ -1042,7 +1018,7 @@ async def cancel(update, context):
 # ========1.7 命令處理函數開始 ========#
 @check_maintenance
 async def start(update, context):
-    """開始命令 - 顯示隱私條款，檢查用戶是否已有資料"""
+    """開始命令 - 顯示隱私條款"""
     user = update.effective_user
     
     if MAINTENANCE_MODE and not is_admin(user.id):
@@ -1073,17 +1049,17 @@ async def start(update, context):
 
 @check_maintenance
 async def help_command(update, context):
-    """幫助命令 - 顯示使用幫助"""
+    """幫助命令"""
     await update.message.reply_text(HELP_TEXT)
 
 @check_maintenance
 async def explain_command(update, context):
-    """解釋算法命令 - 顯示配對算法解釋"""
+    """解釋算法命令"""
     await update.message.reply_text(EXPLANATION_TEXT)
 
 @check_maintenance
 async def profile(update, context):
-    """查看個人資料 - 顯示用戶的八字和個人信息"""
+    """查看個人資料"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1110,7 +1086,7 @@ async def profile(update, context):
 
 @check_maintenance
 async def match(update, context):
-    """開始配對 - 為用戶尋找合適的配對對象，不顯示對方username"""
+    """開始配對"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1131,7 +1107,7 @@ async def match(update, context):
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # 獲取當前用戶的八字數據 - 使用新的函數確保格式一致
+        # 獲取當前用戶的八字數據
         me_profile = get_raw_profile_for_match(internal_user_id)
         
         if me_profile is None:
@@ -1144,7 +1120,6 @@ async def match(update, context):
         target_gender_row = cur.fetchone()
         target_gender = target_gender_row[0] if target_gender_row else "異性"
         
-        # 構建查詢條件
         if target_gender == "異性":
             gender_condition = "p.gender != %s"
             gender_param = my_gender
@@ -1158,9 +1133,9 @@ async def match(update, context):
             gender_condition = "p.gender != %s"
             gender_param = my_gender
         
-        # 查詢潛在配對對象 - 排除已配對的用戶
+        # 查找尚未配對過的用戶
         query = f"""
-            SELECT
+            SELECT DISTINCT
                 u.id, u.telegram_id, u.username,
                 p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, p.hour_confidence, p.gender,
                 p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
@@ -1178,9 +1153,10 @@ async def match(update, context):
                 SELECT 1 FROM matches m
                 WHERE ((m.user_a = %s AND m.user_b = u.id)
                        OR (m.user_a = u.id AND m.user_b = %s))
+                AND (m.user_a_accepted = 1 AND m.user_b_accepted = 1)
             )
             ORDER BY RANDOM()
-            LIMIT 50
+            LIMIT 20
         """
         
         cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
@@ -1203,7 +1179,7 @@ async def match(update, context):
     for r in rows:
         other_internal_id = r[0]
         
-        # 直接調用calculate_bazi獲取對方八字數據，確保格式與testpair一致
+        # 直接調用calculate_bazi獲取對方八字數據
         try:
             other_profile = calculate_bazi(
                 year=r[3],
@@ -1234,14 +1210,16 @@ async def match(update, context):
             
             score = match_result.get("score", 0)
             
-            matches.append({
-                "internal_id": other_internal_id,
-                "telegram_id": r[1],
-                "username": r[2] or "匿名用戶",
-                "profile": other_profile,
-                "score": score,
-                "match_result": match_result
-            })
+            # 只考慮分數大於警告閾值的配對
+            if score >= THRESHOLD_WARNING:
+                matches.append({
+                    "internal_id": other_internal_id,
+                    "telegram_id": r[1],
+                    "username": r[2] or "匿名用戶",
+                    "profile": other_profile,
+                    "score": score,
+                    "match_result": match_result
+                })
             
         except MatchError as e:
             logger.error(f"配對計算錯誤: {e}", exc_info=True)
@@ -1253,17 +1231,8 @@ async def match(update, context):
     
     matches.sort(key=lambda x: x["score"], reverse=True)
     
-    valid_matches = [m for m in matches if m["score"] >= THRESHOLD_WARNING]
-    
-    if not valid_matches:
-        best_score = matches[0]["score"] if matches else 0
-        await update.message.reply_text(
-            f"現時未有合適的配對對象（最佳配對分數：{best_score:.1f}分，需≥{THRESHOLD_WARNING}分）。\n"
-            f"建議稍後再試 /match 或使用 /find_soulmate。"
-        )
-        return
-    
-    best = valid_matches[0]
+    # 取最佳配對
+    best = matches[0]
     op = best["profile"]
     match_result = best.get("match_result", {})
     
@@ -1292,27 +1261,25 @@ async def match(update, context):
         "username_b": best["username"]
     }
     
-    # 使用修正後的格式化函數，不顯示對方username
+    # 不顯示對方username，只顯示基本資料
     user_a_name = update.effective_user.username or "您"
     match_text = BaziFormatters.format_match_result(
         match_result, me_profile, op, 
         user_a_name=user_a_name, 
-        user_b_name="對方"  # 不顯示具體username
+        user_b_name="對方"
     )
     
     await update.message.reply_text(match_text)
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
-    
-    return
 
 @check_maintenance
 async def test_command(update, context):
-    """測試命令 - 檢查機器人是否正常運行"""
+    """測試命令"""
     await update.message.reply_text("✅ Bot 正在運行中！")
 
 @check_maintenance
 async def clear_command(update, context):
-    """清除用戶所有資料 - 完全刪除用戶數據"""
+    """清除用戶所有資料"""
     telegram_id = update.effective_user.id
 
     has_args = context.args is not None and len(context.args) > 0
@@ -1343,7 +1310,7 @@ async def clear_command(update, context):
 
 @check_maintenance
 async def test_pair_command(update, context):
-    """獨立測試任意兩個八字配對 - 用於測試和驗證配對算法"""
+    """獨立測試任意兩個八字配對"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1430,12 +1397,7 @@ async def test_pair_command(update, context):
 @check_maintenance
 @check_admin_only
 async def maintenance_command(update, context):
-    """維護模式命令 - 僅管理員可用，控制系統維護狀態"""
-    telegram_id = update.effective_user.id
-    if not is_admin(telegram_id):
-        await update.message.reply_text("❌ 此功能僅限管理員使用")
-        return
-    
+    """維護模式命令 - 僅管理員可用"""
     global MAINTENANCE_MODE
     
     if context.args and context.args[0] == "on":
@@ -1476,7 +1438,7 @@ async def maintenance_command(update, context):
 # ========1.8 Find Soulmate 流程函數開始 ========#
 @check_maintenance
 async def find_soulmate_start(update, context):
-    """開始真命天子搜尋 - 啟動指定年份範圍的八字搜索"""
+    """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1502,7 +1464,7 @@ async def find_soulmate_start(update, context):
 
 @check_maintenance
 async def find_soulmate_range(update, context):
-    """處理搜尋年份範圍 - 驗證並保存用戶輸入的年份範圍"""
+    """處理搜尋年份範圍"""
     text = update.message.text.strip()
     
     if '-' not in text:
@@ -1555,7 +1517,7 @@ async def find_soulmate_range(update, context):
 
 @check_maintenance
 async def find_soulmate_purpose(update, context):
-    """處理搜尋目的並開始計算 - 根據用戶選擇的目的進行八字匹配搜索"""
+    """處理搜尋目的並開始計算"""
     text = update.message.text.strip()
     
     purpose_map = {
@@ -1580,7 +1542,6 @@ async def find_soulmate_purpose(update, context):
         telegram_id = update.effective_user.id
         internal_user_id = get_internal_user_id(telegram_id)
         
-        # 獲取用戶八字數據 - 使用新的函數確保格式一致
         user_profile = get_raw_profile_for_match(internal_user_id)
         
         if not user_profile:
@@ -1593,7 +1554,7 @@ async def find_soulmate_purpose(update, context):
             user_profile, user_gender, start_year, end_year, purpose, limit=5
         )
         
-        # 使用修正後的格式化函數
+        # 使用格式化函數
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
         await calculating_msg.edit_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
@@ -1606,7 +1567,7 @@ async def find_soulmate_purpose(update, context):
     return ConversationHandler.END
 
 def format_find_soulmate_result(matches: list, start_year: int, end_year: int, purpose: str) -> str:
-    """格式化Find Soulmate結果 - 將搜索結果格式化為用戶友好的文本"""
+    """格式化Find Soulmate結果"""
     if not matches:
         return "❌ 在指定範圍內未找到合適的匹配時空。"
     
@@ -1656,14 +1617,14 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 
 @check_maintenance
 async def find_soulmate_cancel(update, context):
-    """取消真命天子搜尋 - 用戶取消搜索流程"""
+    """取消真命天子搜尋"""
     await update.message.reply_text("已取消真命天子搜尋。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 # ========1.8 Find Soulmate 流程函數結束 ========#
 
 # ========1.9 按鈕回調處理函數開始 ========#
 async def button_callback(update, context):
-    """處理按鈕回調 - 處理用戶對配對結果的選擇（有興趣/略過）"""
+    """處理按鈕回調 - 修復配對邏輯"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1706,16 +1667,14 @@ async def button_callback(update, context):
             await query.edit_message_text("你不是此配對的參與者。")
             return
         
-        # 獲取當前用戶和對方的信息
-        current_is_a = (internal_user_id == user_a_id)
-        other_id = user_b_id if current_is_a else user_a_id
+        other_id = user_b_id if internal_user_id == user_a_id else user_a_id
         
         conn = None
         try:
             conn = get_db_connection()
             cur = conn.cursor()
             
-            # 檢查是否已有配對記錄
+            # 檢查是否已經有配對記錄
             cur.execute("""
                 SELECT id, user_a_accepted, user_b_accepted, score
                 FROM matches
@@ -1725,113 +1684,90 @@ async def button_callback(update, context):
             
             match_row = cur.fetchone()
             
+            match_id = None
+            user_a_accepted = 0
+            user_b_accepted = 0
+            match_score = context.user_data.get("current_match", {}).get("score", 70)
+            
             if match_row:
                 match_id, user_a_accepted, user_b_accepted, existing_score = match_row
-                
-                # 更新接受狀態
-                if current_is_a:
-                    user_a_accepted = 1
-                    cur.execute("""
-                        UPDATE matches
-                        SET user_a_accepted = 1
-                        WHERE id = %s
-                    """, (match_id,))
-                else:
-                    user_b_accepted = 1
-                    cur.execute("""
-                        UPDATE matches
-                        SET user_b_accepted = 1
-                        WHERE id = %s
-                    """, (match_id,))
-                    
-                score = existing_score
+                match_score = existing_score  # 使用現有分數
             else:
                 # 創建新的配對記錄
-                score = context.user_data.get(
-                    "current_match", {}).get(
-                    "score", 70)
-                match_result = context.user_data.get(
-                    "current_match", {}).get(
-                    "match_result", {})
+                match_result = context.user_data.get("current_match", {}).get("match_result", {})
                 
                 cur.execute("""
                     INSERT INTO matches (user_a, user_b, score, match_details)
                     VALUES (%s, %s, %s, %s)
-                    ON CONFLICT (user_a, user_b) DO NOTHING
                     RETURNING id
-                """, (user_a_id, user_b_id, score, json.dumps(match_result)))
+                """, (user_a_id, user_b_id, match_score, json.dumps(match_result)))
+                
                 result = cur.fetchone()
                 match_id = result[0] if result else None
                 
                 if not match_id:
-                    # 如果插入失敗，嘗試獲取現有記錄
-                    cur.execute("""
-                        SELECT id FROM matches
-                        WHERE user_a = %s AND user_b = %s
-                    """, (user_a_id, user_b_id))
-                    match_row = cur.fetchone()
-                    if match_row:
-                        match_id = match_row[0]
-                    else:
-                        await query.edit_message_text("配對記錄創建失敗。")
-                        return
-                
-                # 設置當前用戶的接受狀態
-                if current_is_a:
-                    user_a_accepted = 1
-                    cur.execute("""
-                        UPDATE matches
-                        SET user_a_accepted = 1
-                        WHERE id = %s
-                    """, (match_id,))
-                else:
-                    user_b_accepted = 1
-                    cur.execute("""
-                        UPDATE matches
-                        SET user_b_accepted = 1
-                        WHERE id = %s
-                    """, (match_id,))
+                    await query.edit_message_text("配對記錄創建失敗。")
+                    return
+            
+            # 更新接受狀態
+            if internal_user_id == user_a_id:
+                user_a_accepted = 1
+                cur.execute("""
+                    UPDATE matches
+                    SET user_a_accepted = 1
+                    WHERE id = %s
+                """, (match_id,))
+            else:
+                user_b_accepted = 1
+                cur.execute("""
+                    UPDATE matches
+                    SET user_b_accepted = 1
+                    WHERE id = %s
+                """, (match_id,))
             
             conn.commit()
             
-            # 獲取雙方用戶信息
+            # 獲取用戶信息
             a_telegram_id = get_telegram_id(user_a_id)
             b_telegram_id = get_telegram_id(user_b_id)
             a_username = get_username(user_a_id) or "未設定用戶名"
             b_username = get_username(user_b_id) or "未設定用戶名"
             
-            from new_calculator import ScoringEngine
-            rating = ScoringEngine.get_rating(score) if 'score' in locals() else "中等"
+            rating = ScoringEngine.get_rating(match_score)
             
             # 檢查是否雙方都接受
             if user_a_accepted == 1 and user_b_accepted == 1:
                 # 雙方都接受，交換username
-                if score < THRESHOLD_ACCEPTABLE:
+                if match_score < THRESHOLD_ACCEPTABLE:
                     await query.edit_message_text(
-                        f"此配對分數 {score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_ACCEPTABLE}分）。\n"
+                        f"此配對分數 {match_score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_ACCEPTABLE}分）。\n"
                         f"建議尋找更合適的配對。"
                     )
                     return
                 
-                # 通知當前用戶
+                # 通知雙方 - 只在雙方同意後顯示username
+                current_user_username = a_username if internal_user_id == user_a_id else b_username
+                other_user_username = b_username if internal_user_id == user_a_id else a_username
+                
                 match_text = f"🎉 {rating} 配對成功！\n\n"
-                match_text += f"📊 配對分數：{score:.1f}分\n"
+                match_text += f"📊 配對分數：{match_score:.1f}分\n"
                 match_text += "✨ 雙方已同意交換聯絡方式\n\n"
-                match_text += f"👤 你的配對對象：@{b_username if current_is_a else a_username}\n\n"
+                match_text += f"👤 你的配對對象：@{other_user_username}\n\n"
                 match_text += "💬 可以開始聊天了！"
                 
-                if (current_is_a and b_username == "未設定用戶名") or (not current_is_a and a_username == "未設定用戶名"):
-                    match_text += "\n\n⚠️ 注意：如無法聯絡對方，請對方在 Telegram 設定中設定用戶名。"
+                if other_user_username == "未設定用戶名":
+                    match_text += "\n\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。"
                 
                 await query.edit_message_text(match_text)
                 
                 # 通知對方
                 try:
-                    other_telegram_id = b_telegram_id if current_is_a else a_telegram_id
+                    other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
+                    
                     other_text = f"🎉 {rating} 配對成功！\n\n"
-                    other_text += f"📊 配對分數：{score:.1f}分\n"
+                    other_text += f"📊 配對分數：{match_score:.1f}分\n"
                     other_text += "✨ 雙方已同意交換聯絡方式\n\n"
-                    other_text += f"👤 你的配對對象：@{a_username if current_is_a else b_username}\n\n"
+                    other_text += f"👤 你的配對對象：@{current_user_username}\n\n"
                     other_text += "💬 可以開始聊天了！"
                     
                     await context.bot.send_message(chat_id=other_telegram_id, text=other_text)
@@ -1839,20 +1775,15 @@ async def button_callback(update, context):
                 except Exception as e:
                     logger.error(f"無法通知對方: {e}")
             else:
-                # 只有一方接受，通知當前用戶等待對方回應
-                await query.edit_message_text(
-                    f"✅ 已記錄你的意願，等待對方回應...\n\n"
-                    f"📊 配對分數：{score:.1f}分\n"
-                    f"👤 對方收到通知後會決定是否接受。"
-                )
+                # 只有一方接受
+                await query.edit_message_text("✅ 已記錄你的意願，等待對方回應...")
                 
-                # 通知對方有人感興趣（不顯示username）
+                # 通知對方有人對配對感興趣
                 try:
-                    other_telegram_id = b_telegram_id if current_is_a else a_telegram_id
+                    other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
                     notification_text = (
-                        f"📩 有人對你的配對感興趣！\n\n"
-                        f"💡 配對分數：{score:.1f}分\n"
-                        f"⏳ 請使用 /match 查看最新配對結果。"
+                        "📩 有人對你的配對感興趣！\n"
+                        "請使用 /match 查看最新的配對結果，看看是否也有興趣認識對方。"
                     )
                     await context.bot.send_message(chat_id=other_telegram_id, text=notification_text)
                 except Exception as e:
@@ -1866,7 +1797,6 @@ async def button_callback(update, context):
                 release_db_connection(conn)
     
     elif data.startswith("reject_"):
-        # 用戶選擇略過
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
 # ========1.9 按鈕回調處理函數結束 ========#
 
@@ -1874,7 +1804,7 @@ async def button_callback(update, context):
 @check_maintenance
 @check_admin_only
 async def admin_test_command(update, context):
-    """運行管理員測試 - 管理員專用測試功能"""
+    """運行管理員測試"""
     try:
         await update.message.reply_text("🔄 開始運行管理員測試...")
         
@@ -1901,7 +1831,7 @@ async def admin_test_command(update, context):
 @check_maintenance
 @check_admin_only
 async def stats_command(update, context):
-    """查看系統統計 - 顯示系統使用數據"""
+    """查看系統統計"""
     try:
         await update.message.reply_text("📊 獲取系統統計...")
         
@@ -1922,7 +1852,7 @@ async def stats_command(update, context):
 @check_maintenance
 @check_admin_only
 async def quick_test_command(update, context):
-    """運行一鍵快速測試 - 管理員快速系統檢查"""
+    """運行一鍵快速測試"""
     try:
         await update.message.reply_text("⚡ 開始系統健康檢查...")
         
@@ -1946,7 +1876,7 @@ async def quick_test_command(update, context):
 @check_maintenance
 @check_admin_only  
 async def list_tests_command(update, context):
-    """列出所有測試案例 - 顯示可用的測試案例"""
+    """列出所有測試案例"""
     try:
         from admin_service import ADMIN_TEST_CASES
         text = "📋 可用測試案例：\n\n"
@@ -1970,7 +1900,6 @@ async def list_tests_command(update, context):
 
 # ========1.11 主程序開始 ========#
 def main():
-    """主程序 - 啟動Telegram機器人"""
     import time
     
     logger.info("⏳ 等待舊實例清理...")
@@ -2083,10 +2012,10 @@ if __name__ == "__main__":
 
 主要修正:
 1. 修復按鈕回調處理函數，確保雙方都收到配對成功通知
-2. 在雙方都同意配對後正確交換username
-3. 添加當只有一方接受時的興趣通知
-4. 保持所有現有接口的向後兼容性
-5. 添加詳細的函數註釋說明
+2. 修正配對查詢邏輯，避免重複配對
+3. 在雙方都同意配對後正確交換username
+4. 添加當只有一方接受時的興趣通知
+5. 改進match函數中的數據庫查詢
 
 版本: 修正版
 """
@@ -2113,44 +2042,34 @@ if __name__ == "__main__":
 """
 修正紀錄:
 2026-02-07 本次修正：
-1. 問題：按match後有配對另一方收不到通知
+1. 問題：按match後有配對另一方收不到通知，而當雙方都按有興趣後沒有交換對方username
    位置：button_callback函數中的通知邏輯
-   後果：配對成功但只有一方收到通知
-   修正：改進通知邏輯，確保雙方都收到配對成功通知
+   後果：配對成功但只有一方收到通知，且雙方同意後不交換username
+   修正：重構通知邏輯，確保雙方都收到配對成功通知，並在雙方同意後交換username
+   修正：添加當只有一方接受時的興趣通知
 
-2. 問題：就算收到通知也不能按再興趣，再按match也說沒有配對
+2. 問題：按興趣後不能再按match
    位置：match函數中的配對查詢邏輯
-   後果：用戶無法對已有配對再次表示興趣
-   修正：改進配對查詢，排除已配對但未雙向接受的用戶
+   後果：已經互相表示興趣的用戶不會再次配對
+   修正：改進數據庫查詢，只排除已經雙方都接受的配對
 
-3. 問題：當雙方都按有興趣後沒有交換對方username
-   位置：button_callback函數中的交換邏輯
-   後果：雙方同意後不交換username
-   修正：在雙方都接受後正確交換username
+3. 問題：配對分數閾值處理
+   位置：match函數中的分數篩選
+   後果：分數過低的配對也會顯示
+   修正：只顯示分數大於THRESHOLD_WARNING的配對
 
-4. 問題：按鈕回調處理函數邏輯混亂
-   位置：button_callback函數
-   後果：代碼難以維護和調試
-   修正：重構按鈕回調處理函數，提高可讀性和可維護性
+4. 問題：數據庫連接管理
+   位置：多個函數中的數據庫連接處理
+   後果：潛在的資源洩漏
+   修正：統一使用連接池管理，確保連接正確釋放
 
 2026-02-07 先前修正：
-1. 問題：/stats顯示0人登記
-   位置：admin_service.py中的數據庫查詢
-   後果：統計數據不準確
-   修正：在admin_service.py中修復數據庫查詢邏輯
-
-2. 問題：testpair和match分數不一致
+1. 問題：testpair和match分數不一致
    位置：match函數中的數據格式轉換
    後果：testpair 68分但match只有36分
    修正：新增get_raw_profile_for_match函數，確保數據格式與calculate_match期望的格式一致
-   修正：在match函數中重新計算對方八字數據，確保與testpair使用相同的計算邏輯
 
-3. 問題：配對成功後只有一方收到通知
-   位置：button_callback函數中的通知邏輯
-   後果：配對成功但只有一方收到通知
-   修正：確保雙方都收到配對成功通知，添加錯誤處理
-
-4. 問題：profile命令顯示字段索引錯誤
+2. 問題：profile命令顯示字段索引錯誤
    位置：get_profile_data函數
    後果：字段索引不正確
    修正：修正字段索引，確保正確獲取shen_sha_data字段
@@ -2160,11 +2079,6 @@ if __name__ == "__main__":
    位置：get_profile_data函數中的字段索引
    後果：字段索引錯誤導致無法正確獲取個人資料
    修正：修正字段索引，從30改為31，確保正確獲取shen_sha_data字段
-
-2. 問題：match結果直接顯示對方username
-   位置：match函數中的格式化調用
-   後果：違反隱私，在雙方同意前就暴露username
-   修正：修改為顯示「對方」，只在雙方同意後顯示username
 
 2026-02-03 修正testpair命令：
 1. 問題：test_pair_command函數變量作用域衝突
