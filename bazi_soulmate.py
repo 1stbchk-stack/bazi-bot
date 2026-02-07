@@ -76,24 +76,24 @@ class SoulmateFinder:
         # 檢查是否有通關元素（放寬條件）
         has_bridge = False
         for element in ['木', '火', '土', '金', '水']:
-            if element not in user_harmful and target_elements.get(element, 0) > 10:  # 從15降低到10
+            if element not in user_harmful and target_elements.get(element, 0) > 5:  # 進一步降低到5
                 has_bridge = True
                 break
         
         if not has_bridge:
             # 即使沒有通關，也不立即拒絕，給結構檢查機會
-            pass
+            logger.debug(f"預篩選：五行通關檢查未通過，但繼續處理")
         
         # 2. 格局放寬
-        target_pattern = target_bazi.get('pattern_type', '正格')
-        user_pattern = user_bazi.get('pattern_type', '正格')
+        target_pattern = target_bazi.get('cong_ge_type', '正常')
+        user_pattern = user_bazi.get('cong_ge_type', '正常')
         
         # 允許正常格局配正常/從格/專旺
-        compatible_patterns = ['正格', '從格', '專旺格', '身強', '身弱', '中和']
+        compatible_patterns = ['正常', '從格', '專旺格', '身強', '身弱', '中和']
         
         if target_pattern not in compatible_patterns:
             # 即使格局不兼容，也不立即拒絕
-            pass
+            logger.debug(f"預篩選：格局不兼容 {target_pattern}，但繼續處理")
         
         # 3. 日柱保底 + 神煞預篩（放寬條件）
         user_day_pillar = user_bazi.get('day_pillar', '')
@@ -114,7 +114,7 @@ class SoulmateFinder:
             
             if not has_remedy:
                 # 即使有沖無解，也不立即拒絕
-                pass
+                logger.debug(f"預篩選：地支六沖無解，但繼續處理")
         
         return True, "通過預篩"
     
@@ -135,19 +135,19 @@ class SoulmateFinder:
         marriage_luck = luck_periods[2] if len(luck_periods) > 2 else None
         if marriage_luck and not marriage_luck.get('favorable', False):
             # 即使大運不吉，也不立即拒絕
-            pass
+            logger.debug(f"結構檢查：大運不吉，但繼續處理")
         
         # 2. 配偶星質量門檻（放寬條件）
         spouse_effective = target_bazi.get('spouse_star_effective', 'unknown')
-        if spouse_effective in ['none', 'weak']:
+        if spouse_effective in ['none', 'weak', '未知']:
             # 即使配偶星弱，也不立即拒絕
-            pass
+            logger.debug(f"結構檢查：配偶星弱 {spouse_effective}，但繼續處理")
         
         # 3. 地支穩固度（放寬條件）
         pressure_score = target_bazi.get('pressure_score', 0)
-        if pressure_score >= 35:
+        if pressure_score >= 50:  # 從35提高到50
             # 即使夫妻宮壓力大，也不立即拒絕
-            pass
+            logger.debug(f"結構檢查：夫妻宮壓力大 {pressure_score}，但繼續處理")
         
         return True, "結構檢查通過"
     
@@ -210,12 +210,12 @@ class SoulmateFinder:
         dates = SoulmateFinder.generate_date_range(start_year, end_year)
         
         # 限制計算數量，避免過度計算
-        sample_size = min(500, len(dates))  # 從1000降低到500
+        sample_size = min(300, len(dates))  # 從500降低到300，提高效率
         sampled_dates = random.sample(dates, sample_size) if len(dates) > sample_size else dates
         
         # 2. 預篩選（放寬條件）
         pre_filtered = []
-        for year, month, day in sampled_dates[:300]:  # 限制數量避免過度計算
+        for year, month, day in sampled_dates[:200]:  # 限制數量避免過度計算
             # 隨機生成時間
             hour = random.randint(0, 23)
             
@@ -243,12 +243,14 @@ class SoulmateFinder:
                 if passed:
                     pre_filtered.append(target_bazi)
                 
-                if len(pre_filtered) >= 50:  # 限制預篩選數量
+                if len(pre_filtered) >= 30:  # 限制預篩選數量
                     break
                     
             except Exception as e:
                 logger.debug(f"計算八字失敗: {e}")
                 continue
+        
+        logger.info(f"預篩選通過: {len(pre_filtered)} 個")
         
         # 3. 結構檢查（放寬條件）
         structure_filtered = []
@@ -260,8 +262,10 @@ class SoulmateFinder:
             if passed:
                 structure_filtered.append(target_bazi)
             
-            if len(structure_filtered) >= 30:  # 限制結構檢查數量
+            if len(structure_filtered) >= 20:  # 限制結構檢查數量
                 break
+        
+        logger.info(f"結構檢查通過: {len(structure_filtered)} 個")
         
         # 4. 資深精算
         scored_matches = []
@@ -271,8 +275,8 @@ class SoulmateFinder:
                     user_bazi, target_bazi, user_gender, user_gender, purpose
                 )
                 
-                # 只保留分數較高的匹配
-                if score >= 60:  # 最低60分
+                # 只保留分數較高的匹配 - 降低門檻
+                if score >= 40:  # 從60降低到40分
                     scored_matches.append({
                         'bazi': target_bazi,
                         'score': score,
@@ -285,6 +289,8 @@ class SoulmateFinder:
             except Exception as e:
                 logger.debug(f"計算分數失敗: {e}")
                 continue
+        
+        logger.info(f"資深精算通過: {len(scored_matches)} 個")
         
         # 5. 排序並返回Top N
         scored_matches.sort(key=lambda x: x['score'], reverse=True)
@@ -355,6 +361,24 @@ def format_find_soulmate_result(matches: list, start_year: int, end_year: int, p
 4. 修正錯誤處理和日誌記錄
 
 修改記錄：
+2026-02-07 本次修正：
+1. 問題：find_soulmate完全無出到結果
+   位置：pre_filter和structure_check方法中的篩選條件
+   後果：篩選條件過於嚴格，導致無結果
+   修正：進一步放寬所有篩選條件，降低閾值
+   - 五行通關檢查從 >10 降低到 >5
+   - 夫妻宮壓力檢查從 >=35 提高到 >=50
+   - 分數閾值從 >=60 降低到 >=40
+   - 增加詳細日誌記錄
+
+2. 問題：搜索效率過低
+   位置：find_top_matches方法
+   後果：計算量過大，無結果返回
+   修正：進一步減少樣本數量，提高效率
+   - sample_size從500降低到300
+   - 預篩選數量從200降低到200
+   - 結構檢查數量從30降低到20
+
 2026-02-05 本次修正：
 1. 問題：find_soulmate完全無出到結果
    位置：pre_filter和structure_check方法

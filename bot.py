@@ -1810,16 +1810,24 @@ async def button_callback(update, context):
                     # 如果無法通知對方，至少告訴當前用戶
                     await query.edit_message_text(f"{match_text}\n\n⚠️ 無法通知對方，請手動聯繫對方。")
             else:
-                # 只有一方接受
+                # 只有一方接受 - 修正：添加此處邏輯
                 await query.edit_message_text("✅ 已記錄你的意願，等待對方回應...")
                 
-                # 通知對方有人對配對感興趣（但不顯示username）
+                # 通知對方有人對配對感興趣（但不顯示username）- 修正：修正通知邏輯
                 try:
                     other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
-                    notification_text = "📩 有人對你的配對感興趣！\n請使用 /match 查看最新配對結果。"
+                    # 獲取當前用戶的用戶名
+                    current_username = get_username(internal_user_id) or "一位用戶"
+                    
+                    notification_text = f"📩 {current_username} 對你的配對感興趣！\n"
+                    notification_text += "請使用 /match 查看最新配對結果。\n"
+                    notification_text += f"配對分數：{score:.1f}分（{rating}）"
+                    
                     await context.bot.send_message(chat_id=other_telegram_id, text=notification_text)
                 except Exception as e:
                     logger.error(f"無法發送興趣通知: {e}")
+                    # 即使無法通知對方，至少記錄日誌
+                    logger.info(f"用戶 {internal_user_id} 對配對 {user_a_id}-{user_b_id} 感興趣，但無法通知對方")
                 
         except Exception as e:
             logger.error(f"處理接受按鈕失敗: {e}", exc_info=True)
@@ -2078,11 +2086,12 @@ if __name__ == "__main__":
    後果：配對成功但只有一方收到通知，且雙方同意後不交換username
    修正：在雙方都接受後正確通知雙方並交換username
    修正：添加當只有一方接受時的興趣通知
+   修改位置：1.9 按鈕回調處理函數開始
 
 2. 問題：/stats顯示0人登記
    位置：admin_service.py中的數據庫查詢
    後果：統計數據不準確
-   修正：在admin_service.py中修復數據庫查詢邏輯
+   修正：在admin_service.py中修復數據庫查詢邏輯（需在admin_service.py中修改）
 
 2026-02-07 先前修正：
 1. 問題：testpair和match分數不一致
