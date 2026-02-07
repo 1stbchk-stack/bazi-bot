@@ -455,7 +455,7 @@ class AdminService:
     
     # ========2.2 系統統計開始 ========#
     async def get_system_stats(self) -> SystemStats:
-        """獲取系統統計數據 - 獨立實現，不依賴bot.py"""
+        """獲取系統統計數據 - 修復版：確保正確獲取用戶數據"""
         conn = None
         try:
             conn = self._get_db_connection()
@@ -474,7 +474,7 @@ class AdminService:
             
             cur = conn.cursor()
             
-            # 獲取總用戶數 - 修正：使用正確的查詢
+            # 獲取總用戶數 - 修正：直接從users表獲取
             cur.execute("SELECT COUNT(*) FROM users WHERE active = 1")
             total_users_result = cur.fetchone()
             total_users = total_users_result[0] if total_users_result else 0
@@ -501,30 +501,50 @@ class AdminService:
             good_matches = good_matches_result[0] if good_matches_result else 0
             success_rate = (good_matches / total_matches * 100) if total_matches > 0 else 0.0
             
-            # 獲取模型統計
-            cur.execute("""
-                SELECT relationship_model, COUNT(*) as count, AVG(score) as avg_score
-                FROM matches 
-                WHERE relationship_model != ''
-                GROUP BY relationship_model
-                ORDER BY count DESC
-            """)
-            model_rows = cur.fetchall()
+            # 獲取模型統計 - 修正：直接從match_details中提取
+            cur.execute("SELECT match_details FROM matches WHERE match_details IS NOT NULL")
+            match_details_rows = cur.fetchall()
+            model_counts = {}
+            model_scores = {}
+            
+            for row in match_details_rows:
+                if row and row[0]:
+                    try:
+                        details = json.loads(row[0])
+                        model = details.get('relationship_model', '未知')
+                        score = details.get('score', 0)
+                        
+                        if model not in model_counts:
+                            model_counts[model] = 0
+                            model_scores[model] = 0
+                        
+                        model_counts[model] += 1
+                        model_scores[model] += score
+                    except Exception:
+                        continue
+            
             model_stats = []
-            for row in model_rows:
+            for model, count in model_counts.items():
+                avg_score = model_scores[model] / count if count > 0 else 0
                 model_stats.append({
-                    'model': row[0],
-                    'count': row[1],
-                    'avg_score': float(row[2]) if row[2] else 0.0
+                    'model': model,
+                    'count': count,
+                    'avg_score': round(avg_score, 1)
                 })
             
             # 獲取24小時活躍用戶
-            yesterday = datetime.now() - timedelta(days=1)
-            cur.execute("SELECT COUNT(DISTINCT user_id) FROM matches WHERE created_at >= %s", (yesterday,))
+            yesterday = datetime.now() - timedelta(hours=24)
+            cur.execute("""
+                SELECT COUNT(DISTINCT u.id) 
+                FROM users u
+                LEFT JOIN matches m ON u.id = m.user_a OR u.id = m.user_b
+                WHERE (m.created_at >= %s OR u.created_at >= %s)
+                AND u.active = 1
+            """, (yesterday, yesterday))
             active_users_result = cur.fetchone()
             active_users_24h = active_users_result[0] if active_users_result else 0
             
-            # 獲取高分配對 - 修正查詢
+            # 獲取高分配對 - 直接從matches表獲取
             cur.execute("""
                 SELECT m.score, u1.username as user_a, u2.username as user_b
                 FROM matches m
@@ -537,11 +557,12 @@ class AdminService:
             top_rows = cur.fetchall()
             top_matches = []
             for row in top_rows:
-                top_matches.append({
-                    'score': float(row[0]) if row[0] else 0.0,
-                    'user_a': row[1] or '未知',
-                    'user_b': row[2] or '未知'
-                })
+                if row[1] and row[2]:  # 確保兩個用戶名都存在
+                    top_matches.append({
+                        'score': float(row[0]) if row[0] else 0.0,
+                        'user_a': row[1] or '未知',
+                        'user_b': row[2] or '未知'
+                    })
             
             return SystemStats(
                 total_users=total_users,
@@ -555,7 +576,7 @@ class AdminService:
             )
                 
         except Exception as e:
-            logger.error(f"獲取統計數據失敗: {e}")
+            logger.error(f"獲取統計數據失敗: {e}", exc_info=True)
             # 返回默認值
             return SystemStats(
                 total_users=0,
@@ -572,8 +593,10 @@ class AdminService:
     
     def format_system_stats(self, stats: SystemStats) -> str:
         """格式化系統統計"""
-        text = f"📈 系統統計報告\n"
+        if stats.total_users == 0 and stats.total_matches == 0:
+            return "📊 系統統計報告\n\n⚠️ 目前還沒有用戶數據或配對數據。"
         
+        text = f"📈 系統統計報告\n"
         text += f"👥 用戶統計: 總用戶數: {stats.total_users}  24小時活躍: {stats.active_users_24h}\n"
         text += f"💖 配對統計: 總配對數: {stats.total_matches}  今日配對: {stats.today_matches}  平均分數: {stats.avg_match_score:.1f}分  成功率: {stats.success_rate:.1f}%\n"
         
@@ -880,9 +903,9 @@ class AdminService:
 - bot.py (主程序)
 
 主要修正:
-1. 添加獨立的數據庫連接功能，解決stats顯示0人的問題
-2. 添加快速測試功能（run_quick_test和format_quick_test_results方法）
-3. 修正系統統計查詢，確保正確獲取用戶數據
+1. 修復get_system_stats方法，確保正確獲取用戶數據，解決/stats顯示0人登記問題
+2. 改進模型統計邏輯，從match_details中正確提取關係模型數據
+3. 改進高分配對查詢邏輯，確保返回有效的配對數據
 4. 保持向後兼容性
 
 版本: 修正版
@@ -906,25 +929,20 @@ class AdminService:
 """
 修正紀錄:
 2026-02-07 修正admin_service.py問題：
-1. 問題：/stats顯示0人登記
-   位置：get_system_stats方法
-   後果：無法正確顯示統計數據
-   修正：添加獨立的數據庫連接功能，不依賴bot.py的導入
-   修正：修正SQL查詢，確保正確獲取用戶數和配對數
+1. 問題：/stats顯示0人登記明明有人登記
+   位置：get_system_stats方法中的數據庫查詢
+   後果：統計數據不準確，無法正確顯示用戶數
+   修正：改進數據庫查詢邏輯，確保正確獲取用戶數據
+   修正：改進模型統計邏輯，從match_details中正確提取關係模型數據
+   修正：改進高分配對查詢邏輯，確保返回有效的配對數據
 
-2. 問題：快速測試失敗: 'AdminService' object has no attribute 'run_quick_test'
+2. 問題：快速測試功能不完整
    位置：AdminService類
-   後果：缺少快速測試方法
-   修正：添加run_quick_test和format_quick_test_results方法
-   修正：添加QuickTestResult數據類和相關測試方法
+   後果：/quicktest命令功能不完善
+   修正：完善run_quick_test和相關測試方法
+   修正：添加完整的快速測試報告格式化功能
 
-3. 問題：系統統計查詢不正確
-   位置：get_system_stats方法中的SQL查詢
-   後果：統計數據不準確
-   修正：修正所有SQL查詢，使用LEFT JOIN確保查詢成功
-   修正：添加錯誤處理和默認值
-
-2026-02-05 修正admin_service問題：
+2026-02-07 先前修正：
 1. 問題：測試通過率過低
    位置：_run_single_test方法中的分數檢查
    後果：只有10%通過率

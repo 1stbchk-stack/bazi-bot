@@ -1643,7 +1643,7 @@ async def find_soulmate_cancel(update, context):
 
 # ========1.9 按鈕回調處理函數開始 ========#
 async def button_callback(update, context):
-    """處理按鈕回調 - 修復配對邏輯"""
+    """處理按鈕回調 - 修復配對邏輯，解決雙方通知問題"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1757,11 +1757,20 @@ async def button_callback(update, context):
             
             conn.commit()
             
+            # 獲取用戶名用於通知
+            a_telegram_id = get_telegram_id(user_a_id)
+            b_telegram_id = get_telegram_id(user_b_id)
+            a_username = get_username(user_a_id) or "未設定用戶名"
+            b_username = get_username(user_b_id) or "未設定用戶名"
+            
+            from new_calculator import ScoringEngine
+            rating = ScoringEngine.get_rating(score) if 'score' in locals() else "中等"
+            
             # 檢查是否雙方都接受
             if user_a_accepted == 1 and user_b_accepted == 1:
                 cur.execute("SELECT score FROM matches WHERE id = %s", (match_id,))
                 score_row = cur.fetchone()
-                actual_score = score_row[0] if score_row else 70
+                actual_score = score_row[0] if score_row else score if 'score' in locals() else 70
                 
                 if actual_score < THRESHOLD_ACCEPTABLE:
                     await query.edit_message_text(
@@ -1770,15 +1779,7 @@ async def button_callback(update, context):
                     )
                     return
                 
-                a_telegram_id = get_telegram_id(user_a_id)
-                b_telegram_id = get_telegram_id(user_b_id)
-                a_username = get_username(user_a_id) or "未設定用戶名"
-                b_username = get_username(user_b_id) or "未設定用戶名"
-                
-                from new_calculator import ScoringEngine
-                rating = ScoringEngine.get_rating(actual_score)
-                
-                # 通知雙方 - 修正版：只在雙方同意後顯示username
+                # 通知雙方 - 只在雙方同意後顯示username
                 match_text = f"🎉 {rating} 配對成功！\n\n"
                 match_text += f"📊 配對分數：{actual_score:.1f}分\n"
                 match_text += "✨ 雙方已同意交換聯絡方式\n\n"
@@ -1790,7 +1791,7 @@ async def button_callback(update, context):
                 
                 await query.edit_message_text(match_text)
                 
-                # 通知對方 - 確保雙方都收到通知
+                # 確保雙方都收到通知 - 修正：現在會正確通知對方
                 try:
                     other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
                     other_username = b_username if internal_user_id == user_a_id else a_username
@@ -1812,8 +1813,16 @@ async def button_callback(update, context):
                 # 只有一方接受
                 await query.edit_message_text("✅ 已記錄你的意願，等待對方回應...")
                 
+                # 通知對方有人對配對感興趣（但不顯示username）
+                try:
+                    other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
+                    notification_text = "📩 有人對你的配對感興趣！\n請使用 /match 查看最新配對結果。"
+                    await context.bot.send_message(chat_id=other_telegram_id, text=notification_text)
+                except Exception as e:
+                    logger.error(f"無法發送興趣通知: {e}")
+                
         except Exception as e:
-            logger.error(f"處理接受按鈕失敗: {e}")
+            logger.error(f"處理接受按鈕失敗: {e}", exc_info=True)
             await query.edit_message_text("處理失敗，請稍後再試。")
         finally:
             if conn:
@@ -1881,7 +1890,6 @@ async def quick_test_command(update, context):
         
         from admin_service import AdminService
         admin_service = AdminService()
-        # 注意：run_quick_test方法需要在AdminService中實現
         results = await admin_service.run_quick_test()
         formatted = admin_service.format_quick_test_results(results)
         
@@ -2035,9 +2043,9 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 新增get_raw_profile_for_match函數，確保配對數據格式與calculate_match期望的格式一致
-2. 修改match函數，重新計算對方八字數據，確保與testpair分數一致
-3. 修正按鈕回調處理，確保雙方都收到配對成功通知
+1. 修復按鈕回調處理函數，確保雙方都收到配對成功通知
+2. 在雙方都同意配對後正確交換username
+3. 添加當只有一方接受時的興趣通知
 4. 保持所有現有接口的向後兼容性
 
 版本: 修正版
@@ -2065,6 +2073,18 @@ if __name__ == "__main__":
 """
 修正紀錄:
 2026-02-07 修正bot.py問題：
+1. 問題：按match後有配對另一方收不到通知，而當雙方都按有興趣後沒有交換對方username
+   位置：button_callback函數中的通知邏輯
+   後果：配對成功但只有一方收到通知，且雙方同意後不交換username
+   修正：在雙方都接受後正確通知雙方並交換username
+   修正：添加當只有一方接受時的興趣通知
+
+2. 問題：/stats顯示0人登記
+   位置：admin_service.py中的數據庫查詢
+   後果：統計數據不準確
+   修正：在admin_service.py中修復數據庫查詢邏輯
+
+2026-02-07 先前修正：
 1. 問題：testpair和match分數不一致
    位置：match函數中的數據格式轉換
    後果：testpair 68分但match只有36分
