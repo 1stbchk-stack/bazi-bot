@@ -547,9 +547,9 @@ def check_user_has_profile(telegram_id: int) -> Tuple[bool, Optional[str]]:
         if profile_count == 0:
             return False, "尚未完成個人資料輸入，請使用 /start 完成註冊流程"
         
-        # 3. 檢查基本資料是否完整 - 放寬條件
+        # 3. 檢查基本資料是否完整 - 修正：只檢查最必要的欄位
         cur.execute("""
-            SELECT birth_year, birth_month, birth_day, gender, year_pillar 
+            SELECT gender, year_pillar 
             FROM profiles WHERE user_id = %s
         """, (user_id,))
         profile_row = cur.fetchone()
@@ -557,13 +557,13 @@ def check_user_has_profile(telegram_id: int) -> Tuple[bool, Optional[str]]:
         if not profile_row:
             return False, "個人資料讀取失敗，請使用 /start 重新註冊"
         
-        birth_year, birth_month, birth_day, gender, year_pillar = profile_row
+        gender, year_pillar = profile_row
         
-        # 只檢查最必要的欄位
-        if not gender:
+        # 檢查最必要的欄位
+        if not gender or gender == "":
             return False, "性別資料缺失，請使用 /start 重新輸入"
         
-        if not year_pillar:
+        if not year_pillar or year_pillar == "":
             return False, "八字數據未生成，請使用 /start 重新計算"
         
         return True, None
@@ -1088,13 +1088,17 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """查看個人資料"""
     telegram_id = update.effective_user.id
     
-    # 使用簡化的檢查邏輯
+    # 先檢查用戶是否有資料
+    has_profile, error_msg = check_user_has_profile(telegram_id)
+    if not has_profile:
+        await update.message.reply_text(f"{error_msg}")
+        return
+    
     internal_user_id = get_internal_user_id(telegram_id)
     if not internal_user_id:
         await update.message.reply_text("未找到紀錄，請先 /start 註冊。")
         return
     
-    # 直接嘗試獲取個人資料
     profile_data = get_profile_data(internal_user_id)
     
     if not profile_data:
@@ -1118,7 +1122,12 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始配對 - 主要配對功能，尋找合適對象"""
     telegram_id = update.effective_user.id
     
-    # 使用簡化的檢查邏輯
+    # 檢查用戶是否有完整的個人資料
+    has_profile, error_msg = check_user_has_profile(telegram_id)
+    if not has_profile:
+        await update.message.reply_text(f"{error_msg}")
+        return
+    
     internal_user_id = get_internal_user_id(telegram_id)
     if not internal_user_id:
         await update.message.reply_text("請先用 /start 登記資料。")
@@ -1142,9 +1151,6 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     my_gender = me_profile.get("gender")
-    if not my_gender:
-        await update.message.reply_text("性別資料缺失，請使用 /start 重新輸入。")
-        return
     
     conn = None
     try:
@@ -1516,16 +1522,16 @@ async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
     
-    # 使用簡化的檢查邏輯
-    internal_user_id = get_internal_user_id(telegram_id)
-    if not internal_user_id:
-        await update.message.reply_text("請先用 /start 登記資料。")
+    # 檢查用戶是否有完整的個人資料
+    has_profile, error_msg = check_user_has_profile(telegram_id)
+    if not has_profile:
+        await update.message.reply_text(f"{error_msg}")
         return ConversationHandler.END
     
-    # 直接檢查是否有個人資料
-    profile_data = get_raw_profile_for_match(internal_user_id)
-    if not profile_data:
-        await update.message.reply_text("尚未完成個人資料輸入，請使用 /start 完成註冊流程。")
+    internal_user_id = get_internal_user_id(telegram_id)
+    
+    if not internal_user_id:
+        await update.message.reply_text("請先用 /start 登記資料。")
         return ConversationHandler.END
     
     allowed, match_count = check_daily_limit(internal_user_id)
@@ -2093,13 +2099,13 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 徹底簡化用戶資料檢查邏輯，移除過於嚴格的檢查
-2. profile命令直接嘗試獲取資料，不進行前置檢查
-3. match命令直接檢查內部用戶ID和個人資料
-4. find_soulmate命令直接檢查內部用戶ID和個人資料
-5. 放寬check_user_has_profile函數的檢查條件
+1. 保持所有原有功能不變
+2. 修正check_user_has_profile函數，只檢查最必要的gender和year_pillar欄位
+3. 確保profile、match、find_soulmate都正確調用check_user_has_profile
+4. 提供清晰的錯誤提示
+5. 保持所有其他功能完整不變
 
-版本: 最終簡化版
+版本: 保持功能完整修正版
 """
 # ========文件信息結束 ========#
 
@@ -2123,30 +2129,26 @@ if __name__ == "__main__":
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
-2026-02-07 最終簡化修正：
+2026-02-07 保持功能完整修正：
 1. 問題：所有功能都顯示"請先完成資料輸入流程"
    位置：check_user_has_profile函數檢查條件過於嚴格
    後果：即使已完成註冊的用戶也無法使用任何功能
-   修正：徹底簡化檢查邏輯，只檢查最必要的欄位
+   修正：只檢查最必要的gender和year_pillar欄位，不檢查birth_year等可能為NULL的欄位
 
-2. 問題：profile命令也受check_user_has_profile影響
-   位置：profile函數調用了check_user_has_profile
-   後果：即使有資料也無法查看個人資料
-   修正：profile命令直接嘗試獲取資料，不進行前置檢查
+2. 問題：保持所有功能完整
+   位置：所有函數都保持原有邏輯
+   修正：不刪除任何功能，只修正檢查邏輯
 
-3. 問題：match命令檢查邏輯複雜
-   位置：match函數有多層檢查
-   後果：可能因某個檢查失敗而無法使用
-   修正：簡化檢查邏輯，直接檢查內部用戶ID和個人資料
+3. 問題：錯誤提示清晰
+   位置：check_user_has_profile返回具體錯誤訊息
+   修正：根據不同情況返回具體的錯誤提示
 
-4. 問題：find_soulmate命令檢查邏輯複雜
-   位置：find_soulmate_start函數調用check_user_has_profile
-   後果：可能因檢查失敗而無法使用
-   修正：直接檢查內部用戶ID和個人資料
+4. 問題：所有三個功能都正確檢查
+   位置：profile、match、find_soulmate都正確調用check_user_has_profile
+   修正：確保每個功能都先檢查用戶資料完整性
 
-5. 問題：check_user_has_profile函數要求過多欄位非空
-   位置：要求birth_year, birth_month, birth_day等都非空
-   後果：某些欄位可能為NULL導致檢查失敗
-   修正：只檢查最必要的gender和year_pillar欄位
+5. 問題：資料庫欄位可能為NULL
+   位置：birth_year、birth_month等欄位可能為NULL
+   修正：不檢查這些可能為NULL的欄位，只檢查最必要的欄位
 """
 # ========修正紀錄結束 ========#
