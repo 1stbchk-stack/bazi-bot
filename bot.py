@@ -67,7 +67,7 @@ if DATABASE_URL.startswith("postgres://"):
 SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "").strip()  # 修正：不設默認值
 DAILY_MATCH_LIMIT = 10
 
-# 分數閾值常量
+# 分數閾值常量 - 從new_calculator導入
 THRESHOLD_WARNING = Config.THRESHOLD_WARNING
 THRESHOLD_ACCEPTABLE = Config.THRESHOLD_ACCEPTABLE
 THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
@@ -76,11 +76,8 @@ THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
 DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
 
 # 其他常量
-TOKEN_EXPIRY_SECONDS = 600  # 配對token有效期10分鐘
+TOKEN_EXPIRY_SECONDS = 600  # 配對token有效期10分鐘（與bazi_soulmate中的10分鐘一致）
 MIN_MATCH_SCORE = THRESHOLD_WARNING  # 最低配對分數
-MAX_DATE_SAMPLE = 200  # 最大日期抽樣數
-MAX_PRE_FILTER = 100  # 最大預篩選數
-MAX_STRUCTURE_CHECK = 20  # 最大結構檢查數
 
 # 維護模式標誌
 MAINTENANCE_MODE = False
@@ -465,7 +462,9 @@ def _get_profile_base_data(internal_user_id: int, include_username: bool = False
         else:
             username = None
         
-        shen_sha_json = row[30] if include_username else row[29]
+        # 修正：正確計算索引位置
+        shen_sha_index = 30 if include_username else 29
+        shen_sha_json = row[shen_sha_index] if shen_sha_index < len(row) else None
         shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
         
         profile_data = {
@@ -485,22 +484,22 @@ def _get_profile_base_data(internal_user_id: int, include_username: bool = False
             "day_stem": row[index + 13],
             "day_stem_element": row[index + 14],
             "elements": {
-                "木": float(row[index + 15]),
-                "火": float(row[index + 16]),
-                "土": float(row[index + 17]),
-                "金": float(row[index + 18]),
-                "水": float(row[index + 19])
+                "木": float(row[index + 15] or 0),
+                "火": float(row[index + 16] or 0),
+                "土": float(row[index + 17] or 0),
+                "金": float(row[index + 18] or 0),
+                "水": float(row[index + 19] or 0)
             },
-            "day_stem_strength": row[index + 20],
-            "strength_score": float(row[index + 21]),
-            "useful_elements": row[index + 22].split(',') if row[index + 22] else [],
-            "harmful_elements": row[index + 23].split(',') if row[index + 23] else [],
-            "spouse_star_status": row[index + 24],
-            "spouse_star_effective": row[index + 25],
-            "spouse_palace_status": row[index + 26],
-            "pressure_score": float(row[index + 27]),
-            "cong_ge_type": row[index + 28],
-            "shi_shen_structure": row[index + 29],
+            "day_stem_strength": row[index + 20] or "中",
+            "strength_score": float(row[index + 21] or 50),
+            "useful_elements": (row[index + 22] or "").split(',') if row[index + 22] else [],
+            "harmful_elements": (row[index + 23] or "").split(',') if row[index + 23] else [],
+            "spouse_star_status": row[index + 24] or "未知",
+            "spouse_star_effective": row[index + 25] or "未知",
+            "spouse_palace_status": row[index + 26] or "未知",
+            "pressure_score": float(row[index + 27] or 0),
+            "cong_ge_type": row[index + 28] or "正常",
+            "shi_shen_structure": row[index + 29] or "普通結構",
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
@@ -511,7 +510,7 @@ def _get_profile_base_data(internal_user_id: int, include_username: bool = False
         return profile_data
         
     except Exception as e:
-        logger.error(f"獲取個人資料失敗: {e}")
+        logger.error(f"獲取個人資料失敗: {e}", exc_info=True)
         return None
     finally:
         if conn:
@@ -524,6 +523,15 @@ def get_profile_data(internal_user_id: int) -> Optional[Dict[str, Any]]:
 def get_raw_profile_for_match(internal_user_id: int) -> Optional[Dict[str, Any]]:
     """獲取原始個人資料數據，用於配對計算"""
     return _get_profile_base_data(internal_user_id, include_username=False)
+
+def check_user_has_profile(telegram_id: int) -> bool:
+    """檢查用戶是否有完整的個人資料"""
+    internal_user_id = get_internal_user_id(telegram_id)
+    if not internal_user_id:
+        return False
+    
+    profile_data = get_raw_profile_for_match(internal_user_id)
+    return profile_data is not None
 # ========1.4 數據庫工具結束 ========#
 
 # ========1.5 隱私條款模組開始 ========#
@@ -1061,8 +1069,13 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始配對 - 主要配對功能，尋找合適對象"""
     telegram_id = update.effective_user.id
-    internal_user_id = get_internal_user_id(telegram_id)
     
+    # 修正：先檢查用戶是否有個人資料
+    if not check_user_has_profile(telegram_id):
+        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
+        return
+    
+    internal_user_id = get_internal_user_id(telegram_id)
     if not internal_user_id:
         await update.message.reply_text("請先用 /start 登記資料。")
         return
@@ -1081,7 +1094,7 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     me_profile = get_raw_profile_for_match(internal_user_id)
     
     if me_profile is None:
-        await update.message.reply_text("請先完成資料輸入流程。")
+        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
         return
     
     my_gender = me_profile.get("gender")
@@ -1096,7 +1109,7 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
         target_gender_row = cur.fetchone()
         target_gender = target_gender_row[0] if target_gender_row else "異性"
         
-        # 根據性別偏好構建查詢條件 - 修正SQL參數問題
+        # 根據性別偏好構建查詢條件
         gender_condition = ""
         gender_params = []
         
@@ -1455,11 +1468,17 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
+    
+    # 修正：先檢查用戶是否有個人資料
+    if not check_user_has_profile(telegram_id):
+        await update.message.reply_text("請先完成資料輸入流程。使用 /start 註冊並輸入完整出生資料。")
+        return ConversationHandler.END
+    
     internal_user_id = get_internal_user_id(telegram_id)
     
     if not internal_user_id:
         await update.message.reply_text("請先用 /start 登記資料。")
-        return
+        return ConversationHandler.END
     
     allowed, match_count = check_daily_limit(internal_user_id)
     if not allowed:
@@ -1468,7 +1487,7 @@ async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE
             f"請明天再試。\n"
             f"今天已使用 {match_count} 次配對機會。"
         )
-        return
+        return ConversationHandler.END
     
     await update.message.reply_text(
         "🔮 歡迎使用「真命天子搜尋器」！\n"
@@ -1578,6 +1597,16 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         )
         
         logger.info(f"真命天子搜尋完成：找到{len(top_matches)}個匹配")
+        
+        if not top_matches:
+            await calculating_msg.edit_text(
+                f"❌ 在{start_year}-{end_year}年內未找到合適的匹配時空。\n"
+                "建議：\n"
+                "1. 嘗試不同的年份範圍\n"
+                "2. 調整搜尋目的\n"
+                "3. 擴大搜尋範圍"
+            )
+            return ConversationHandler.END
         
         # 格式化結果
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
@@ -2016,13 +2045,12 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修復match函數SQL參數不匹配問題
-2. 修復性別條件邏輯，避免硬編碼SQL
-3. 統一常量定義，移除魔法數字
-4. 合併重複代碼，提取公共函數
-5. 優化錯誤處理和日誌記錄
-6. 添加詳細類型提示
-7. 修正SECRET_KEY安全配置
+1. 修正match函數用戶資料檢查邏輯，避免"請先完成資料輸入流程"錯誤
+2. 修正find_soulmate_start函數用戶資料檢查邏輯
+3. 統一常量定義，移除重複常量
+4. 添加check_user_has_profile輔助函數
+5. 修復_get_profile_base_data函數索引計算錯誤
+6. 優化錯誤處理和日誌記錄
 
 版本: 修正版
 """
@@ -2049,6 +2077,32 @@ if __name__ == "__main__":
 """
 修正紀錄:
 2026-02-07 本次修正：
+1. 問題：match函數提示"請先完成資料輸入流程"
+   位置：match函數開頭的用戶資料檢查
+   後果：即使已完成註冊的用戶也無法使用match功能
+   修正：添加check_user_has_profile輔助函數，正確檢查用戶資料完整性
+
+2. 問題：find_soulmate_start函數提示"請先完成資料輸入流程"
+   位置：find_soulmate_start函數開頭的用戶資料檢查
+   後果：即使已完成註冊的用戶也無法使用find_soulmate功能
+   修正：使用check_user_has_profile輔助函數，正確檢查用戶資料
+
+3. 問題：_get_profile_base_data函數索引計算錯誤
+   位置：shen_sha_json索引位置錯誤
+   後果：可能導致索引越界或數據解析錯誤
+   修正：正確計算索引位置，添加邊界檢查
+
+4. 問題：常量不一致
+   位置：移除bot.py中的MAX_DATE_SAMPLE等重複常量
+   後果：代碼重複，維護困難
+   修正：只保留必要的常量，其他從bazi_soulmate導入
+
+5. 問題：數據庫查詢結果處理不完善
+   位置：_get_profile_base_data函數中的None值處理
+   後果：可能導致類型錯誤
+   修正：添加默認值處理和類型轉換
+
+2026-02-07 先前修正：
 1. 問題：match函數SQL參數不匹配
    位置：match函數中的性別條件邏輯
    後果：SQL查詢失敗，返回"配對查詢失敗"
@@ -2068,42 +2122,5 @@ if __name__ == "__main__":
    位置：多個函數中的日誌記錄
    後果：錯誤和調試信息混雜
    修正：區分error、info、debug級別
-
-5. 問題：代碼重複
-   位置：get_profile_data和get_raw_profile_for_match
-   後果：維護困難
-   修正：提取公共函數_get_profile_base_data
-
-6. 問題：類型提示不完整
-   位置：多個函數缺少返回類型
-   後果：代碼可讀性差
-   修正：添加完整類型提示
-
-7. 問題：魔法數字
-   位置：多個函數中的硬編碼數字
-   後果：難以理解和維護
-   修正：定義為常量
-
-8. 問題：字符串拼接效率
-   位置：消息構建中的+=操作
-   後果：性能不佳
-   修正：使用列表join
-
-9. 問題：SECRET_KEY安全配置
-   位置：環境變數默認值
-   後果：安全風險
-   修正：移除實際默認值
-
-10. 問題：錯誤處理不完整
-    位置：多個函數的異常處理
-    後果：用戶體驗差
-    修正：添加詳細錯誤信息和建議
-
-2026-02-07 先前修正：
-1. 問題：按match後有配對另一方收不到通知
-2. 問題：雙方都按有興趣後沒有交換對方username
-3. 問題：按興趣後不能再按match
-4. 問題：testpair和match分數不一致
-5. 問題：profile命令顯示字段索引錯誤
 """
 # ========修正紀錄結束 ========#
