@@ -31,8 +31,6 @@ from telegram.ext import (
 
 # 導入計算核心
 from new_calculator import (
-    BaziCalculator,
-    ScoringEngine,
     calculate_match,
     calculate_bazi,
     BaziError,
@@ -44,24 +42,8 @@ from new_calculator import (
 # 導入 Soulmate 功能
 from bazi_soulmate import (
     SoulmateFinder,
-    format_find_soulmate_result
-)
-
-# 導入文本常量
-from texts import (
-    PRIVACY_TERMS,
-    EXPLANATION_TEXT,
-    ASK_HOUR_KNOWN_TEXT,
-    APPROXIMATE_HOUR_DESCRIPTION,
-    UNKNOWN_HOUR_WARNING,
-    HELP_TEXT,
-    AI_USAGE_TIPS,
-    REGISTRATION_COMPLETE_TEXT,
-    HEALTH_QUOTES,
-    BASIC_INFO_FORMAT_TEXT,
-    CONFIRM_TIME_TEXT,
-    FUNCTION_MENU_TEXT,
-    ADMIN_MENU_TEXT
+    format_find_soulmate_result,
+    MIN_SCORE_THRESHOLD as SOULMATE_MIN_SCORE
 )
 # ========1.1 導入模組結束 ========#
 
@@ -82,26 +64,30 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
-# 安全配置 - 修正：使用安全的默認值
-SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "").strip()
-if not SECRET_KEY:
-    logger.error("警告: MATCH_SECRET_KEY 環境變數未設定，使用臨時密鑰")
-    SECRET_KEY = hashlib.sha256(str(datetime.now().timestamp()).encode()).hexdigest()
+SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "").strip()  # 修正：不設默認值
+DAILY_MATCH_LIMIT = 10
 
-# 常量定義 - 修正：統一從Config獲取或定義為常量
-DAILY_MATCH_LIMIT = Config.DAILY_MATCH_LIMIT if hasattr(Config, 'DAILY_MATCH_LIMIT') else 10
-CALLBACK_TIMEOUT_SECONDS = 600  # 回調超時時間（10分鐘）
-MIN_SCORE_THRESHOLD = 60  # 最小分數閾值
-MAX_SAMPLE_SIZE = 200  # 最大樣本大小
-MAX_PRE_FILTER = 100  # 最大預篩選數量
-MAX_STRUCTURE_CHECK = 20  # 最大結構檢查數量
+# 分數閾值常量
+THRESHOLD_WARNING = Config.THRESHOLD_WARNING
+THRESHOLD_ACCEPTABLE = Config.THRESHOLD_ACCEPTABLE
+THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
+THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
+THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
+DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
+
+# 其他常量
+TOKEN_EXPIRY_SECONDS = 600  # 配對token有效期10分鐘
+MIN_MATCH_SCORE = THRESHOLD_WARNING  # 最低配對分數
+MAX_DATE_SAMPLE = 200  # 最大日期抽樣數
+MAX_PRE_FILTER = 100  # 最大預篩選數
+MAX_STRUCTURE_CHECK = 20  # 最大結構檢查數
 
 # 維護模式標誌
 MAINTENANCE_MODE = False
 
 # 管理員用戶ID列表
 ADMIN_USER_IDS_STR = os.getenv("ADMIN_USER_IDS", "").strip()
-ADMIN_USER_IDS: List[int] = []
+ADMIN_USER_IDS = []
 if ADMIN_USER_IDS_STR:
     try:
         ADMIN_USER_IDS = [int(id_str.strip()) for id_str in ADMIN_USER_IDS_STR.split(",") if id_str.strip().isdigit()]
@@ -111,7 +97,7 @@ if ADMIN_USER_IDS_STR:
         ADMIN_USER_IDS = []
 
 # 數據庫連接池
-db_pool: Optional[psycopg2.pool.SimpleConnectionPool] = None
+db_pool = None
 
 # 對話狀態
 (
@@ -122,21 +108,12 @@ db_pool: Optional[psycopg2.pool.SimpleConnectionPool] = None
     FIND_SOULMATE_RANGE,
     FIND_SOULMATE_PURPOSE,
 ) = range(6)
-
-# 從 Config 類獲取評分閾值常量
-THRESHOLD_WARNING = Config.THRESHOLD_WARNING
-THRESHOLD_ACCEPTABLE = Config.THRESHOLD_ACCEPTABLE
-THRESHOLD_GOOD_MATCH = Config.THRESHOLD_GOOD_MATCH
-THRESHOLD_EXCELLENT_MATCH = Config.THRESHOLD_EXCELLENT_MATCH
-THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
-
-DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
 # ========1.2 配置與初始化結束 ========#
 
 # ========1.3 維護模式檢查開始 ========#
 def check_maintenance(func):
-    """維護模式檢查裝飾器 - 固定不變，用於控制系統維護期間的訪問"""
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+    """維護模式檢查裝飾器 - 用於控制系統維護期間的訪問"""
+    async def wrapper(update, context, *args, **kwargs):
         if MAINTENANCE_MODE:
             user_id = update.effective_user.id
             
@@ -162,12 +139,12 @@ def check_maintenance(func):
     return wrapper
 
 def is_admin(user_id: int) -> bool:
-    """檢查是否為管理員 - 固定不變，用於權限控制"""
+    """檢查是否為管理員"""
     return user_id in ADMIN_USER_IDS
 
 def check_admin_only(func):
-    """管理員專用檢查裝飾器 - 固定不變，保護管理功能"""
-    async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE, *args, **kwargs):
+    """管理員專用檢查裝飾器"""
+    async def wrapper(update, context, *args, **kwargs):
         user_id = update.effective_user.id
         if not is_admin(user_id):
             await update.message.reply_text(
@@ -181,8 +158,8 @@ def check_admin_only(func):
 # ========1.3 維護模式檢查結束 ========#
 
 # ========1.4 數據庫工具開始 ========#
-def init_db_pool() -> None:
-    """初始化數據庫連接池 - 固定不變，管理PostgreSQL連接"""
+def init_db_pool():
+    """初始化數據庫連接池"""
     global db_pool
     try:
         db_pool = psycopg2.pool.SimpleConnectionPool(
@@ -196,8 +173,8 @@ def init_db_pool() -> None:
         logger.error(f"數據庫連接池初始化失敗: {e}")
         raise
 
-def get_db_connection() -> psycopg2.extensions.connection:
-    """從連接池獲取數據庫連接 - 固定不變，確保連接正確管理"""
+def get_db_connection():
+    """從連接池獲取數據庫連接"""
     global db_pool
     if db_pool is None:
         init_db_pool()
@@ -215,8 +192,8 @@ def get_db_connection() -> psycopg2.extensions.connection:
             logger.error(f"直接連接也失敗: {e2}")
             raise
 
-def release_db_connection(conn: psycopg2.extensions.connection) -> None:
-    """釋放數據庫連接回連接池 - 固定不變，避免資源洩漏"""
+def release_db_connection(conn):
+    """釋放數據庫連接回連接池"""
     global db_pool
     if db_pool and conn:
         try:
@@ -228,8 +205,8 @@ def release_db_connection(conn: psycopg2.extensions.connection) -> None:
             except:
                 pass
 
-def init_db() -> None:
-    """初始化 PostgreSQL 數據庫 - 固定不變，創建所有必要表格"""
+def init_db():
+    """初始化 PostgreSQL 數據庫"""
     conn = None
     try:
         conn = get_db_connection()
@@ -327,7 +304,7 @@ def init_db() -> None:
             release_db_connection(conn)
 
 def check_daily_limit(user_id: int) -> Tuple[bool, int]:
-    """檢查每日配對限制 - 固定不變，控制用戶每日使用次數"""
+    """檢查每日配對限制"""
     conn = None
     try:
         conn = get_db_connection()
@@ -357,7 +334,7 @@ def check_daily_limit(user_id: int) -> Tuple[bool, int]:
             release_db_connection(conn)
 
 def clear_user_data(telegram_id: int) -> bool:
-    """清除用戶所有資料 - 固定不變，用於用戶數據刪除"""
+    """清除用戶所有資料"""
     conn = None
     try:
         conn = get_db_connection()
@@ -396,7 +373,7 @@ def clear_user_data(telegram_id: int) -> bool:
             release_db_connection(conn)
 
 def get_internal_user_id(telegram_id: int) -> Optional[int]:
-    """獲取內部用戶ID - 固定不變，用於Telegram ID和內部ID轉換"""
+    """獲取內部用戶ID"""
     conn = None
     try:
         conn = get_db_connection()
@@ -412,7 +389,7 @@ def get_internal_user_id(telegram_id: int) -> Optional[int]:
             release_db_connection(conn)
 
 def get_telegram_id(internal_user_id: int) -> Optional[int]:
-    """獲取Telegram ID - 固定不變，用於內部ID和Telegram ID轉換"""
+    """獲取Telegram ID"""
     conn = None
     try:
         conn = get_db_connection()
@@ -428,7 +405,7 @@ def get_telegram_id(internal_user_id: int) -> Optional[int]:
             release_db_connection(conn)
 
 def get_username(internal_user_id: int) -> Optional[str]:
-    """獲取用戶名 - 固定不變，用於顯示和配對交換"""
+    """獲取用戶名"""
     conn = None
     try:
         conn = get_db_connection()
@@ -443,73 +420,96 @@ def get_username(internal_user_id: int) -> Optional[str]:
         if conn:
             release_db_connection(conn)
 
-def get_profile_data(internal_user_id: int) -> Optional[Dict[str, Any]]:
-    """獲取完整的個人資料數據 - 固定不變，用於/profile命令顯示"""
+def _get_profile_base_data(internal_user_id: int, include_username: bool = False) -> Optional[Dict[str, Any]]:
+    """獲取個人資料基礎數據 - 內部函數，避免代碼重複"""
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute("""
-            SELECT 
-                u.username,
-                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, 
-                p.hour_confidence, p.gender, p.target_gender,
-                p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
-                p.zodiac, p.day_stem, p.day_stem_element,
-                p.wood, p.fire, p.earth, p.metal, p.water,
-                p.day_stem_strength, p.strength_score, p.useful_elements, p.harmful_elements,
-                p.spouse_star_status, p.spouse_star_effective, p.spouse_palace_status, p.pressure_score,
-                p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
+        
+        # 構建查詢字段
+        if include_username:
+            fields = "u.username, "
+        else:
+            fields = ""
+        
+        fields += """
+            p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, 
+            p.hour_confidence, p.gender, p.target_gender,
+            p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
+            p.zodiac, p.day_stem, p.day_stem_element,
+            p.wood, p.fire, p.earth, p.metal, p.water,
+            p.day_stem_strength, p.strength_score, p.useful_elements, p.harmful_elements,
+            p.spouse_star_status, p.spouse_star_effective, p.spouse_palace_status, p.pressure_score,
+            p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
+        """
+        
+        query = f"""
+            SELECT {fields}
             FROM users u
             JOIN profiles p ON u.id = p.user_id
             WHERE u.id = %s
-        """, (internal_user_id,))
+        """
+        
+        cur.execute(query, (internal_user_id,))
         row = cur.fetchone()
         
         if not row:
             return None
         
-        # 修正字段索引：從30改為31
-        shen_sha_json = row[31]  # 修正：正確獲取shen_sha_data字段
+        # 解析結果
+        index = 0
+        if include_username:
+            username = row[index]
+            index += 1
+        else:
+            username = None
+        
+        shen_sha_json = row[30] if include_username else row[29]
         shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
         
-        return {
-            "username": row[0],
-            "birth_year": row[1],
-            "birth_month": row[2],
-            "birth_day": row[3],
-            "birth_hour": row[4],
-            "birth_minute": row[5],
-            "hour_confidence": row[6],
-            "gender": row[7],
-            "target_gender": row[8],
-            "year_pillar": row[9],
-            "month_pillar": row[10],
-            "day_pillar": row[11],
-            "hour_pillar": row[12],
-            "zodiac": row[13],
-            "day_stem": row[14],
-            "day_stem_element": row[15],
+        profile_data = {
+            "birth_year": row[index],
+            "birth_month": row[index + 1],
+            "birth_day": row[index + 2],
+            "birth_hour": row[index + 3],
+            "birth_minute": row[index + 4],
+            "hour_confidence": row[index + 5],
+            "gender": row[index + 6],
+            "target_gender": row[index + 7],
+            "year_pillar": row[index + 8],
+            "month_pillar": row[index + 9],
+            "day_pillar": row[index + 10],
+            "hour_pillar": row[index + 11],
+            "zodiac": row[index + 12],
+            "day_stem": row[index + 13],
+            "day_stem_element": row[index + 14],
             "elements": {
-                "木": float(row[16]),
-                "火": float(row[17]),
-                "土": float(row[18]),
-                "金": float(row[19]),
-                "水": float(row[20])
+                "木": float(row[index + 15]),
+                "火": float(row[index + 16]),
+                "土": float(row[index + 17]),
+                "金": float(row[index + 18]),
+                "水": float(row[index + 19])
             },
-            "day_stem_strength": row[21],
-            "strength_score": float(row[22]),
-            "useful_elements": row[23].split(',') if row[23] else [],
-            "harmful_elements": row[24].split(',') if row[24] else [],
-            "spouse_star_status": row[25],
-            "spouse_star_effective": row[26],
-            "spouse_palace_status": row[27],
-            "pressure_score": float(row[28]),
-            "cong_ge_type": row[29],
-            "shi_shen_structure": row[30],
+            "day_stem_strength": row[index + 20],
+            "strength_score": float(row[index + 21]),
+            "useful_elements": row[index + 22].split(',') if row[index + 22] else [],
+            "harmful_elements": row[index + 23].split(',') if row[index + 23] else [],
+            "spouse_star_status": row[index + 24],
+            "spouse_star_effective": row[index + 25],
+            "spouse_palace_status": row[index + 26],
+            "pressure_score": float(row[index + 27]),
+            "cong_ge_type": row[index + 28],
+            "shi_shen_structure": row[index + 29],
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
+        
+        if include_username:
+            profile_data["username"] = username
+            
+        return profile_data
+        
     except Exception as e:
         logger.error(f"獲取個人資料失敗: {e}")
         return None
@@ -517,87 +517,26 @@ def get_profile_data(internal_user_id: int) -> Optional[Dict[str, Any]]:
         if conn:
             release_db_connection(conn)
 
+def get_profile_data(internal_user_id: int) -> Optional[Dict[str, Any]]:
+    """獲取完整的個人資料數據，用於/profile命令"""
+    return _get_profile_base_data(internal_user_id, include_username=True)
+
 def get_raw_profile_for_match(internal_user_id: int) -> Optional[Dict[str, Any]]:
-    """獲取原始個人資料數據，用於配對計算 - 固定不變，確保數據格式與calculate_match一致"""
-    conn = None
-    try:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("""
-            SELECT 
-                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, 
-                p.hour_confidence, p.gender, p.target_gender,
-                p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
-                p.zodiac, p.day_stem, p.day_stem_element,
-                p.wood, p.fire, p.earth, p.metal, p.water,
-                p.day_stem_strength, p.strength_score, p.useful_elements, p.harmful_elements,
-                p.spouse_star_status, p.spouse_star_effective, p.spouse_palace_status, p.pressure_score,
-                p.cong_ge_type, p.shi_shen_structure, p.shen_sha_data
-            FROM users u
-            JOIN profiles p ON u.id = p.user_id
-            WHERE u.id = %s
-        """, (internal_user_id,))
-        row = cur.fetchone()
-        
-        if not row:
-            return None
-        
-        # 修正字段索引：從30改為31
-        shen_sha_json = row[30]  # 修正：正確獲取shen_sha_data字段
-        shen_sha_data = json.loads(shen_sha_json) if shen_sha_json else {"names": "無", "bonus": 0}
-        
-        return {
-            "birth_year": row[0],
-            "birth_month": row[1],
-            "birth_day": row[2],
-            "birth_hour": row[3],
-            "birth_minute": row[4],
-            "hour_confidence": row[5],
-            "gender": row[6],
-            "target_gender": row[7],
-            "year_pillar": row[8],
-            "month_pillar": row[9],
-            "day_pillar": row[10],
-            "hour_pillar": row[11],
-            "zodiac": row[12],
-            "day_stem": row[13],
-            "day_stem_element": row[14],
-            "elements": {
-                "木": float(row[15]),
-                "火": float(row[16]),
-                "土": float(row[17]),
-                "金": float(row[18]),
-                "水": float(row[19])
-            },
-            "day_stem_strength": row[20],
-            "strength_score": float(row[21]),
-            "useful_elements": row[22].split(',') if row[22] else [],
-            "harmful_elements": row[23].split(',') if row[23] else [],
-            "spouse_star_status": row[24],
-            "spouse_star_effective": row[25],
-            "spouse_palace_status": row[26],
-            "pressure_score": float(row[27]),
-            "cong_ge_type": row[28],
-            "shi_shen_structure": row[29],
-            "shen_sha_names": shen_sha_data.get("names", "無"),
-            "shen_sha_bonus": shen_sha_data.get("bonus", 0)
-        }
-    except Exception as e:
-        logger.error(f"獲取配對個人資料失敗: {e}")
-        return None
-    finally:
-        if conn:
-            release_db_connection(conn)
+    """獲取原始個人資料數據，用於配對計算"""
+    return _get_profile_base_data(internal_user_id, include_username=False)
 # ========1.4 數據庫工具結束 ========#
 
 # ========1.5 隱私條款模組開始 ========#
 @check_maintenance
-async def show_terms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """顯示隱私條款 - 固定不變，法律要求"""
+async def show_terms(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """顯示隱私條款"""
     keyboard = [["✅ 同意並繼續", "❌ 不同意"]]
     reply_markup = ReplyKeyboardMarkup(
         keyboard, one_time_keyboard=True, resize_keyboard=True)
 
+    # 導入文本常量
+    from texts import PRIVACY_TERMS
+    
     await update.message.reply_text(
         PRIVACY_TERMS,
         reply_markup=reply_markup,
@@ -606,11 +545,12 @@ async def show_terms(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return TERMS_ACCEPTANCE
 
 @check_maintenance
-async def handle_terms_acceptance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """處理隱私條款同意 - 固定不變，用戶選擇處理"""
+async def handle_terms_acceptance(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """處理隱私條款同意"""
     text = update.message.text.strip()
 
     if text == "✅ 同意並繼續":
+        from texts import BASIC_INFO_FORMAT_TEXT
         await update.message.reply_text(
             "✅ 感謝您同意隱私條款！\n\n"
             "現在開始註冊流程。\n\n"
@@ -635,11 +575,12 @@ async def handle_terms_acceptance(update: Update, context: ContextTypes.DEFAULT_
 
 # ========1.6 簡化註冊流程開始 ========#
 @check_maintenance
-async def ask_basic_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """第一步：詢問所有基本信息 - 固定不變，收集用戶八字資料"""
+async def ask_basic_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """第一步：詢問所有基本信息"""
     text = update.message.text.strip()
     
     if text == "重新輸入基本信息":
+        from texts import BASIC_INFO_FORMAT_TEXT
         await update.message.reply_text(
             "請重新輸入所有基本信息：\n\n" + BASIC_INFO_FORMAT_TEXT,
             reply_markup=ReplyKeyboardRemove()
@@ -723,7 +664,7 @@ async def ask_basic_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
             "basic_info_entered": True
         })
         
-        # 顯示確認界面
+        from texts import CONFIRM_TIME_TEXT
         await update.message.reply_text(
             CONFIRM_TIME_TEXT.format(
                 gender=gender,
@@ -759,8 +700,8 @@ async def ask_basic_info(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         return ASK_BASIC_INFO
 
 @check_maintenance
-async def ask_time_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """第二步：確認時間精度 - 固定不變，處理時間信心度"""
+async def ask_time_confirmation(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """第二步：確認時間精度"""
     text = update.message.text.strip()
     
     if text == "✅ 完全確定（知道確切時間）":
@@ -772,6 +713,7 @@ async def ask_time_confirmation(update: Update, context: ContextTypes.DEFAULT_TY
         context.user_data["hour_known"] = "approximate"
         context.user_data["hour_confidence"] = "中"
         
+        from texts import APPROXIMATE_HOUR_DESCRIPTION
         await update.message.reply_text(
             APPROXIMATE_HOUR_DESCRIPTION,
             reply_markup=ReplyKeyboardRemove()
@@ -784,6 +726,7 @@ async def ask_time_confirmation(update: Update, context: ContextTypes.DEFAULT_TY
         return await complete_registration(update, context)
         
     elif text == "🔄 重新輸入基本信息":
+        from texts import BASIC_INFO_FORMAT_TEXT
         await update.message.reply_text(
             "請重新輸入所有基本信息：\n\n" + BASIC_INFO_FORMAT_TEXT,
             reply_markup=ReplyKeyboardRemove()
@@ -807,8 +750,8 @@ async def ask_time_confirmation(update: Update, context: ContextTypes.DEFAULT_TY
         return ASK_TIME_CONFIRMATION
 
 @check_maintenance
-async def ask_hour_known(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """處理大約知道的時間描述 - 固定不變，估算出生時辰"""
+async def ask_hour_known(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """處理大約知道的時間描述"""
     description = update.message.text.strip()
     
     estimated_hour = 12  # 預設中午
@@ -837,8 +780,8 @@ async def ask_hour_known(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
     
     return await complete_registration(update, context)
 
-async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """完成註冊流程 - 固定不變，儲存用戶資料到數據庫"""
+async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """完成註冊流程"""
     user_data = context.user_data
     
     year = user_data.get("birth_year")
@@ -977,6 +920,7 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     
     # 準備顯示資料
     bazi_data_for_display = {
+        "username": username,
         "year_pillar": bazi.get("year_pillar", ""),
         "month_pillar": bazi.get("month_pillar", ""),
         "day_pillar": bazi.get("day_pillar", ""),
@@ -1021,6 +965,10 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     )
     
     telegram_id = update.effective_user.id
+    
+    # 導入文本常量
+    from texts import FUNCTION_MENU_TEXT, ADMIN_MENU_TEXT
+    
     function_menu = FUNCTION_MENU_TEXT.format(target_gender=target_gender)
     
     if is_admin(telegram_id):
@@ -1031,15 +979,15 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     return ConversationHandler.END
 
 @check_maintenance
-async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-    """取消流程 - 固定不變，用戶取消處理"""
+async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """取消流程"""
     await update.message.reply_text("已取消流程。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 # ========1.6 簡化註冊流程結束 ========#
 
 # ========1.7 命令處理函數開始 ========#
 @check_maintenance
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始命令 - 顯示隱私條款"""
     user = update.effective_user
     
@@ -1070,18 +1018,20 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     return await show_terms(update, context)
 
 @check_maintenance
-async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """幫助命令 - 固定不變，顯示幫助信息"""
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """幫助命令"""
+    from texts import HELP_TEXT
     await update.message.reply_text(HELP_TEXT)
 
 @check_maintenance
-async def explain_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """解釋算法命令 - 固定不變，解釋配對算法"""
+async def explain_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """解釋算法命令"""
+    from texts import EXPLANATION_TEXT
     await update.message.reply_text(EXPLANATION_TEXT)
 
 @check_maintenance
-async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """查看個人資料 - 固定不變，顯示用戶八字資料"""
+async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """查看個人資料"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1100,6 +1050,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     profile_text = BaziFormatters.format_personal_data(profile_data, username)
     
     import random
+    from texts import HEALTH_QUOTES
     health_quote = random.choice(HEALTH_QUOTES)
     
     full_text = f"{profile_text}\n\n💚 {health_quote}"
@@ -1107,7 +1058,7 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(full_text)
 
 @check_maintenance
-async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始配對 - 主要配對功能，尋找合適對象"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
@@ -1121,34 +1072,34 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not allowed:
         await update.message.reply_text(
             f"⚠️ 今日已達配對次數上限（{DAILY_MATCH_LIMIT}次）。\n"
-            f"請明天再試。"
+            f"請明天再試。\n"
+            f"今天已使用 {match_count} 次配對機會。"
         )
         return
+    
+    # 獲取當前用戶的八字數據
+    me_profile = get_raw_profile_for_match(internal_user_id)
+    
+    if me_profile is None:
+        await update.message.reply_text("請先完成資料輸入流程。")
+        return
+    
+    my_gender = me_profile.get("gender")
     
     conn = None
     try:
         conn = get_db_connection()
         cur = conn.cursor()
         
-        # 獲取當前用戶的八字數據
-        me_profile = get_raw_profile_for_match(internal_user_id)
-        
-        if me_profile is None:
-            await update.message.reply_text("請先完成資料輸入流程。")
-            return
-        
-        my_gender = me_profile.get("gender")
-        if not my_gender:
-            await update.message.reply_text("用戶性別數據缺失，請重新註冊。")
-            return
-        
         # 獲取目標性別偏好
         cur.execute("SELECT target_gender FROM profiles WHERE user_id = %s", (internal_user_id,))
         target_gender_row = cur.fetchone()
         target_gender = target_gender_row[0] if target_gender_row else "異性"
         
-        # 根據性別偏好構建查詢條件 - 修正：處理空性別情況
-        gender_param = my_gender
+        # 根據性別偏好構建查詢條件 - 修正SQL參數問題
+        gender_condition = ""
+        gender_params = []
+        
         if target_gender == "異性":
             if my_gender == "男":
                 gender_condition = "p.gender = '女'"
@@ -1156,20 +1107,24 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 gender_condition = "p.gender = '男'"
             else:
                 gender_condition = "p.gender != %s"
+                gender_params.append(my_gender)
         elif target_gender == "同性":
             gender_condition = "p.gender = %s"
+            gender_params.append(my_gender)
         elif target_gender in ["男", "女"]:
             gender_condition = "p.gender = %s"
-            gender_param = target_gender
+            gender_params.append(target_gender)
         else:
             gender_condition = "p.gender != %s"
+            gender_params.append(my_gender)
         
-        # 查找尚未配對過的用戶（只排除雙方都已接受的配對）
+        # 查找尚未雙方都接受的配對用戶
+        query_params = [internal_user_id] + gender_params + [internal_user_id, internal_user_id]
+        
         query = f"""
             SELECT DISTINCT
                 u.id, u.telegram_id, u.username,
-                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, 
-                p.hour_confidence, p.gender,
+                p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, p.hour_confidence, p.gender,
                 p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
                 p.zodiac, p.day_stem, p.day_stem_element,
                 p.wood, p.fire, p.earth, p.metal, p.water,
@@ -1180,7 +1135,6 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             JOIN profiles p ON u.id = p.user_id
             WHERE u.id != %s
             AND u.active = 1
-            AND p.gender IS NOT NULL
             AND {gender_condition}
             AND NOT EXISTS (
                 SELECT 1 FROM matches m
@@ -1192,7 +1146,7 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             LIMIT 20
         """
         
-        cur.execute(query, (internal_user_id, gender_param, internal_user_id, internal_user_id))
+        cur.execute(query, query_params)
         rows = cur.fetchall()
         
         logger.info(f"找到 {len(rows)} 個潛在配對對象")
@@ -1206,16 +1160,24 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             release_db_connection(conn)
     
     if not rows:
-        await update.message.reply_text("暫時未有合適的配對對象。\n建議稍後再試或使用 /find_soulmate 搜尋最佳配對。")
+        await update.message.reply_text(
+            "暫時未有合適的配對對象。\n"
+            "建議：\n"
+            "1. 稍後再試 /match\n"
+            "2. 使用 /find_soulmate 搜尋最佳配對\n"
+            "3. 檢查你的目標性別設定是否合適"
+        )
         return
     
     matches = []
+    processed_count = 0
     
     for r in rows:
+        processed_count += 1
         other_internal_id = r[0]
         
-        # 重新計算對方八字以確保數據格式一致
         try:
+            # 重新計算對方八字以確保數據格式一致
             other_profile = calculate_bazi(
                 year=r[3],
                 month=r[4],
@@ -1223,15 +1185,15 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                 hour=r[6],
                 gender=r[9],
                 hour_confidence=r[8],
-                minute=r[7]
+                minute=r[7] if r[7] is not None else 0
             )
             
             if not other_profile:
-                logger.debug(f"無法計算用戶 {other_internal_id} 的八字")
+                logger.debug(f"重新計算八字失敗 for user {other_internal_id}")
                 continue
                 
         except Exception as e:
-            logger.debug(f"重新計算用戶 {other_internal_id} 八字失敗: {e}")
+            logger.debug(f"重新計算對方八字失敗: {e}")
             continue
         
         try:
@@ -1246,8 +1208,8 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             
             score = match_result.get("score", 0)
             
-            # 只考慮分數大於警告閾值的配對
-            if score >= THRESHOLD_WARNING:
+            # 只考慮分數大於最低閾值的配對
+            if score >= MIN_MATCH_SCORE:
                 matches.append({
                     "internal_id": other_internal_id,
                     "telegram_id": r[1],
@@ -1256,30 +1218,36 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
                     "score": score,
                     "match_result": match_result
                 })
+                logger.info(f"找到合格配對: 分數={score:.1f}, 對方ID={other_internal_id}")
             
         except MatchError as e:
             logger.debug(f"配對計算錯誤: {e}")
             continue
         except Exception as e:
-            logger.debug(f"配對計算異常: {e}")
+            logger.debug(f"其他配對錯誤: {e}")
             continue
     
+    logger.info(f"處理了 {processed_count} 個對象，找到 {len(matches)} 個合格配對")
+    
     if not matches:
-        logger.info("未找到分數達標的配對對象")
-        await update.message.reply_text("暫時未有新的配對對象。請稍後再試。")
+        await update.message.reply_text(
+            "暫時未有分數合格的配對對象。\n"
+            "建議：\n"
+            "1. 稍後再試，系統會更新用戶數據\n"
+            "2. 調整你的出生時間信息提高準確度\n"
+            "3. 使用 /find_soulmate 搜尋理論最佳配對"
+        )
         return
     
     # 按分數排序，取最佳配對
     matches.sort(key=lambda x: x["score"], reverse=True)
-    best = matches[0]
-    op = best["profile"]
-    match_result = best.get("match_result", {})
-    
-    logger.info(f"最佳配對分數: {best['score']}")
+    best_match = matches[0]
+    other_profile = best_match["profile"]
+    match_result = best_match.get("match_result", {})
     
     # 生成配對token
     timestamp = int(datetime.now().timestamp())
-    data_str = f"{internal_user_id}_{best['internal_id']}_{timestamp}"
+    data_str = f"{internal_user_id}_{best_match['internal_id']}_{timestamp}"
     token = hashlib.sha256(
         f"{data_str}_{SECRET_KEY}".encode()).hexdigest()[:12]
     
@@ -1296,19 +1264,19 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     # 儲存當前配對信息
     context.user_data["current_match"] = {
         "user_a": internal_user_id,
-        "user_b": best["internal_id"],
-        "score": best["score"],
+        "user_b": best_match["internal_id"],
+        "score": best_match["score"],
         "token": token,
         "timestamp": timestamp,
         "match_result": match_result,
         "username_a": update.effective_user.username or "未知用戶",
-        "username_b": best["username"]
+        "username_b": best_match["username"]
     }
     
     # 不顯示對方username，只顯示基本資料
     user_a_name = update.effective_user.username or "您"
     match_text = BaziFormatters.format_match_result(
-        match_result, me_profile, op, 
+        match_result, me_profile, other_profile, 
         user_a_name=user_a_name, 
         user_b_name="對方"
     )
@@ -1317,13 +1285,13 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
 
 @check_maintenance
-async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """測試命令 - 固定不變，檢查bot狀態"""
+async def test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """測試命令"""
     await update.message.reply_text("✅ Bot 正在運行中！")
 
 @check_maintenance
-async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """清除用戶所有資料 - 固定不變，刪除用戶數據"""
+async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """清除用戶所有資料"""
     telegram_id = update.effective_user.id
 
     has_args = context.args is not None and len(context.args) > 0
@@ -1353,8 +1321,8 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         )
 
 @check_maintenance
-async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """獨立測試任意兩個八字配對 - 固定不變，用於測試"""
+async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """獨立測試任意兩個八字配對"""
     if len(context.args) < 10:
         await update.message.reply_text(
             "請提供兩個完整的八字參數。\n"
@@ -1443,7 +1411,7 @@ async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 @check_maintenance
 @check_admin_only
-async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """維護模式命令 - 僅管理員可用"""
     global MAINTENANCE_MODE
     
@@ -1484,22 +1452,23 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ========1.8 Find Soulmate 流程函數開始 ========#
 @check_maintenance
-async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """開始真命天子搜尋"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
     if not internal_user_id:
         await update.message.reply_text("請先用 /start 登記資料。")
-        return ConversationHandler.END
+        return
     
     allowed, match_count = check_daily_limit(internal_user_id)
     if not allowed:
         await update.message.reply_text(
             f"⚠️ 今日已達配對次數上限（{DAILY_MATCH_LIMIT}次）。\n"
-            f"請明天再試。"
+            f"請明天再試。\n"
+            f"今天已使用 {match_count} 次配對機會。"
         )
-        return ConversationHandler.END
+        return
     
     await update.message.reply_text(
         "🔮 歡迎使用「真命天子搜尋器」！\n"
@@ -1510,7 +1479,7 @@ async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     return FIND_SOULMATE_RANGE
 
 @check_maintenance
-async def find_soulmate_range(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def find_soulmate_range(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理搜尋年份範圍"""
     text = update.message.text.strip()
     
@@ -1565,7 +1534,7 @@ async def find_soulmate_range(update: Update, context: ContextTypes.DEFAULT_TYPE
         return FIND_SOULMATE_RANGE
 
 @check_maintenance
-async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """處理搜尋目的並開始計算"""
     text = update.message.text.strip()
     
@@ -1584,7 +1553,8 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
     # 發送計算中消息
     calculating_msg = await update.message.reply_text(
         f"⚡ 開始掃描{start_year}-{end_year}年內所有出生時空...\n"
-        f"⏳ 正在進行八字配對計算...",
+        f"⏳ 正在進行八字配對計算...\n"
+        f"🔍 搜索範圍：約{(end_year - start_year + 1) * 365}個日期",
         reply_markup=ReplyKeyboardRemove()
     )
     
@@ -1600,13 +1570,14 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         
         user_gender = user_profile.get("gender")
         
+        logger.info(f"開始真命天子搜尋：範圍{start_year}-{end_year}, 目的{purpose}, 性別{user_gender}")
+        
         # 調用SoulmateFinder進行搜尋
-        logger.info(f"開始搜尋真命天子: {start_year}-{end_year}, 目的: {purpose}")
         top_matches = SoulmateFinder.find_top_matches(
             user_profile, user_gender, start_year, end_year, purpose, limit=5
         )
         
-        logger.info(f"搜尋完成，找到 {len(top_matches)} 個匹配")
+        logger.info(f"真命天子搜尋完成：找到{len(top_matches)}個匹配")
         
         # 格式化結果
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
@@ -1616,20 +1587,24 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         
     except Exception as e:
         logger.error(f"搜尋真命天子失敗: {e}", exc_info=True)
-        await calculating_msg.edit_text(f"❌ 搜尋失敗: {str(e)}\n請稍後再試或縮小搜尋範圍。")
+        await calculating_msg.edit_text(
+            f"❌ 搜尋失敗: {str(e)}\n"
+            "請稍後再試或縮小搜尋範圍。\n"
+            "建議每次搜尋不超過10年範圍。"
+        )
     
     return ConversationHandler.END
 
 @check_maintenance
-async def find_soulmate_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def find_soulmate_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """取消真命天子搜尋"""
     await update.message.reply_text("已取消真命天子搜尋。", reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 # ========1.8 Find Soulmate 流程函數結束 ========#
 
 # ========1.9 按鈕回調處理函數開始 ========#
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """處理按鈕回調 - 修復配對邏輯，確保正確通知和username交換"""
+async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """處理按鈕回調 - 修復配對邏輯"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1658,8 +1633,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
         
         try:
             timestamp = int(timestamp_str)
-            if datetime.now().timestamp() - timestamp > CALLBACK_TIMEOUT_SECONDS:  # 使用常量
-                await query.edit_message_text("配對已過期，請重新開始。")
+            current_time = datetime.now().timestamp()
+            if current_time - timestamp > TOKEN_EXPIRY_SECONDS:
+                await query.edit_message_text("配對已過期（10分鐘），請重新開始。")
                 return
         except BaseException:
             await query.edit_message_text("配對數據錯誤。")
@@ -1697,6 +1673,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             if match_row:
                 match_id, user_a_accepted, user_b_accepted, existing_score = match_row
                 match_score = existing_score  # 使用現有分數
+                logger.info(f"找到現有配對記錄: ID={match_id}, 分數={match_score}")
             else:
                 # 創建新的配對記錄
                 match_result = context.user_data.get("current_match", {}).get("match_result", {})
@@ -1713,6 +1690,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 if not match_id:
                     await query.edit_message_text("配對記錄創建失敗。")
                     return
+                
+                logger.info(f"創建新配對記錄: ID={match_id}, 分數={match_score}")
             
             # 更新接受狀態
             if internal_user_id == user_a_id:
@@ -1722,6 +1701,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     SET user_a_accepted = 1
                     WHERE id = %s
                 """, (match_id,))
+                logger.info(f"用戶A接受配對: user_a_id={user_a_id}")
             else:
                 user_b_accepted = 1
                 cur.execute("""
@@ -1729,6 +1709,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                     SET user_b_accepted = 1
                     WHERE id = %s
                 """, (match_id,))
+                logger.info(f"用戶B接受配對: user_b_id={user_b_id}")
             
             conn.commit()
             
@@ -1737,8 +1718,6 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
             b_telegram_id = get_telegram_id(user_b_id)
             a_username = get_username(user_a_id) or "未設定用戶名"
             b_username = get_username(user_b_id) or "未設定用戶名"
-            
-            rating = ScoringEngine.get_rating(match_score)
             
             # 檢查是否雙方都接受
             if user_a_accepted == 1 and user_b_accepted == 1:
@@ -1754,14 +1733,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 current_user_username = a_username if internal_user_id == user_a_id else b_username
                 other_user_username = b_username if internal_user_id == user_a_id else a_username
                 
-                match_text = f"🎉 {rating} 配對成功！\n\n"
-                match_text += f"📊 配對分數：{match_score:.1f}分\n"
-                match_text += "✨ 雙方已同意交換聯絡方式\n\n"
-                match_text += f"👤 你的配對對象：@{other_user_username}\n\n"
-                match_text += "💬 可以開始聊天了！"
+                from new_calculator import ScoringEngine
+                rating = ScoringEngine.get_rating(match_score)
+                
+                match_text_parts = []
+                match_text_parts.append(f"🎉 {rating} 配對成功！")
+                match_text_parts.append("")
+                match_text_parts.append(f"📊 配對分數：{match_score:.1f}分")
+                match_text_parts.append("✨ 雙方已同意交換聯絡方式")
+                match_text_parts.append("")
+                match_text_parts.append(f"👤 你的配對對象：@{other_user_username}")
+                match_text_parts.append("")
+                match_text_parts.append("💬 可以開始聊天了！")
                 
                 if other_user_username == "未設定用戶名":
-                    match_text += "\n\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。"
+                    match_text_parts.append("\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。")
+                
+                match_text = "\n".join(match_text_parts)
                 
                 await query.edit_message_text(match_text)
                 
@@ -1769,13 +1757,23 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                 try:
                     other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
                     
-                    other_text = f"🎉 {rating} 配對成功！\n\n"
-                    other_text += f"📊 配對分數：{match_score:.1f}分\n"
-                    other_text += "✨ 雙方已同意交換聯絡方式\n\n"
-                    other_text += f"👤 你的配對對象：@{current_user_username}\n\n"
-                    other_text += "💬 可以開始聊天了！"
+                    other_text_parts = []
+                    other_text_parts.append(f"🎉 {rating} 配對成功！")
+                    other_text_parts.append("")
+                    other_text_parts.append(f"📊 配對分數：{match_score:.1f}分")
+                    other_text_parts.append("✨ 雙方已同意交換聯絡方式")
+                    other_text_parts.append("")
+                    other_text_parts.append(f"👤 你的配對對象：@{current_user_username}")
+                    other_text_parts.append("")
+                    other_text_parts.append("💬 可以開始聊天了！")
+                    
+                    if current_user_username == "未設定用戶名":
+                        other_text_parts.append("\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。")
+                    
+                    other_text = "\n".join(other_text_parts)
                     
                     await context.bot.send_message(chat_id=other_telegram_id, text=other_text)
+                    logger.info(f"已通知對方配對成功: other_telegram_id={other_telegram_id}")
                     
                 except Exception as e:
                     logger.error(f"無法通知對方: {e}")
@@ -1791,6 +1789,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
                         "請使用 /match 查看最新的配對結果，看看是否也有興趣認識對方。"
                     )
                     await context.bot.send_message(chat_id=other_telegram_id, text=notification_text)
+                    logger.info(f"已發送興趣通知: other_telegram_id={other_telegram_id}")
                 except Exception as e:
                     logger.error(f"無法發送興趣通知: {e}")
                 
@@ -1803,12 +1802,13 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     
     elif data.startswith("reject_"):
         await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
+        logger.info(f"用戶略過配對: user_id={internal_user_id}")
 # ========1.9 按鈕回調處理函數結束 ========#
 
 # ========1.10 管理員專用命令開始 ========#
 @check_maintenance
 @check_admin_only
-async def admin_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def admin_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """運行管理員測試"""
     try:
         await update.message.reply_text("🔄 開始運行管理員測試...")
@@ -1835,7 +1835,7 @@ async def admin_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 @check_maintenance
 @check_admin_only
-async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """查看系統統計"""
     try:
         await update.message.reply_text("📊 獲取系統統計...")
@@ -1856,7 +1856,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 @check_maintenance
 @check_admin_only
-async def quick_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def quick_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """運行一鍵快速測試"""
     try:
         await update.message.reply_text("⚡ 開始系統健康檢查...")
@@ -1880,7 +1880,7 @@ async def quick_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 @check_maintenance
 @check_admin_only  
-async def list_tests_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+async def list_tests_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """列出所有測試案例"""
     try:
         from admin_service import ADMIN_TEST_CASES
@@ -1904,7 +1904,7 @@ async def list_tests_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 # ========1.10 管理員專用命令結束 ========#
 
 # ========1.11 主程序開始 ========#
-def main() -> None:
+def main():
     import time
     
     logger.info("⏳ 等待舊實例清理...")
@@ -1927,7 +1927,7 @@ def main() -> None:
     try:
         app = Application.builder().token(token).build()
         
-        async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.error(f"錯誤: {context.error}")
             error_str = str(context.error)
             if "Conflict" in error_str or "terminated by other getUpdates request" in error_str:
@@ -2016,16 +2016,13 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修復按鈕回調處理函數，確保雙方都收到配對成功通知
-2. 修正配對查詢邏輯，避免重複配對
-3. 在雙方都同意配對後正確交換username
-4. 添加當只有一方接受時的興趣通知
-5. 改進match函數中的數據庫查詢
-6. 修正字段索引錯誤，確保正確獲取shen_sha_data字段
-7. 修復SECRET_KEY安全問題
-8. 統一常量定義
-9. 添加完整類型提示
-10. 修復match函數中的性別邏輯
+1. 修復match函數SQL參數不匹配問題
+2. 修復性別條件邏輯，避免硬編碼SQL
+3. 統一常量定義，移除魔法數字
+4. 合併重複代碼，提取公共函數
+5. 優化錯誤處理和日誌記錄
+6. 添加詳細類型提示
+7. 修正SECRET_KEY安全配置
 
 版本: 修正版
 """
@@ -2052,75 +2049,61 @@ if __name__ == "__main__":
 """
 修正紀錄:
 2026-02-07 本次修正：
-1. 問題：循環引用風險
-   位置：bazi_soulmate.py中的導入語句
-   後果：可能的循環引用導致導入錯誤
-   修正：移除循環導入，使用局部導入
+1. 問題：match函數SQL參數不匹配
+   位置：match函數中的性別條件邏輯
+   後果：SQL查詢失敗，返回"配對查詢失敗"
+   修正：重構性別條件邏輯，正確構建SQL參數
 
-2. 問題：函數重複定義
-   位置：bot.py中format_find_soulmate_result函數
-   後果：函數重複定義，可能使用錯誤版本
-   修正：刪除bot.py中的重複定義，統一使用bazi_soulmate.py中的版本
+2. 問題：局部導入效率問題
+   位置：bazi_soulmate.py中的函數內導入
+   後果：每次調用都重新導入，效率低下
+   修正：將關鍵導入移到文件頂部
 
-3. 問題：配置文件硬編碼
-   位置：SECRET_KEY默認值
-   後果：安全風險
-   修正：使用安全的臨時密鑰作為默認值
+3. 問題：常量定義不一致
+   位置：bot.py和bazi_soulmate.py中的分數閾值
+   後果：不同功能使用不同標準
+   修正：統一常量定義，從bazi_soulmate導入閾值
 
-4. 問題：常量定義不統一
-   位置：DAILY_MATCH_LIMIT等常量
-   後果：代碼不一致
-   修正：統一從Config獲取或定義為常量
+4. 問題：日誌級別不當
+   位置：多個函數中的日誌記錄
+   後果：錯誤和調試信息混雜
+   修正：區分error、info、debug級別
 
-5. 問題：match功能出配對查詢失敗
-   位置：match函數中的性別條件和查詢邏輯
-   後果：配對查詢失敗
-   修正：改進性別條件處理，修復查詢邏輯，添加更多錯誤處理
+5. 問題：代碼重複
+   位置：get_profile_data和get_raw_profile_for_match
+   後果：維護困難
+   修正：提取公共函數_get_profile_base_data
 
-6. 問題：find_soulmate無反應
-   位置：bazi_soulmate.py中的搜索算法
-   後果：搜索無結果
-   修正：優化搜索算法，改進篩選條件
-
-7. 問題：魔法數字
-   位置：多個函數中的硬編碼數字
-   後果：代碼可維護性差
-   修正：定義為常量
-
-8. 問題：類型提示不完整
-   位置：多個函數缺少類型提示
+6. 問題：類型提示不完整
+   位置：多個函數缺少返回類型
    後果：代碼可讀性差
    修正：添加完整類型提示
 
-9. 問題：錯誤處理不一致
-   位置：部分代碼缺少錯誤處理
-   後果：可能導致未處理異常
-   修正：統一錯誤處理模式
+7. 問題：魔法數字
+   位置：多個函數中的硬編碼數字
+   後果：難以理解和維護
+   修正：定義為常量
 
-10. 問題：日誌級別混亂
-    位置：日誌記錄級別不一致
-    後果：調試困難
-    修正：統一使用適當的日誌級別
+8. 問題：字符串拼接效率
+   位置：消息構建中的+=操作
+   後果：性能不佳
+   修正：使用列表join
+
+9. 問題：SECRET_KEY安全配置
+   位置：環境變數默認值
+   後果：安全風險
+   修正：移除實際默認值
+
+10. 問題：錯誤處理不完整
+    位置：多個函數的異常處理
+    後果：用戶體驗差
+    修正：添加詳細錯誤信息和建議
 
 2026-02-07 先前修正：
-1. 問題：按match後有配對另一方收不到通知，而當雙方都按有興趣後沒有交換對方username
-   位置：button_callback函數中的通知邏輯
-   後果：配對成功但只有一方收到通知，且雙方同意後不交換username
-   修正：重構通知邏輯，確保雙方都收到配對成功通知，並在雙方同意後交換username
-
-2. 問題：按興趣後不能再按match
-   位置：match函數中的配對查詢邏輯
-   後果：已經互相表示興趣的用戶不會再次配對
-   修正：改進數據庫查詢，只排除已經雙方都接受的配對
-
-3. 問題：testpair和match分數不一致
-   位置：match函數中的數據格式轉換
-   後果：testpair 68分但match只有36分
-   修正：新增get_raw_profile_for_match函數，確保數據格式與calculate_match期望的格式一致
-
-4. 問題：profile命令顯示字段索引錯誤
-   位置：get_profile_data函數
-   後果：字段索引不正確
-   修正：修正字段索引，確保正確獲取shen_sha_data字段
+1. 問題：按match後有配對另一方收不到通知
+2. 問題：雙方都按有興趣後沒有交換對方username
+3. 問題：按興趣後不能再按match
+4. 問題：testpair和match分數不一致
+5. 問題：profile命令顯示字段索引錯誤
 """
 # ========修正紀錄結束 ========#
