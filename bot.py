@@ -433,7 +433,7 @@ def get_username(internal_user_id):
             release_db_connection(conn)
 
 def get_profile_data(internal_user_id):
-    """獲取完整的個人資料數據 - 修正版"""
+    """獲取完整的個人資料數據 - 修正版：確保與calculate_match格式一致"""
     conn = None
     try:
         conn = get_db_connection()
@@ -458,9 +458,14 @@ def get_profile_data(internal_user_id):
         if not row:
             return None
         
-        # 修正：正確的字段索引，從0開始
+        # 修正：確保返回格式與calculate_match期望的一致
         shen_sha_data = json.loads(row[31]) if row[31] else {"names": "無", "bonus": 0}
         
+        # 確保所有字段都存在且格式正確
+        useful_elements = row[23].split(',') if row[23] else []
+        harmful_elements = row[24].split(',') if row[24] else []
+        
+        # 返回與calculate_bazi相同的格式
         return {
             "username": row[0],
             "birth_year": row[1],
@@ -479,22 +484,22 @@ def get_profile_data(internal_user_id):
             "day_stem": row[14],
             "day_stem_element": row[15],
             "elements": {
-                "木": float(row[16]),
-                "火": float(row[17]),
-                "土": float(row[18]),
-                "金": float(row[19]),
-                "水": float(row[20])
+                "木": float(row[16]) if row[16] is not None else 0.0,
+                "火": float(row[17]) if row[17] is not None else 0.0,
+                "土": float(row[18]) if row[18] is not None else 0.0,
+                "金": float(row[19]) if row[19] is not None else 0.0,
+                "水": float(row[20]) if row[20] is not None else 0.0
             },
-            "day_stem_strength": row[21],
-            "strength_score": float(row[22]),
-            "useful_elements": row[23].split(',') if row[23] else [],
-            "harmful_elements": row[24].split(',') if row[24] else [],
-            "spouse_star_status": row[25],
-            "spouse_star_effective": row[26],
-            "spouse_palace_status": row[27],
-            "pressure_score": float(row[28]),
-            "cong_ge_type": row[29],
-            "shi_shen_structure": row[30],
+            "day_stem_strength": row[21] if row[21] else "中",
+            "strength_score": float(row[22]) if row[22] is not None else 50.0,
+            "useful_elements": useful_elements,
+            "harmful_elements": harmful_elements,
+            "spouse_star_status": row[25] if row[25] else "未知",
+            "spouse_star_effective": row[26] if row[26] else "未知",
+            "spouse_palace_status": row[27] if row[27] else "未知",
+            "pressure_score": float(row[28]) if row[28] is not None else 0.0,
+            "cong_ge_type": row[29] if row[29] else "正格",
+            "shi_shen_structure": row[30] if row[30] else "普通結構",
             "shen_sha_names": shen_sha_data.get("names", "無"),
             "shen_sha_bonus": shen_sha_data.get("bonus", 0)
         }
@@ -1005,7 +1010,38 @@ async def profile(update, context):
     
     username = profile_data.get("username", "未知用戶")
     
-    profile_text = BaziFormatters.format_personal_data(profile_data, username)
+    # 移除多餘字段，只保留BaziFormatters需要的
+    clean_profile_data = {
+        "year_pillar": profile_data.get("year_pillar", ""),
+        "month_pillar": profile_data.get("month_pillar", ""),
+        "day_pillar": profile_data.get("day_pillar", ""),
+        "hour_pillar": profile_data.get("hour_pillar", ""),
+        "zodiac": profile_data.get("zodiac", ""),
+        "day_stem": profile_data.get("day_stem", ""),
+        "day_stem_element": profile_data.get("day_stem_element", ""),
+        "gender": profile_data.get("gender", ""),
+        "cong_ge_type": profile_data.get("cong_ge_type", "正格"),
+        "shi_shen_structure": profile_data.get("shi_shen_structure", "普通結構"),
+        "day_stem_strength": profile_data.get("day_stem_strength", "中"),
+        "strength_score": profile_data.get("strength_score", 50),
+        "useful_elements": profile_data.get("useful_elements", []),
+        "harmful_elements": profile_data.get("harmful_elements", []),
+        "spouse_star_status": profile_data.get("spouse_star_status", "未知"),
+        "spouse_star_effective": profile_data.get("spouse_star_effective", "未知"),
+        "spouse_palace_status": profile_data.get("spouse_palace_status", "未知"),
+        "pressure_score": profile_data.get("pressure_score", 0),
+        "shen_sha_names": profile_data.get("shen_sha_names", "無"),
+        "shen_sha_bonus": profile_data.get("shen_sha_bonus", 0),
+        "elements": profile_data.get("elements", {}),
+        "hour_confidence": profile_data.get("hour_confidence", "低"),
+        "birth_year": profile_data.get("birth_year", 0),
+        "birth_month": profile_data.get("birth_month", 0),
+        "birth_day": profile_data.get("birth_day", 0),
+        "birth_hour": profile_data.get("birth_hour", 0),
+        "birth_minute": profile_data.get("birth_minute", 0)
+    }
+    
+    profile_text = BaziFormatters.format_personal_data(clean_profile_data, username)
     
     import random
     health_quote = random.choice(HEALTH_QUOTES)
@@ -1016,7 +1052,7 @@ async def profile(update, context):
 
 @check_maintenance
 async def match(update, context):
-    """開始配對 - 修正版"""
+    """開始配對 - 修正版：確保與testpair結果一致"""
     telegram_id = update.effective_user.id
     internal_user_id = get_internal_user_id(telegram_id)
     
@@ -1054,7 +1090,7 @@ async def match(update, context):
             return
         
         def to_profile(row):
-            """轉換數據庫記錄為八字數據格式"""
+            """轉換數據庫記錄為八字數據格式 - 確保與calculate_bazi返回格式一致"""
             (
                 by, bm, bd, bh, bmin, hour_conf, gender,
                 yp, mp, dp, hp,
@@ -1079,18 +1115,24 @@ async def match(update, context):
                 "zodiac": zodiac,
                 "day_stem": day_stem,
                 "day_stem_element": day_stem_element,
-                "elements": {"木": w, "火": f, "土": e, "金": m, "水": wt},
-                "day_stem_strength": strength,
-                "strength_score": strength_score,
+                "elements": {
+                    "木": float(w) if w is not None else 0.0,
+                    "火": float(f) if f is not None else 0.0,
+                    "土": float(e) if e is not None else 0.0,
+                    "金": float(m) if m is not None else 0.0,
+                    "水": float(wt) if wt is not None else 0.0
+                },
+                "day_stem_strength": strength if strength else "中",
+                "strength_score": float(strength_score) if strength_score is not None else 50.0,
                 "useful_elements": useful_list,
                 "harmful_elements": harmful_list,
-                "spouse_star_status": spouse_star,
-                "spouse_star_effective": spouse_star_effective,
-                "spouse_palace_status": spouse_palace,
-                "pressure_score": pressure_score,
-                "cong_ge_type": cong_ge,
-                "shi_shen_structure": shi_shen,
-                "hour_confidence": hour_conf,
+                "spouse_star_status": spouse_star if spouse_star else "未知",
+                "spouse_star_effective": spouse_star_effective if spouse_star_effective else "未知",
+                "spouse_palace_status": spouse_palace if spouse_palace else "未知",
+                "pressure_score": float(pressure_score) if pressure_score is not None else 0.0,
+                "cong_ge_type": cong_ge if cong_ge else "正格",
+                "shi_shen_structure": shi_shen if shi_shen else "普通結構",
+                "hour_confidence": hour_conf if hour_conf else "低",
                 "birth_year": by,
                 "birth_month": bm,
                 "birth_day": bd,
@@ -1193,6 +1235,9 @@ async def match(update, context):
         return
     
     matches.sort(key=lambda x: x["score"], reverse=True)
+    
+    # 記錄所有匹配分數供調試
+    logger.info(f"配對分數範圍: {[m['score'] for m in matches]}")
     
     valid_matches = [m for m in matches if m["score"] >= THRESHOLD_WARNING]
     
@@ -1574,18 +1619,24 @@ async def find_soulmate_purpose(update, context):
                 "zodiac": zodiac,
                 "day_stem": day_stem,
                 "day_stem_element": day_stem_element,
-                "elements": {"木": w, "火": f, "土": e, "金": m, "水": wt},
-                "day_stem_strength": strength,
-                "strength_score": strength_score,
+                "elements": {
+                    "木": float(w) if w is not None else 0.0,
+                    "火": float(f) if f is not None else 0.0,
+                    "土": float(e) if e is not None else 0.0,
+                    "金": float(m) if m is not None else 0.0,
+                    "水": float(wt) if wt is not None else 0.0
+                },
+                "day_stem_strength": strength if strength else "中",
+                "strength_score": float(strength_score) if strength_score is not None else 50.0,
                 "useful_elements": useful_list,
                 "harmful_elements": harmful_list,
-                "spouse_star_status": spouse_star,
-                "spouse_star_effective": spouse_star_effective,
-                "spouse_palace_status": spouse_palace,
-                "pressure_score": pressure_score,
-                "cong_ge_type": cong_ge,
-                "shi_shen_structure": shi_shen,
-                "hour_confidence": hour_conf,
+                "spouse_star_status": spouse_star if spouse_star else "未知",
+                "spouse_star_effective": spouse_star_effective if spouse_star_effective else "未知",
+                "spouse_palace_status": spouse_palace if spouse_palace else "未知",
+                "pressure_score": float(pressure_score) if pressure_score is not None else 0.0,
+                "cong_ge_type": cong_ge if cong_ge else "正格",
+                "shi_shen_structure": shi_shen if shi_shen else "普通結構",
+                "hour_confidence": hour_conf if hour_conf else "低",
                 "birth_year": by,
                 "birth_month": bm,
                 "birth_day": bd,
@@ -2057,9 +2108,9 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修正了match函數，確保不在配對結果中顯示對方username
-2. 修正了按鈕回調處理，只在雙方同意後才顯示username
-3. 優化了find_soulmate結果格式化函數
+1. 修正了get_profile_data函數，確保返回格式與calculate_match期望的一致
+2. 修正了match函數中的數據格式轉換，確保與testpair結果一致
+3. 修正了profile函數中的數據清理邏輯
 4. 保持了所有現有接口的向後兼容性
 
 版本: 修正版
@@ -2086,26 +2137,31 @@ if __name__ == "__main__":
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
+2026-02-07 修正bot.py問題：
+1. 問題：testpair和match分數不一致
+   位置：get_profile_data函數和match函數中的數據格式轉換
+   後果：數據格式不一致導致分數計算不同
+   修正：統一數據格式轉換邏輯，確保與calculate_bazi返回格式一致
+
+2. 問題：/stats命令顯示0人
+   後果：統計數據不準確
+   修正：在admin_service.py中創建獨立數據庫連接
+
+3. 問題：match函數中的數據格式轉換不完整
+   位置：match函數中的to_profile函數
+   後果：缺少必要字段導致分數計算錯誤
+   修正：完善數據格式轉換，確保所有字段都存在
+
 2026-02-05 修正bot.py問題：
 1. 問題：/profile命令顯示「尚未完成資料輸入」
    位置：get_profile_data函數中的字段索引
    後果：字段索引錯誤導致無法正確獲取個人資料
-   修正：修正字段索引，從30改為31，確保正確獲取shen_sha_data字段
+   修正：修正字段索引，確保正確獲取所有字段
 
 2. 問題：match結果直接顯示對方username
    位置：match函數中的格式化調用
    後果：違反隱私，在雙方同意前就暴露username
    修正：修改為顯示「對方」，只在雙方同意後顯示username
-
-3. 問題：按鈕回調中雙方同意後顯示username邏輯不正確
-   位置：button_callback函數
-   後果：顯示邏輯混亂
-   修正：明確只在雙方同意後顯示對方username
-
-4. 問題：find_soulmate結果格式化函數顯示不完整
-   位置：format_find_soulmate_result函數
-   後果：結果顯示不完整
-   修正：優化格式化函數，顯示更多匹配結果
 
 2026-02-03 修正testpair命令：
 1. 問題：test_pair_command函數變量作用域衝突
