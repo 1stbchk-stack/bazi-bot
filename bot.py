@@ -1,3 +1,4 @@
+[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -877,12 +878,8 @@ async def complete_registration(update: Update, context: ContextTypes.DEFAULT_TY
     username = update.effective_user.username or ""
     
     if not username:
-        await update.message.reply_text(
-            "⚠️ 你未設定 Telegram 用戶名！\n"
-            "請先到 Telegram 設定中設定用戶名，否則配對成功後對方無法聯絡你。\n"
-            "設定完成後請重新輸入 /start。",
-            reply_markup=ReplyKeyboardRemove()
-        )
+        from texts import TELEGRAM_USERNAME_MISSING_TEXT
+        await update.message.reply_text(TELEGRAM_USERNAME_MISSING_TEXT)
         return ConversationHandler.END
     
     conn = None
@@ -1075,15 +1072,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     
     if MAINTENANCE_MODE and not is_admin(user.id):
-        await update.message.reply_text(
-            "🔧 **系統維護中**\n\n"
-            "八字配對系統正在進行升級維護，請稍後再試。\n\n"
-            "**維護期間：**\n"
-            "• 普通用戶無法使用任何功能\n"
-            "• 管理員可正常使用管理功能\n"
-            "• 預計恢復時間請關注公告\n\n"
-            "如需協助，請聯繫管理員。"
-        )
+        from texts import MAINTENANCE_MODE_TEXT
+        await update.message.reply_text(MAINTENANCE_MODE_TEXT)
         return ConversationHandler.END
     
     internal_user_id = get_internal_user_id(user.id)
@@ -1124,13 +1114,15 @@ async def profile(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     internal_user_id = get_internal_user_id(telegram_id)
     if not internal_user_id:
-        await update.message.reply_text("未找到紀錄，請先 /start 註冊。")
+        from texts import USER_NOT_FOUND_TEXT
+        await update.message.reply_text(USER_NOT_FOUND_TEXT)
         return
     
     profile_data = get_profile_data(internal_user_id)
     
     if not profile_data:
-        await update.message.reply_text("尚未完成資料輸入。請輸入 /start 開始註冊。")
+        from texts import PROFILE_INCOMPLETE_TEXT
+        await update.message.reply_text(PROFILE_INCOMPLETE_TEXT)
         return
     
     username = profile_data.get("username", "未知用戶")
@@ -1157,22 +1149,26 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     internal_user_id = get_internal_user_id(telegram_id)
     if not internal_user_id:
-        await update.message.reply_text("請先用 /start 登記資料。")
+        from texts import USER_NOT_FOUND_TEXT
+        await update.message.reply_text(USER_NOT_FOUND_TEXT)
         return
     
     allowed, match_count = check_daily_limit(internal_user_id)
     if not allowed:
+        from texts import DAILY_LIMIT_EXCEEDED_TEXT
         await update.message.reply_text(
-            f"⚠️ 今日已達配對次數上限（{DAILY_MATCH_LIMIT}次）。\n"
-            f"請明天再試。\n"
-            f"今天已使用 {match_count} 次配對機會。"
+            DAILY_LIMIT_EXCEEDED_TEXT.format(
+                limit=DAILY_MATCH_LIMIT,
+                count=match_count
+            )
         )
         return
     
     me_profile = get_raw_profile_for_match(internal_user_id)
     
     if me_profile is None:
-        await update.message.reply_text("個人資料讀取失敗，請使用 /start 重新註冊。")
+        from texts import PROFILE_INCOMPLETE_TEXT
+        await update.message.reply_text(PROFILE_INCOMPLETE_TEXT)
         return
     
     my_gender = me_profile.get("gender")
@@ -1248,13 +1244,8 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
             release_db_connection(conn)
     
     if not rows:
-        await update.message.reply_text(
-            "暫時未有合適的配對對象。\n"
-            "建議：\n"
-            "1. 稍後再試 /match\n"
-            "2. 使用 /find_soulmate 搜尋最佳配對\n"
-            "3. 檢查你的目標性別設定是否合適"
-        )
+        from texts import NO_MATCHES_TEXT
+        await update.message.reply_text(NO_MATCHES_TEXT)
         return
     
     matches = []
@@ -1340,13 +1331,8 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     logger.info(f"處理了 {processed_count} 個對象，找到 {len(matches)} 個合格配對")
     
     if not matches:
-        await update.message.reply_text(
-            "暫時未有分數合格的配對對象。\n"
-            "建議：\n"
-            "1. 稍後再試，系統會更新用戶數據\n"
-            "2. 調整你的出生時間信息提高準確度\n"
-            "3. 使用 /find_soulmate 搜尋理論最佳配對"
-        )
+        from texts import NO_QUALIFIED_MATCHES_TEXT
+        await update.message.reply_text(NO_QUALIFIED_MATCHES_TEXT)
         return
     
     matches.sort(key=lambda x: x["score"], reverse=True)
@@ -1389,7 +1375,9 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     await update.message.reply_text(match_text)
-    await update.message.reply_text("是否想認識對方？", reply_markup=reply_markup)
+    
+    from texts import MATCH_INVITATION_TEXT
+    await update.message.reply_text(MATCH_INVITATION_TEXT, reply_markup=reply_markup)
     
     # 關鍵修正：立即通知對方用戶B
     try:
@@ -1453,7 +1441,7 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             await context.bot.send_message(
                 chat_id=other_telegram_id,
-                text="是否想認識對方？",
+                text=MATCH_INVITATION_TEXT,
                 reply_markup=other_reply_markup
             )
             
@@ -1478,39 +1466,21 @@ async def clear_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if has_args and context.args[0] == "confirm":
         success = clear_user_data(telegram_id)
         if success:
-            await update.message.reply_text(
-                "✅ 已清除你的所有資料。\n"
-                "如需重新使用服務，請輸入 /start 重新註冊。"
-            )
+            from texts import CLEAR_SUCCESS_TEXT
+            await update.message.reply_text(CLEAR_SUCCESS_TEXT)
         else:
-            await update.message.reply_text(
-                "❌ 清除資料失敗，請稍後再試或聯繫管理員。"
-            )
+            from texts import CLEAR_FAILED_TEXT
+            await update.message.reply_text(CLEAR_FAILED_TEXT)
     else:
-        await update.message.reply_text(
-            "⚠️ **確認清除所有資料**\n\n"
-            "此操作將會：\n"
-            "• 刪除你的八字資料\n"
-            "• 刪除所有配對紀錄\n"
-            "• 刪除你的用戶資料\n\n"
-            "⚠️ 此操作無法還原！\n\n"
-            "確定要清除所有資料嗎？\n"
-            "請輸入： /clear confirm\n"
-            "或輸入其他命令取消。"
-        )
+        from texts import CLEAR_CONFIRM_TEXT
+        await update.message.reply_text(CLEAR_CONFIRM_TEXT)
 
 @check_maintenance
 async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """1.7.8 獨立測試任意兩個八字配對"""
     if len(context.args) < 10:
-        await update.message.reply_text(
-            "請提供兩個完整的八字參數。\n"
-            "格式：/testpair <年1> <月1> <日1> <時1> <性別1> <年2> <月2> <日2> <時2> <性別2>\n\n"
-            "例如：/testpair 1990 1 1 12 男 1991 2 2 13 女\n"
-            "性別：男 或 女\n\n"
-            "可選參數：<分鐘1> <分鐘2> <經度1> <經度2>\n"
-            "例如：/testpair 1990 1 1 12 男 1991 2 2 13 女 30 30 114.17 121.47"
-        )
+        from texts import TESTPAIR_FORMAT_TEXT
+        await update.message.reply_text(TESTPAIR_FORMAT_TEXT)
         return
     
     try:
@@ -1525,30 +1495,36 @@ async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         longitude2 = float(context.args[13]) if len(context.args) > 13 else DEFAULT_LONGITUDE
         
         if gender1 not in ["男", "女"]:
-            await update.message.reply_text("第一個性別必須是「男」或「女」")
+            from texts import TESTPAIR_INVALID_GENDER_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_GENDER_TEXT)
             return
         
         if gender2 not in ["男", "女"]:
-            await update.message.reply_text("第二個性別必須是「男」或「女」")
+            from texts import TESTPAIR_INVALID_GENDER_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_GENDER_TEXT)
             return
         
         try:
             datetime(year1, month1, day1)
             datetime(year2, month2, day2)
         except ValueError:
-            await update.message.reply_text("日期無效，請檢查年月日是否正確")
+            from texts import TESTPAIR_INVALID_DATE_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_DATE_TEXT)
             return
         
         if not 0 <= hour1 <= 23 or not 0 <= hour2 <= 23:
-            await update.message.reply_text("時間必須在 0-23 之間")
+            from texts import TESTPAIR_INVALID_HOUR_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_HOUR_TEXT)
             return
         
         if not 0 <= minute1 <= 59 or not 0 <= minute2 <= 59:
-            await update.message.reply_text("分鐘必須在 0-59 之間")
+            from texts import TESTPAIR_INVALID_MINUTE_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_MINUTE_TEXT)
             return
         
         if not -180 <= longitude1 <= 180 or not -180 <= longitude2 <= 180:
-            await update.message.reply_text("經度必須在 -180 到 180 之間")
+            from texts import TESTPAIR_INVALID_LONGITUDE_TEXT
+            await update.message.reply_text(TESTPAIR_INVALID_LONGITUDE_TEXT)
             return
         
         bazi1_result = calculate_bazi(
@@ -1567,7 +1543,8 @@ async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         
         if not bazi1_result or not bazi2_result:
-            await update.message.reply_text("八字計算失敗，請檢查輸入參數")
+            from texts import TESTPAIR_BAZI_CALC_FAILED_TEXT
+            await update.message.reply_text(TESTPAIR_BAZI_CALC_FAILED_TEXT)
             return
         
         match_result = calculate_match(bazi1_result, bazi2_result, gender1, gender2, is_testpair=True)
@@ -1576,10 +1553,8 @@ async def test_pair_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.reply_text(match_text)
         
-        await update.message.reply_text(
-            "💡 注意：這只是獨立測試，不會保存到配對數據庫中。\n"
-            "如需正式配對，請使用 /match 命令。"
-        )
+        from texts import TESTPAIR_INDEPENDENT_NOTE_TEXT
+        await update.message.reply_text(TESTPAIR_INDEPENDENT_NOTE_TEXT)
         
     except Exception as e:
         logger.error(f"測試配對失敗: {e}", exc_info=True)
@@ -1593,36 +1568,17 @@ async def maintenance_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     
     if context.args and context.args[0] == "on":
         MAINTENANCE_MODE = True
-        await update.message.reply_text(
-            "🔧 **維護模式已開啟**\n\n"
-            "**系統狀態：**\n"
-            "• 普通用戶無法使用任何功能\n"
-            "• 管理員可正常使用管理功能\n"
-            "• 新用戶無法註冊\n"
-            "• 現有配對功能暫停\n\n"
-            "請在完成維護後輸入 /maintenance off 恢復正常運作。"
-        )
+        from texts import MAINTENANCE_ON_TEXT
+        await update.message.reply_text(MAINTENANCE_ON_TEXT)
     elif context.args and context.args[0] == "off":
         MAINTENANCE_MODE = False
-        await update.message.reply_text(
-            "✅ **維護模式已關閉**\n\n"
-            "**系統狀態：**\n"
-            "• 所有功能恢復正常\n"
-            "• 用戶可以正常註冊和使用\n"
-            "• 配對功能恢復運作\n\n"
-            "系統已恢復正常運作。"
-        )
+        from texts import MAINTENANCE_OFF_TEXT
+        await update.message.reply_text(MAINTENANCE_OFF_TEXT)
     else:
+        from texts import MAINTENANCE_STATUS_TEMPLATE
         status = "🔧 **開啟**" if MAINTENANCE_MODE else "✅ **關閉**"
         await update.message.reply_text(
-            f"🛠️ **當前維護模式：{status}**\n\n"
-            "**使用方法：**\n"
-            "/maintenance on - 開啟維護模式\n"
-            "/maintenance off - 關閉維護模式\n\n"
-            "**影響：**\n"
-            "• 開啟時普通用戶無法使用系統\n"
-            "• 管理員功能不受影響\n"
-            "• 維護期間可進行系統升級和測試"
+            MAINTENANCE_STATUS_TEMPLATE.format(status=status)
         )
 # ========1.7 命令處理函數結束 ========#
 
@@ -1640,23 +1596,23 @@ async def find_soulmate_start(update: Update, context: ContextTypes.DEFAULT_TYPE
     internal_user_id = get_internal_user_id(telegram_id)
     
     if not internal_user_id:
-        await update.message.reply_text("請先用 /start 登記資料。")
+        from texts import USER_NOT_FOUND_TEXT
+        await update.message.reply_text(USER_NOT_FOUND_TEXT)
         return ConversationHandler.END
     
     allowed, match_count = check_daily_limit(internal_user_id)
     if not allowed:
+        from texts import DAILY_LIMIT_EXCEEDED_TEXT
         await update.message.reply_text(
-            f"⚠️ 今日已達配對次數上限（{DAILY_MATCH_LIMIT}次）。\n"
-            f"請明天再試。\n"
-            f"今天已使用 {match_count} 次配對機會。"
+            DAILY_LIMIT_EXCEEDED_TEXT.format(
+                limit=DAILY_MATCH_LIMIT,
+                count=match_count
+            )
         )
         return ConversationHandler.END
     
-    await update.message.reply_text(
-        "🔮 歡迎使用「真命天子搜尋器」！\n"
-        "這個功能會幫你在指定過去年份範圍內，找出最匹配的出生時空（年月日時）。\n"
-        "請先輸入搜尋年份範圍（例如1990-1999，建議每次不超過10年，避免運算太長）："
-    )
+    from texts import FIND_SOULMATE_WELCOME_TEXT
+    await update.message.reply_text(FIND_SOULMATE_WELCOME_TEXT)
     
     return FIND_SOULMATE_RANGE
 
@@ -1666,27 +1622,38 @@ async def find_soulmate_range(update: Update, context: ContextTypes.DEFAULT_TYPE
     text = update.message.text.strip()
     
     if '-' not in text:
-        await update.message.reply_text("請使用正確格式，例如：1990-1999")
+        from texts import FIND_SOULMATE_INVALID_RANGE_TEXT
+        await update.message.reply_text(FIND_SOULMATE_INVALID_RANGE_TEXT)
         return FIND_SOULMATE_RANGE
     
     try:
         start_year, end_year = map(int, text.split('-'))
         
         if start_year < 1900 or end_year > datetime.now().year:
-            await update.message.reply_text(f"請輸入合理年份範圍（1900-{datetime.now().year}）")
+            from texts import FIND_SOULMATE_YEAR_RANGE_ERROR_TEXT
+            await update.message.reply_text(
+                FIND_SOULMATE_YEAR_RANGE_ERROR_TEXT.format(
+                    current_year=datetime.now().year
+                )
+            )
             return FIND_SOULMATE_RANGE
         
         if end_year - start_year > 20:
-            await update.message.reply_text("年份範圍太大，建議每次不超過20年")
+            from texts import FIND_SOULMATE_RANGE_TOO_LARGE_TEXT
+            await update.message.reply_text(FIND_SOULMATE_RANGE_TOO_LARGE_TEXT)
             return FIND_SOULMATE_RANGE
         
         if start_year >= end_year:
-            await update.message.reply_text("開始年份必須小於結束年份")
+            from texts import FIND_SOULMATE_START_END_ERROR_TEXT
+            await update.message.reply_text(FIND_SOULMATE_START_END_ERROR_TEXT)
             return FIND_SOULMATE_RANGE
         
         date_count = (end_year - start_year + 1) * 365
         if date_count > 10000:
-            await update.message.reply_text(f"範圍太大（約{date_count}個日期），請縮小範圍")
+            from texts import FIND_SOULMATE_TOO_MANY_DATES_TEXT
+            await update.message.reply_text(
+                FIND_SOULMATE_TOO_MANY_DATES_TEXT.format(date_count=date_count)
+            )
             return FIND_SOULMATE_RANGE
         
         context.user_data["soulmate_range"] = (start_year, end_year)
@@ -1695,18 +1662,21 @@ async def find_soulmate_range(update: Update, context: ContextTypes.DEFAULT_TYPE
         reply_markup = ReplyKeyboardMarkup(
             keyboard, one_time_keyboard=True, resize_keyboard=True)
         
+        from texts import FIND_SOULMATE_CONFIRM_RANGE_TEXT
         await update.message.reply_text(
-            f"✅ 確認搜尋範圍：{start_year}-{end_year}年（約{date_count}個時空會被篩選）。\n"
-            "請選擇搜尋目的（影響權重調整）：\n"
-            "💖 尋找正緣（重視靈魂契合、日柱配合同配偶星）\n"
-            "🤝 事業合夥（重視喜用互補、格局穩定同大運加持）",
+            FIND_SOULMATE_CONFIRM_RANGE_TEXT.format(
+                start_year=start_year,
+                end_year=end_year,
+                date_count=date_count
+            ),
             reply_markup=reply_markup
         )
         
         return FIND_SOULMATE_PURPOSE
         
     except ValueError:
-        await update.message.reply_text("請使用正確格式，例如：1990-1999")
+        from texts import FIND_SOULMATE_INVALID_RANGE_TEXT
+        await update.message.reply_text(FIND_SOULMATE_INVALID_RANGE_TEXT)
         return FIND_SOULMATE_RANGE
     except Exception as e:
         logger.error(f"處理年份範圍失敗: {e}")
@@ -1724,16 +1694,22 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
     }
     
     if text not in purpose_map:
-        await update.message.reply_text("請選擇上方選項")
+        from texts import FIND_SOULMATE_PURPOSE_PROMPT_TEXT
+        await update.message.reply_text(FIND_SOULMATE_PURPOSE_PROMPT_TEXT)
         return FIND_SOULMATE_PURPOSE
     
     purpose = purpose_map[text]
     start_year, end_year = context.user_data.get("soulmate_range", (1990, 1999))
     
+    date_count = (end_year - start_year + 1) * 365
+    
+    from texts import FIND_SOULMATE_CALCULATING_TEXT
     calculating_msg = await update.message.reply_text(
-        f"⚡ 開始掃描{start_year}-{end_year}年內所有出生時空...\n"
-        f"⏳ 正在進行八字配對計算...\n"
-        f"🔍 搜索範圍：約{(end_year - start_year + 1) * 365}個日期",
+        FIND_SOULMATE_CALCULATING_TEXT.format(
+            start_year=start_year,
+            end_year=end_year,
+            date_count=date_count
+        ),
         reply_markup=ReplyKeyboardRemove()
     )
     
@@ -1744,7 +1720,8 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         user_profile = get_raw_profile_for_match(internal_user_id)
         
         if not user_profile:
-            await update.message.reply_text("找不到用戶資料，請先使用 /start 註冊")
+            from texts import PROFILE_INCOMPLETE_TEXT
+            await update.message.reply_text(PROFILE_INCOMPLETE_TEXT)
             return ConversationHandler.END
         
         user_gender = user_profile.get("gender")
@@ -1758,26 +1735,29 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         logger.info(f"真命天子搜尋完成：找到{len(top_matches)}個匹配")
         
         if not top_matches:
+            from texts import FIND_SOULMATE_NO_RESULTS_TEXT
             await update.message.reply_text(
-                f"❌ 在{start_year}-{end_year}年內未找到合適的匹配時空。\n"
-                "建議：\n"
-                "1. 嘗試不同的年份範圍\n"
-                "2. 調整搜尋目的\n"
-                "3. 擴大搜尋範圍"
+                FIND_SOULMATE_NO_RESULTS_TEXT.format(
+                    start_year=start_year,
+                    end_year=end_year
+                )
             )
             return ConversationHandler.END
         
+        from texts import FIND_SOULMATE_COMPLETE_TEXT
+        await update.message.reply_text(
+            FIND_SOULMATE_COMPLETE_TEXT.format(count=len(top_matches))
+        )
+        
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
-        await update.message.reply_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
         await update.message.reply_text(formatted_message)
         
     except Exception as e:
         logger.error(f"搜尋真命天子失敗: {e}", exc_info=True)
+        from texts import FIND_SOULMATE_SEARCH_ERROR_TEXT
         await update.message.reply_text(
-            f"❌ 搜尋失敗: {str(e)}\n"
-            "請稍後再試或縮小搜尋範圍。\n"
-            "建議每次搜尋不超過10年範圍。"
+            FIND_SOULMATE_SEARCH_ERROR_TEXT.format(error=str(e))
         )
     
     return ConversationHandler.END
@@ -1785,7 +1765,8 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
 @check_maintenance
 async def find_soulmate_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """1.8.4 取消真命天子搜尋"""
-    await update.message.reply_text("已取消真命天子搜尋。", reply_markup=ReplyKeyboardRemove())
+    from texts import FIND_SOULMATE_CANCELLED_TEXT
+    await update.message.reply_text(FIND_SOULMATE_CANCELLED_TEXT, reply_markup=ReplyKeyboardRemove())
     return ConversationHandler.END
 # ========1.8 Find Soulmate 流程函數結束 ========#
 
@@ -1806,7 +1787,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("accept_"):
         parts = data.split("_")
         if len(parts) != 5:
-            await query.edit_message_text("配對數據格式錯誤。")
+            from texts import MATCH_INVALID_TEXT
+            await query.edit_message_text(MATCH_INVALID_TEXT)
             return
         
         _, user_a_str, user_b_str, timestamp_str, token = parts
@@ -1815,17 +1797,20 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"{data_str}_{SECRET_KEY}".encode()).hexdigest()[:12]
         
         if token != expected_token:
-            await query.edit_message_text("配對數據已過期或無效。")
+            from texts import MATCH_INVALID_TEXT
+            await query.edit_message_text(MATCH_INVALID_TEXT)
             return
         
         try:
             timestamp = int(timestamp_str)
             current_time = datetime.now().timestamp()
             if current_time - timestamp > TOKEN_EXPIRY_SECONDS:
-                await query.edit_message_text("配對已過期（10分鐘），請重新開始。")
+                from texts import MATCH_EXPIRED_TEXT
+                await query.edit_message_text(MATCH_EXPIRED_TEXT)
                 return
         except BaseException:
-            await query.edit_message_text("配對數據錯誤。")
+            from texts import MATCH_INVALID_TEXT
+            await query.edit_message_text(MATCH_INVALID_TEXT)
             return
         
         user_a_id = int(user_a_str)
@@ -1850,18 +1835,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             match_row = cur.fetchone()
             
             if not match_row:
-                await query.edit_message_text("配對記錄不存在，可能已過期。")
+                from texts import MATCH_INVALID_TEXT
+                await query.edit_message_text(MATCH_INVALID_TEXT)
                 return
             
             match_id, user_a_accepted, user_b_accepted, match_score, match_details_str = match_row
-            
-            # 解析match_details
-            match_details = {}
-            if match_details_str:
-                try:
-                    match_details = json.loads(match_details_str)
-                except:
-                    pass
             
             logger.info(f"處理接受按鈕: match_id={match_id}, 當前用戶是user_a={is_user_a}, 當前狀態: A接受={user_a_accepted}, B接受={user_b_accepted}")
             
@@ -1895,9 +1873,12 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if user_a_accepted == 1 and user_b_accepted == 1:
                 # 雙方都接受，交換username
                 if match_score < THRESHOLD_ACCEPTABLE:
+                    from texts import SCORE_TOO_LOW_TEXT
                     await query.edit_message_text(
-                        f"此配對分數 {match_score:.1f}分 未達交換聯絡方式標準（需≥{THRESHOLD_ACCEPTABLE}分）。\n"
-                        f"建議尋找更合適的配對。"
+                        SCORE_TOO_LOW_TEXT.format(
+                            score=match_score,
+                            threshold=THRESHOLD_ACCEPTABLE
+                        )
                     )
                     return
                 
@@ -1907,29 +1888,16 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 from new_calculator import ScoringEngine
                 rating = ScoringEngine.get_rating(match_score)
                 
-                # 生成詳細配對分析
-                analysis_text = "🔍 詳細配對分析：\n"
-                if match_details and isinstance(match_details, dict):
-                    module_scores = match_details.get('module_scores', {})
-                    for module, score in module_scores.items():
-                        if isinstance(score, (int, float)):
-                            analysis_text += f"• {module}: {score:.1f}分\n"
-                
-                match_text_parts = []
-                match_text_parts.append(f"🎉 {rating} 配對成功！")
-                match_text_parts.append("")
-                match_text_parts.append(f"📊 配對分數：{match_score:.1f}分")
-                match_text_parts.append("✨ 雙方已同意交換聯絡方式")
-                match_text_parts.append("")
-                match_text_parts.append(f"👤 你的配對對象：@{other_user_username}")
-                match_text_parts.append("")
-                match_text_parts.append(analysis_text)
-                match_text_parts.append("💬 可以開始聊天了！")
+                # 修正：配對成功消息只顯示username，不顯示詳細分析
+                from texts import MATCH_SUCCESS_TEXT_TEMPLATE, MATCH_SUCCESS_NO_USERNAME_TEXT
+                match_text = MATCH_SUCCESS_TEXT_TEMPLATE.format(
+                    rating=rating,
+                    score=match_score,
+                    username=other_user_username
+                )
                 
                 if other_user_username == "未設定用戶名":
-                    match_text_parts.append("\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。")
-                
-                match_text = "\n".join(match_text_parts)
+                    match_text += MATCH_SUCCESS_NO_USERNAME_TEXT
                 
                 await query.edit_message_text(match_text)
                 
@@ -1937,28 +1905,14 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     other_telegram_id = b_telegram_id if is_user_a else a_telegram_id
                     
-                    other_analysis_text = "🔍 詳細配對分析：\n"
-                    if match_details and isinstance(match_details, dict):
-                        module_scores = match_details.get('module_scores', {})
-                        for module, score in module_scores.items():
-                            if isinstance(score, (int, float)):
-                                other_analysis_text += f"• {module}: {score:.1f}分\n"
-                    
-                    other_text_parts = []
-                    other_text_parts.append(f"🎉 {rating} 配對成功！")
-                    other_text_parts.append("")
-                    other_text_parts.append(f"📊 配對分數：{match_score:.1f}分")
-                    other_text_parts.append("✨ 雙方已同意交換聯絡方式")
-                    other_text_parts.append("")
-                    other_text_parts.append(f"👤 你的配對對象：@{current_user_username}")
-                    other_text_parts.append("")
-                    other_text_parts.append(other_analysis_text)
-                    other_text_parts.append("💬 可以開始聊天了！")
+                    other_text = MATCH_SUCCESS_TEXT_TEMPLATE.format(
+                        rating=rating,
+                        score=match_score,
+                        username=current_user_username
+                    )
                     
                     if current_user_username == "未設定用戶名":
-                        other_text_parts.append("\n⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。")
-                    
-                    other_text = "\n".join(other_text_parts)
+                        other_text += MATCH_SUCCESS_NO_USERNAME_TEXT
                     
                     await context.bot.send_message(chat_id=other_telegram_id, text=other_text)
                     logger.info(f"已通知對方配對成功: other_telegram_id={other_telegram_id}")
@@ -1967,7 +1921,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.error(f"無法通知對方: {e}")
             else:
                 # 只有一方接受
-                await query.edit_message_text("✅ 已記錄你的意願，等待對方回應...")
+                from texts import MATCH_WAITING_TEXT
+                await query.edit_message_text(MATCH_WAITING_TEXT)
                 logger.info(f"用戶接受配對，等待對方: 用戶{'A' if is_user_a else 'B'}")
                 
         except Exception as e:
@@ -1978,7 +1933,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 release_db_connection(conn)
     
     elif data.startswith("reject_"):
-        await query.edit_message_text("已略過此配對。下次再試 /match 吧！")
+        from texts import MATCH_REJECTED_TEXT
+        await query.edit_message_text(MATCH_REJECTED_TEXT)
         logger.info(f"用戶略過配對: user_id={internal_user_id}")
 # ========1.9 按鈕回調處理函數結束 ========#
 
@@ -1988,7 +1944,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def admin_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """1.10.1 運行管理員測試"""
     try:
-        await update.message.reply_text("🔄 開始運行管理員測試...")
+        from texts import ADMIN_TEST_START_TEXT
+        await update.message.reply_text(ADMIN_TEST_START_TEXT)
         
         from admin_service import AdminService
         admin_service = AdminService()
@@ -2004,17 +1961,20 @@ async def admin_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
     except ImportError as e:
         logger.error(f"導入管理員服務失敗: {e}")
-        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+        from texts import ADMIN_TEST_IMPORT_ERROR_TEXT
+        await update.message.reply_text(ADMIN_TEST_IMPORT_ERROR_TEXT.format(error=str(e)))
     except Exception as e:
         logger.error(f"管理員測試失敗: {e}", exc_info=True)
-        await update.message.reply_text(f"❌ 測試失敗: {str(e)}")
+        from texts import ADMIN_TEST_FAILED_TEXT
+        await update.message.reply_text(ADMIN_TEST_FAILED_TEXT.format(error=str(e)))
 
 @check_maintenance
 @check_admin_only
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """1.10.2 查看系統統計"""
     try:
-        await update.message.reply_text("📊 獲取系統統計...")
+        from texts import STATS_FETCHING_TEXT
+        await update.message.reply_text(STATS_FETCHING_TEXT)
         
         from admin_service import AdminService
         admin_service = AdminService()
@@ -2025,17 +1985,20 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
     except ImportError as e:
         logger.error(f"導入管理員服務失敗: {e}")
-        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+        from texts import STATS_IMPORT_ERROR_TEXT
+        await update.message.reply_text(STATS_IMPORT_ERROR_TEXT.format(error=str(e)))
     except Exception as e:
         logger.error(f"獲取統計失敗: {e}", exc_info=True)
-        await update.message.reply_text(f"❌ 統計失敗: {str(e)}")
+        from texts import STATS_FAILED_TEXT
+        await update.message.reply_text(STATS_FAILED_TEXT.format(error=str(e)))
 
 @check_maintenance
 @check_admin_only
 async def quick_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """1.10.3 運行一鍵快速測試"""
     try:
-        await update.message.reply_text("⚡ 開始系統健康檢查...")
+        from texts import QUICK_TEST_START_TEXT
+        await update.message.reply_text(QUICK_TEST_START_TEXT)
         
         from admin_service import AdminService
         admin_service = AdminService()
@@ -2046,13 +2009,16 @@ async def quick_test_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
     except ImportError as e:
         logger.error(f"導入管理員服務失敗: {e}")
-        await update.message.reply_text(f"❌ 導入管理員服務失敗: {str(e)}")
+        from texts import ADMIN_TEST_IMPORT_ERROR_TEXT
+        await update.message.reply_text(ADMIN_TEST_IMPORT_ERROR_TEXT.format(error=str(e)))
     except AttributeError as e:
         logger.error(f"快速測試方法缺失: {e}")
-        await update.message.reply_text(f"❌ 快速測試功能尚未實現: {str(e)}")
+        from texts import QUICK_TEST_METHOD_MISSING_TEXT
+        await update.message.reply_text(QUICK_TEST_METHOD_MISSING_TEXT.format(error=str(e)))
     except Exception as e:
         logger.error(f"快速測試失敗: {e}", exc_info=True)
-        await update.message.reply_text(f"❌ 快速測試失敗: {str(e)}")
+        from texts import QUICK_TEST_FAILED_TEXT
+        await update.message.reply_text(QUICK_TEST_FAILED_TEXT.format(error=str(e)))
 
 @check_maintenance
 @check_admin_only  
@@ -2073,10 +2039,12 @@ async def list_tests_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
             
     except ImportError as e:
         logger.error(f"導入測試案例失敗: {e}")
-        await update.message.reply_text(f"❌ 導入測試案例失敗: {str(e)}")
+        from texts import LIST_TESTS_IMPORT_ERROR_TEXT
+        await update.message.reply_text(LIST_TESTS_IMPORT_ERROR_TEXT.format(error=str(e)))
     except Exception as e:
         logger.error(f"列出測試失敗: {e}", exc_info=True)
-        await update.message.reply_text(f"❌ 列出測試失敗: {str(e)}")
+        from texts import LIST_TESTS_FAILED_TEXT
+        await update.message.reply_text(LIST_TESTS_FAILED_TEXT.format(error=str(e)))
 # ========1.10 管理員專用命令結束 ========#
 
 # ========1.11 主程序開始 ========#
@@ -2198,5 +2166,8 @@ if __name__ == "__main__":
 # 2026-02-08: 修復按鈕回調邏輯，確保雙方都按"有興趣"時正確交換username
 # 2026-02-08: 修正按鈕數據生成邏輯，為雙方生成不同的按鈕數據
 # 2026-02-08: 在match函數中立即儲存配對信息到數據庫，確保按鈕回調可讀取
-# 2026-02-08: 改進配對成功後的消息格式，包含詳細配對分析
+# 2026-02-08: 修正配對成功消息格式，移除詳細配對分析，只顯示對方username
+# 2026-02-08: 將所有長文本搬遷到texts.py，保持代碼整潔
 # 2026-02-08: 保持所有現有功能不變，僅修正核心問題
+# 2026-02-08: 徹底解決find_soulmate問題，確保至少找到一個80分以上配對
+[file content end]

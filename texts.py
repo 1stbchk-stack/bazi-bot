@@ -286,3 +286,266 @@ ADMIN_MENU_TEXT = """
 /listtests - 列出測試案例
 """
 # ========1.3 功能選單文本結束 ========#
+
+# ========1.4 配對流程文本開始 ========#
+NO_MATCHES_TEXT = """
+暫時未有合適的配對對象。\n
+建議：\n
+1. 稍後再試 /match\n
+2. 使用 /find_soulmate 搜尋最佳配對\n
+3. 檢查你的目標性別設定是否合適
+"""
+
+NO_QUALIFIED_MATCHES_TEXT = """
+暫時未有分數合格的配對對象。\n
+建議：\n
+1. 稍後再試，系統會更新用戶數據\n
+2. 調整你的出生時間信息提高準確度\n
+3. 使用 /find_soulmate 搜尋理論最佳配對
+"""
+
+MATCH_INVITATION_TEXT = "是否想認識對方？"
+
+MATCH_SUCCESS_TEXT_TEMPLATE = """🎉 {rating} 配對成功！
+
+📊 配對分數：{score:.1f}分
+✨ 雙方已同意交換聯絡方式
+
+👤 你的配對對象：@{username}
+
+💬 可以開始聊天了！"""
+
+MATCH_SUCCESS_NO_USERNAME_TEXT = """
+⚠️ 注意：對方未設定 Telegram 用戶名，請先請對方設定用戶名。
+"""
+
+MATCH_WAITING_TEXT = "✅ 已記錄你的意願，等待對方回應..."
+
+MATCH_REJECTED_TEXT = "已略過此配對。下次再試 /match 吧！"
+
+MATCH_EXPIRED_TEXT = "配對已過期（10分鐘），請重新開始。"
+
+MATCH_INVALID_TEXT = "配對數據已過期或無效。"
+
+SCORE_TOO_LOW_TEXT = """此配對分數 {score:.1f}分 未達交換聯絡方式標準（需≥{threshold}分）。\n
+建議尋找更合適的配對。"""
+# ========1.4 配對流程文本結束 ========#
+
+# ========1.5 Find Soulmate 文本開始 ========#
+FIND_SOULMATE_WELCOME_TEXT = """
+🔮 歡迎使用「真命天子搜尋器」！
+這個功能會幫你在指定過去年份範圍內，找出最匹配的出生時空（年月日時）。\n
+請先輸入搜尋年份範圍（例如1990-1999，建議每次不超過10年，避免運算太長）：
+"""
+
+FIND_SOULMATE_INVALID_RANGE_TEXT = "請使用正確格式，例如：1990-1999"
+
+FIND_SOULMATE_YEAR_RANGE_ERROR_TEXT = "請輸入合理年份範圍（1900-{current_year}）"
+
+FIND_SOULMATE_RANGE_TOO_LARGE_TEXT = "年份範圍太大，建議每次不超過20年"
+
+FIND_SOULMATE_START_END_ERROR_TEXT = "開始年份必須小於結束年份"
+
+FIND_SOULMATE_TOO_MANY_DATES_TEXT = "範圍太大（約{date_count}個日期），請縮小範圍"
+
+FIND_SOULMATE_CONFIRM_RANGE_TEXT = """
+✅ 確認搜尋範圍：{start_year}-{end_year}年（約{date_count}個時空會被篩選）。\n
+請選擇搜尋目的（影響權重調整）：\n
+💖 尋找正緣（重視靈魂契合、日柱配合同配偶星）\n
+🤝 事業合夥（重視喜用互補、格局穩定同大運加持）
+"""
+
+FIND_SOULMATE_PURPOSE_PROMPT_TEXT = "請選擇上方選項"
+
+FIND_SOULMATE_CALCULATING_TEXT = """
+⚡ 開始掃描{start_year}-{end_year}年內所有出生時空...\n
+⏳ 正在進行八字配對計算...\n
+🔍 搜索範圍：約{date_count}個日期
+"""
+
+FIND_SOULMATE_NO_RESULTS_TEXT = """
+❌ 在{start_year}-{end_year}年內未找到合適的匹配時空。\n
+建議：\n
+1. 嘗試不同的年份範圍\n
+2. 調整搜尋目的\n
+3. 擴大搜尋範圍
+"""
+
+FIND_SOULMATE_SEARCH_ERROR_TEXT = """
+❌ 搜尋失敗: {error}\n
+請稍後再試或縮小搜尋範圍。\n
+建議每次搜尋不超過10年範圍。
+"""
+
+FIND_SOULMATE_CANCELLED_TEXT = "已取消真命天子搜尋。"
+
+FIND_SOULMATE_COMPLETE_TEXT = "✅ 搜尋完成！找到 {count} 個匹配時空。"
+
+FIND_SOULMATE_RESULT_TEMPLATE = """🔮 真命天子搜尋結果
+========================================
+
+📅 搜尋範圍：{start_year}年 - {end_year}年
+🎯 搜尋目的：{purpose_text}
+🏆 最高分數：{best_score:.1f}分
+📊 找到匹配：{match_count}個高質量時空
+
+🥇 最佳匹配：
+• 分數：{best_score:.1f}分
+• 日期：{best_date}
+• 時辰：{best_hour}
+• 八字：{best_pillars}
+
+📋 詳細匹配列表（前{show_count}名）
+========================================
+
+{matches_list}
+
+💡 使用建議
+========================================
+
+1. **理論最佳**：以上結果為理論上最匹配的出生時空
+2. **確認時辰**：時辰為整點，實際使用時需結合出生地經度校正
+3. **綜合考慮**：分數僅供參考，需結合實際情況
+4. **深入分析**：可複製具體八字使用 /testpair 命令深入分析
+5. **時間信心度**：搜尋結果為理論最佳，實際應用時需考慮時間精度
+"""
+# ========1.5 Find Soulmate 文本結束 ========#
+
+# ========1.6 錯誤提示文本開始 ========#
+DATABASE_ERROR_TEXT = "系統錯誤：數據庫連接失敗，請稍後再試。"
+
+USER_NOT_FOUND_TEXT = "未找到註冊記錄，請先使用 /start 註冊。"
+
+PROFILE_INCOMPLETE_TEXT = "尚未完成個人資料輸入，請使用 /start 完成註冊流程。"
+
+GENDER_MISSING_TEXT = "性別資料缺失，請使用 /start 重新輸入。"
+
+BAZI_DATA_MISSING_TEXT = "八字數據未生成，請使用 /start 重新計算。"
+
+DAILY_LIMIT_EXCEEDED_TEXT = """
+⚠️ 今日已達配對次數上限（{limit}次）。\n
+請明天再試。\n
+今天已使用 {count} 次配對機會。
+"""
+
+TELEGRAM_USERNAME_MISSING_TEXT = """
+⚠️ 你未設定 Telegram 用戶名！\n
+請先到 Telegram 設定中設定用戶名，否則配對成功後對方無法聯絡你。\n
+設定完成後請重新輸入 /start。
+"""
+
+MAINTENANCE_MODE_TEXT = """
+🔧 **系統維護中**\n\n
+八字配對系統正在進行升級維護，請稍後再試。\n\n
+**維護期間：**\n
+• 普通用戶無法使用任何功能\n
+• 管理員可正常使用管理功能\n
+• 預計恢復時間請關注公告\n\n
+如需協助，請聯繫管理員。
+"""
+
+ADMIN_ONLY_TEXT = """
+❌ **權限不足**\n\n
+此功能僅限管理員使用。\n
+如需管理員權限，請聯繫系統管理員。
+"""
+
+CLEAR_CONFIRM_TEXT = """
+⚠️ **確認清除所有資料**\n\n
+此操作將會：\n
+• 刪除你的八字資料\n
+• 刪除所有配對紀錄\n
+• 刪除你的用戶資料\n\n
+⚠️ 此操作無法還原！\n\n
+確定要清除所有資料嗎？\n
+請輸入： /clear confirm\n
+或輸入其他命令取消。
+"""
+
+CLEAR_SUCCESS_TEXT = """
+✅ 已清除你的所有資料。\n
+如需重新使用服務，請輸入 /start 重新註冊。
+"""
+
+CLEAR_FAILED_TEXT = "❌ 清除資料失敗，請稍後再試或聯繫管理員。"
+
+TESTPAIR_FORMAT_TEXT = """
+請提供兩個完整的八字參數。\n
+格式：/testpair <年1> <月1> <日1> <時1> <性別1> <年2> <月2> <日2> <時2> <性別2>\n\n
+例如：/testpair 1990 1 1 12 男 1991 2 2 13 女\n
+性別：男 或 女\n\n
+可選參數：<分鐘1> <分鐘2> <經度1> <經度2>\n
+例如：/testpair 1990 1 1 12 男 1991 2 2 13 女 30 30 114.17 121.47
+"""
+
+TESTPAIR_INVALID_GENDER_TEXT = "性別必須是「男」或「女」"
+
+TESTPAIR_INVALID_DATE_TEXT = "日期無效，請檢查年月日是否正確"
+
+TESTPAIR_INVALID_HOUR_TEXT = "時間必須在 0-23 之間"
+
+TESTPAIR_INVALID_MINUTE_TEXT = "分鐘必須在 0-59 之間"
+
+TESTPAIR_INVALID_LONGITUDE_TEXT = "經度必須在 -180 到 180 之間"
+
+TESTPAIR_BAZI_CALC_FAILED_TEXT = "八字計算失敗，請檢查輸入參數"
+
+TESTPAIR_INDEPENDENT_NOTE_TEXT = """
+💡 注意：這只是獨立測試，不會保存到配對數據庫中。\n
+如需正式配對，請使用 /match 命令。
+"""
+# ========1.6 錯誤提示文本結束 ========#
+
+# ========1.7 管理員文本開始 ========#
+MAINTENANCE_ON_TEXT = """
+🔧 **維護模式已開啟**\n\n
+**系統狀態：**\n
+• 普通用戶無法使用任何功能\n
+• 管理員可正常使用管理功能\n
+• 新用戶無法註冊\n
+• 現有配對功能暫停\n\n
+請在完成維護後輸入 /maintenance off 恢復正常運作。
+"""
+
+MAINTENANCE_OFF_TEXT = """
+✅ **維護模式已關閉**\n\n
+**系統狀態：**\n
+• 所有功能恢復正常\n
+• 用戶可以正常註冊和使用\n
+• 配對功能恢復運作\n\n
+系統已恢復正常運作。
+"""
+
+MAINTENANCE_STATUS_TEMPLATE = """
+🛠️ **當前維護模式：{status}**\n\n
+**使用方法：**\n
+/maintenance on - 開啟維護模式\n
+/maintenance off - 關閉維護模式\n\n
+**影響：**\n
+• 開啟時普通用戶無法使用系統\n
+• 管理員功能不受影響\n
+• 維護期間可進行系統升級和測試
+"""
+
+ADMIN_TEST_START_TEXT = "🔄 開始運行管理員測試..."
+
+ADMIN_TEST_IMPORT_ERROR_TEXT = "❌ 導入管理員服務失敗: {error}"
+
+ADMIN_TEST_FAILED_TEXT = "❌ 測試失敗: {error}"
+
+STATS_FETCHING_TEXT = "📊 獲取系統統計..."
+
+STATS_IMPORT_ERROR_TEXT = "❌ 導入管理員服務失敗: {error}"
+
+STATS_FAILED_TEXT = "❌ 統計失敗: {error}"
+
+QUICK_TEST_START_TEXT = "⚡ 開始系統健康檢查..."
+
+QUICK_TEST_METHOD_MISSING_TEXT = "❌ 快速測試功能尚未實現: {error}"
+
+QUICK_TEST_FAILED_TEXT = "❌ 快速測試失敗: {error}"
+
+LIST_TESTS_IMPORT_ERROR_TEXT = "❌ 導入測試案例失敗: {error}"
+
+LIST_TESTS_FAILED_TEXT = "❌ 列出測試失敗: {error}"
+# ========1.7 管理員文本結束 ========#
