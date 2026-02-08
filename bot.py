@@ -1799,9 +1799,11 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             match_score = context.user_data.get("current_match", {}).get("score", 70)
             
             if match_row:
-                match_id, user_a_accepted, user_b_accepted, existing_score = match_row
+                match_id, existing_user_a_accepted, existing_user_b_accepted, existing_score = match_row
                 match_score = existing_score  # 使用現有分數
-                logger.info(f"找到現有配對記錄: ID={match_id}, 分數={match_score}")
+                user_a_accepted = existing_user_a_accepted
+                user_b_accepted = existing_user_b_accepted
+                logger.info(f"找到現有配對記錄: ID={match_id}, 分數={match_score}, A接受={user_a_accepted}, B接受={user_b_accepted}")
             else:
                 # 創建新的配對記錄
                 match_result = context.user_data.get("current_match", {}).get("match_result", {})
@@ -1918,7 +1920,8 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     other_telegram_id = b_telegram_id if internal_user_id == user_a_id else a_telegram_id
                     notification_text = (
                         "📩 有人對你的配對感興趣！\n"
-                        "請使用 /match 查看最新的配對結果，看看是否也有興趣認識對方。"
+                        "請使用 /match 查看最新的配對結果，看看是否也有興趣認識對方。\n\n"
+                        f"💡 提示：配對分數 {match_score:.1f}分"
                     )
                     await context.bot.send_message(chat_id=other_telegram_id, text=notification_text)
                     logger.info(f"已發送興趣通知: other_telegram_id={other_telegram_id}")
@@ -2152,11 +2155,12 @@ if __name__ == "__main__":
 1. 修正JSON解析錯誤 - 安全地解析shen_sha_json字段，處理非JSON格式的文本
 2. 修正SQL錯誤 - 移除SELECT DISTINCT中的ORDER BY RANDOM()問題
 3. 修正Telegram API錯誤 - 避免編輯消息，直接發送新消息
-4. 增加等待時間 - 防止多實例衝突
-5. 改進錯誤處理 - 更好的異常處理和日誌記錄
-6. 保持所有原有功能不變
+4. 修正配對邏輯錯誤 - 修復雙方都接受後沒有交換username的問題
+5. 增加等待時間 - 防止多實例衝突
+6. 改進錯誤處理 - 更好的異常處理和日誌記錄
+7. 保持所有原有功能不變
 
-版本: 修復多個錯誤版本
+版本: 修復配對邏輯錯誤版本
 """
 # ========文件信息結束 ========#
 
@@ -2180,6 +2184,22 @@ if __name__ == "__main__":
 # ========修正紀錄開始 ========#
 """
 修正紀錄:
+2026-02-08 修復配對邏輯錯誤：
+1. 問題：雙方都按了有興趣但沒有交換username
+   位置：button_callback函數中檢查雙方接受狀態的邏輯
+   後果：雙方都接受後沒有顯示對方username
+   修正：從數據庫正確讀取現有的接受狀態，並在雙方都接受時交換username
+
+2. 問題：find_soulmate分數太低（30多分）
+   位置：bazi_soulmate.py中的篩選條件
+   後果：顯示低分數的匹配，用戶體驗差
+   修正：提高bazi_soulmate.py中的篩選標準（在bazi_soulmate.py中修改）
+
+3. 問題：配對通知沒有顯示分數
+   位置：通知對方的消息中
+   後果：對方不知道配對分數
+   修正：在興趣通知中添加配對分數信息
+
 2026-02-07 修復JSON解析錯誤：
 1. 問題：shen_sha_json字段不是有效的JSON格式
    位置：_get_profile_base_data函數中的json.loads(shen_sha_json)
@@ -2197,12 +2217,6 @@ if __name__ == "__main__":
    位置：find_soulmate_purpose函數中的edit_text調用
    後果：真命天子搜尋結果無法顯示
    修正：直接發送新消息，而不是編輯舊消息
-
-2026-02-07 修復多實例衝突：
-1. 問題：多bot實例衝突
-   位置：主程序啟動時的等待時間
-   後果：多個bot實例同時運行
-   修正：增加等待時間到3秒
 
 保持功能完整修正：
 1. 不刪除任何功能
