@@ -471,7 +471,12 @@ def _get_profile_base_data(internal_user_id: int, include_username: bool = False
         if shen_sha_json:
             try:
                 if isinstance(shen_sha_json, str) and shen_sha_json.strip():
-                    shen_sha_data = json.loads(shen_sha_json)
+                    # 檢查是否是JSON格式
+                    if shen_sha_json.startswith('{') and shen_sha_json.endswith('}'):
+                        shen_sha_data = json.loads(shen_sha_json)
+                    else:
+                        # 如果不是JSON格式，直接作為名字處理
+                        shen_sha_data = {"names": shen_sha_json, "bonus": 0}
                 elif isinstance(shen_sha_json, dict):
                     shen_sha_data = shen_sha_json
             except (json.JSONDecodeError, TypeError) as e:
@@ -1222,10 +1227,11 @@ async def match(update: Update, context: ContextTypes.DEFAULT_TYPE):
             gender_params.append(my_gender)
         
         # 查找尚未雙方都接受的配對用戶
+        # 修正：不使用DISTINCT，直接查詢所有匹配的用戶
         query_params = [internal_user_id] + gender_params + [internal_user_id, internal_user_id]
         
         query = f"""
-            SELECT DISTINCT
+            SELECT
                 u.id, u.telegram_id, u.username,
                 p.birth_year, p.birth_month, p.birth_day, p.birth_hour, p.birth_minute, p.hour_confidence, p.gender,
                 p.year_pillar, p.month_pillar, p.day_pillar, p.hour_pillar,
@@ -1675,7 +1681,7 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         user_profile = get_raw_profile_for_match(internal_user_id)
         
         if not user_profile:
-            await calculating_msg.edit_text("找不到用戶資料，請先使用 /start 註冊")
+            await update.message.reply_text("找不到用戶資料，請先使用 /start 註冊")
             return ConversationHandler.END
         
         user_gender = user_profile.get("gender")
@@ -1690,7 +1696,8 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         logger.info(f"真命天子搜尋完成：找到{len(top_matches)}個匹配")
         
         if not top_matches:
-            await calculating_msg.edit_text(
+            # 直接發送新消息，而不是編輯舊消息
+            await update.message.reply_text(
                 f"❌ 在{start_year}-{end_year}年內未找到合適的匹配時空。\n"
                 "建議：\n"
                 "1. 嘗試不同的年份範圍\n"
@@ -1702,12 +1709,13 @@ async def find_soulmate_purpose(update: Update, context: ContextTypes.DEFAULT_TY
         # 格式化結果
         formatted_message = format_find_soulmate_result(top_matches, start_year, end_year, purpose)
         
-        await calculating_msg.edit_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
+        # 直接發送新消息，而不是編輯舊消息
+        await update.message.reply_text(f"✅ 搜尋完成！找到 {len(top_matches)} 個匹配時空。")
         await update.message.reply_text(formatted_message)
         
     except Exception as e:
         logger.error(f"搜尋真命天子失敗: {e}", exc_info=True)
-        await calculating_msg.edit_text(
+        await update.message.reply_text(
             f"❌ 搜尋失敗: {str(e)}\n"
             "請稍後再試或縮小搜尋範圍。\n"
             "建議每次搜尋不超過10年範圍。"
@@ -2141,13 +2149,14 @@ if __name__ == "__main__":
 被引用文件: 無 (為入口文件)
 
 主要修正:
-1. 修正JSON解析錯誤 - 安全地解析shen_sha_json字段
-2. 修正數據庫字段默認值 - 確保所有字段都有值
-3. 增加等待時間 - 防止多實例衝突
-4. 改進錯誤處理 - 更好的異常處理和日誌記錄
-5. 保持所有原有功能不變
+1. 修正JSON解析錯誤 - 安全地解析shen_sha_json字段，處理非JSON格式的文本
+2. 修正SQL錯誤 - 移除SELECT DISTINCT中的ORDER BY RANDOM()問題
+3. 修正Telegram API錯誤 - 避免編輯消息，直接發送新消息
+4. 增加等待時間 - 防止多實例衝突
+5. 改進錯誤處理 - 更好的異常處理和日誌記錄
+6. 保持所有原有功能不變
 
-版本: 修復JSON解析錯誤版本
+版本: 修復多個錯誤版本
 """
 # ========文件信息結束 ========#
 
@@ -2175,22 +2184,25 @@ if __name__ == "__main__":
 1. 問題：shen_sha_json字段不是有效的JSON格式
    位置：_get_profile_base_data函數中的json.loads(shen_sha_json)
    後果：導致profile命令失敗
-   修正：添加安全的JSON解析，處理空字符串和無效JSON
+   修正：添加安全的JSON解析，處理非JSON格式的文本
 
-2. 問題：多實例衝突
+2026-02-07 修復SQL錯誤：
+1. 問題：SELECT DISTINCT中的ORDER BY RANDOM()錯誤
+   位置：match函數中的SQL查詢
+   後果：導致配對功能失敗
+   修正：移除DISTINCT關鍵字，使用普通SELECT查詢
+
+2026-02-07 修復Telegram API錯誤：
+1. 問題：Message can't be edited錯誤
+   位置：find_soulmate_purpose函數中的edit_text調用
+   後果：真命天子搜尋結果無法顯示
+   修正：直接發送新消息，而不是編輯舊消息
+
+2026-02-07 修復多實例衝突：
+1. 問題：多bot實例衝突
    位置：主程序啟動時的等待時間
    後果：多個bot實例同時運行
    修正：增加等待時間到3秒
-
-3. 問題：數據庫字段可能為空
-   位置：complete_registration函數中的字段提取
-   後果：某些字段為None導致數據庫錯誤
-   修正：為所有字段提供默認值
-
-4. 問題：導入問題
-   位置：按鈕回調處理中的ScoringEngine導入
-   後果：如果導入失敗會崩潰
-   修正：添加try-except處理導入失敗
 
 保持功能完整修正：
 1. 不刪除任何功能
