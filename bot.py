@@ -1,4 +1,3 @@
-[file content begin]
 # ========1.1 導入模組開始 ========#
 import os
 import logging
@@ -2170,4 +2169,3 @@ if __name__ == "__main__":
 # 2026-02-08: 將所有長文本搬遷到texts.py，保持代碼整潔
 # 2026-02-08: 保持所有現有功能不變，僅修正核心問題
 # 2026-02-08: 徹底解決find_soulmate問題，確保至少找到一個80分以上配對
-[file content end]
