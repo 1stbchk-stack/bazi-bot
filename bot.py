@@ -42,8 +42,7 @@ from new_calculator import (
 # 導入 Soulmate 功能
 from bazi_soulmate import (
     SoulmateFinder,
-    format_find_soulmate_result,
-    MIN_SCORE_THRESHOLD as SOULMATE_MIN_SCORE
+    format_find_soulmate_result
 )
 # ========1.1 導入模組結束 ========#
 
@@ -64,7 +63,7 @@ if not DATABASE_URL:
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://")
 
-SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "").strip()  # 修正：不設默認值
+SECRET_KEY = os.getenv("MATCH_SECRET_KEY", "").strip()
 DAILY_MATCH_LIMIT = 10
 
 # 分數閾值常量 - 從new_calculator導入
@@ -76,7 +75,7 @@ THRESHOLD_PERFECT_MATCH = Config.THRESHOLD_PERFECT_MATCH
 DEFAULT_LONGITUDE = Config.DEFAULT_LONGITUDE
 
 # 其他常量
-TOKEN_EXPIRY_SECONDS = 600  # 配對token有效期10分鐘（與bazi_soulmate中的10分鐘一致）
+TOKEN_EXPIRY_SECONDS = 600  # 配對token有效期10分鐘
 MIN_MATCH_SCORE = THRESHOLD_ACCEPTABLE  # 統一使用可接受閾值作為最低分數
 
 # 維護模式標誌
@@ -1761,7 +1760,7 @@ async def find_soulmate_cancel(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # ========1.9 按鈕回調處理函數開始 ========#
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """1.9.1 處理按鈕回調 - 修復配對邏輯"""
+    """1.9.1 處理按鈕回調 - 修正配對邏輯"""
     query = update.callback_query
     await query.answer()
     data = query.data
@@ -1852,7 +1851,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 
                 logger.info(f"創建新配對記錄: ID={match_id}, 分數={match_score}")
             
-            # 更新接受狀態 - 修正：正確更新 user_b_accepted
+            # 更新接受狀態 - 關鍵修正：區分用戶A和用戶B
             if internal_user_id == user_a_id:
                 user_a_accepted = 1
                 cur.execute("""
@@ -1865,7 +1864,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 user_b_accepted = 1
                 cur.execute("""
                     UPDATE matches
-                    SET user_b_accepted = 1  # ✅ 修正：正確更新 user_b_accepted
+                    SET user_b_accepted = 1  # ✅ 關鍵修正：正確更新 user_b_accepted
                     WHERE id = %s
                 """, (match_id,))
                 logger.info(f"用戶B接受配對: user_b_id={user_b_id}")
@@ -1892,12 +1891,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 current_user_username = a_username if internal_user_id == user_a_id else b_username
                 other_user_username = b_username if internal_user_id == user_a_id else a_username
                 
-                # 修正：避免導入問題，直接從new_calculator導入
-                try:
-                    from new_calculator import ScoringEngine
-                    rating = ScoringEngine.get_rating(match_score)
-                except ImportError:
-                    rating = "良好" if match_score >= 70 else "一般"
+                # 修正：從new_calculator導入ScoringEngine
+                from new_calculator import ScoringEngine
+                rating = ScoringEngine.get_rating(match_score)
                 
                 match_text_parts = []
                 match_text_parts.append(f"🎉 {rating} 配對成功！")
@@ -2166,88 +2162,3 @@ def main():
 if __name__ == "__main__":
     main()
 # ========1.11 主程序結束 ========#
-
-# ========文件信息開始 ========#
-"""
-文件: bot.py
-功能: 八字配對機器人主程序
-
-引用文件: 
-- new_calculator.py (八字計算核心)
-- bazi_soulmate.py (真命天子搜索)
-- texts.py (文本內容)
-- admin_service.py (管理員服務)
-
-被引用文件: 無 (為入口文件)
-
-主要修正:
-1. 修正配對邏輯錯誤 - 當用戶B接受配對時，正確更新 user_b_accepted
-2. 統一最低分數閾值 - 使用 THRESHOLD_ACCEPTABLE (60分) 作為統一標準
-3. 優化八字數據構建 - 直接從數據庫行數據構建，避免重複計算
-4. 增強錯誤處理 - 在complete_registration中添加更多異常捕獲
-5. 修復無效導入 - 移除對 new_calculator.scoring 的錯誤導入
-6. 改進代碼註釋 - 添加詳細的數字編號和功能說明
-
-版本: 修復配對邏輯和統一標準版本
-"""
-# ========文件信息結束 ========#
-
-# ========目錄開始 ========#
-"""
-目錄:
-1.1 導入模組 - 導入所需庫和模組
-1.2 配置與初始化 - 環境變數、常量設定
-1.3 維護模式檢查 - 維護模式裝飾器和權限檢查
-1.4 數據庫工具 - PostgreSQL數據庫連接池和操作
-1.5 隱私條款模組 - 處理用戶隱私條款同意
-1.6 簡化註冊流程 - 用戶註冊和八字計算
-1.7 命令處理函數 - 基本用戶命令（start, help, profile等）
-1.8 Find Soulmate流程函數 - 真命天子搜尋功能
-1.9 按鈕回調處理函數 - 處理配對選擇按鈕
-1.10 管理員專用命令 - 管理員測試和統計功能
-1.11 主程序 - 機器人啟動和事件循環
-"""
-# ========目錄結束 ========#
-
-# ========修正紀錄開始 ========#
-"""
-修正紀錄:
-2026-02-08 修正配對邏輯和統一標準：
-1. 問題：雙方都按了有興趣但沒有交換username
-   位置：button_callback函數中更新user_b_accepted的邏輯
-   後果：SQL更新錯誤，用戶B接受時更新了user_a_accepted
-   修正：將UPDATE SET user_a_accepted = 1改為SET user_b_accepted = 1
-
-2. 問題：分數閾值不一致
-   位置：MIN_MATCH_SCORE使用THRESHOLD_WARNING (50分)
-   後果：與其他功能標準不一致
-   修正：統一使用THRESHOLD_ACCEPTABLE (60分)
-
-3. 問題：重複的八字計算
-   位置：match函數中重新計算對方八字
-   後果：性能浪費和潛在的計算錯誤
-   修正：直接從數據庫行數據構建八字字典
-
-4. 問題：錯誤導入
-   位置：bazi_soulmate.py中的錯誤導入
-   後果：啟動時報錯 No module named 'new_calculator.scoring'
-   修正：移除錯誤導入並在bot.py中修正相關代碼
-
-5. 問題：不完整的錯誤處理
-   位置：complete_registration函數
-   後果：某些異常沒有被捕獲
-   修正：添加更全面的異常捕獲
-
-2026-02-07 修復JSON解析錯誤：
-1. 問題：shen_sha_json字段不是有效的JSON格式
-   位置：_get_profile_base_data函數中的json.loads(shen_sha_json)
-   後果：導致profile命令失敗
-   修正：添加安全的JSON解析，處理非JSON格式的文本
-
-2026-02-07 修復SQL錯誤：
-1. 問題：SELECT DISTINCT中的ORDER BY RANDOM()錯誤
-   位置：match函數中的SQL查詢
-   後果：導致配對功能失敗
-   修正：移除DISTINCT關鍵字，使用普通SELECT查詢
-"""
-# ========修正紀錄結束 ========#

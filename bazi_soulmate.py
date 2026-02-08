@@ -5,11 +5,10 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple
 
-# 導入計算核心 - 修正：避免循環引用，只導入必要函數
+# 導入計算核心
 try:
     from new_calculator import calculate_match, calculate_bazi, ProfessionalConfig
-    from new_calculator import PC  # 地支衝突檢查常量
-    from new_calculator import ScoringEngine  # ✅ 修正：從正確位置導入
+    from new_calculator import PC
     logger = logging.getLogger(__name__)
 except ImportError as e:
     # 為避免循環引用，如果導入失敗則定義基本結構
@@ -30,36 +29,16 @@ except ImportError as e:
                 '巳': '亥', '亥': '巳'
             }
             return clashes.get(branch1) == branch2 or clashes.get(branch2) == branch1
-    
-    class ScoringEngine:
-        """1.1.2 分數引擎（簡化版）"""
-        @staticmethod
-        def _is_branch_six_harmony(branch1, branch2):
-            """1.1.2.1 檢查地支六合（簡化版）"""
-            harmonies = {
-                '子': '丑', '丑': '子',
-                '寅': '亥', '亥': '寅',
-                '卯': '戌', '戌': '卯',
-                '辰': '酉', '酉': '辰',
-                '巳': '申', '申': '巳',
-                '午': '未', '未': '午'
-            }
-            return harmonies.get(branch1) == branch2 or harmonies.get(branch2) == branch1
 
-# 常量定義 - 修正：統一使用new_calculator中的常量
+# 常量定義
 try:
-    from new_calculator import ProfessionalConfig
-    MIN_SCORE_THRESHOLD = ProfessionalConfig.THRESHOLD_GOOD_MATCH  # 使用良好配對閾值
-    logger.info(f"使用new_calculator常量: MIN_SCORE_THRESHOLD={MIN_SCORE_THRESHOLD}")
+    MIN_SCORE_THRESHOLD = 65  # 降低分數閾值以提高匹配率
 except ImportError:
-    MIN_SCORE_THRESHOLD = 65  # 降低備用閾值以提高匹配率
-    logger.warning(f"使用備用常量: MIN_SCORE_THRESHOLD={MIN_SCORE_THRESHOLD}")
+    MIN_SCORE_THRESHOLD = 65
 
 MAX_DATE_SAMPLE = 200     # 最大日期抽樣數
 MAX_PRE_FILTER = 100      # 最大預篩選數
 MAX_STRUCTURE_CHECK = 20  # 最大結構檢查數
-PRESSURE_THRESHOLD = 35   # 壓力分數閾值
-ELEMENT_MIN_VALUE = 10    # 元素最小值閾值
 TOKEN_EXPIRY_MINUTES = 10 # token有效期（分鐘）
 
 class SoulmateFinder:
@@ -100,13 +79,13 @@ class SoulmateFinder:
     @staticmethod
     def pre_filter(user_bazi: Dict[str, Any], target_bazi: Dict[str, Any], 
                   user_gender: str, target_gender: str) -> Tuple[bool, str]:
-        """1.1.3.3 第一階段：Pre-filter - 合理篩選，避免過度過濾"""
+        """1.1.3.3 第一階段：Pre-filter - 極度簡化篩選，只保留最基本檢查"""
         
         # 1. 基本數據檢查
         if not target_bazi.get('year_pillar') or not target_bazi.get('day_stem'):
             return False, "八字數據不完整"
         
-        # 2. 日柱相沖檢查（重要，保持）
+        # 2. 日柱相沖檢查（保留，重要檢查）
         user_day_pillar = user_bazi.get('day_pillar', '')
         target_day_pillar = target_bazi.get('day_pillar', '')
         
@@ -118,56 +97,30 @@ class SoulmateFinder:
             if PC.is_branch_clash(user_day_branch, target_day_branch):
                 return False, f"日柱相沖: {user_day_branch}沖{target_day_branch}"
         
-        # 3. 極端情況檢查（放寬條件）
-        pressure_score = target_bazi.get('pressure_score', 0)
-        if pressure_score > 60:  # 放寬到60分
-            return False, f"夫妻宮壓力過大: {pressure_score}"
-        
-        # 4. 五行通關檢查（簡化）
-        user_useful = user_bazi.get('useful_elements', [])
-        target_elements = target_bazi.get('elements', {})
-        
-        # 檢查是否有基本元素數據
-        if not target_elements or len(target_elements) == 0:
-            return False, "無元素數據"
-        
-        # 5. 檢查日主強度（放寬條件）
+        # 3. 日主極端情況檢查（放寬到只檢查極端無效值）
         target_strength_score = target_bazi.get('strength_score', 50)
-        if target_strength_score < 15 or target_strength_score > 95:
-            return False, f"日主強度極端: {target_strength_score}"
+        if target_strength_score < 5 or target_strength_score > 99:
+            return False, f"日主強度極端無效: {target_strength_score}"
         
         return True, "通過預篩"
     
     @staticmethod
     def structure_check(user_bazi: Dict[str, Any], target_bazi: Dict[str, Any], 
                        user_gender: str, target_gender: str) -> Tuple[bool, str]:
-        """1.1.3.4 第二階段：Structure Check - 簡化結構檢查"""
+        """1.1.3.4 第二階段：Structure Check - 極度簡化結構檢查"""
         
-        # 1. 配偶星質量檢查（簡化）
+        # 1. 配偶星質量檢查（只檢查完全無配偶星的情況）
         spouse_effective = target_bazi.get('spouse_star_effective', 'unknown')
         if spouse_effective in ['none']:  # 只過濾完全無配偶星的情況
             return False, f"無配偶星"
         
-        # 2. 地支穩固度檢查（放寬條件）
-        pressure_score = target_bazi.get('pressure_score', 0)
-        if pressure_score >= 60:  # 放寬到60分
-            return False, f"夫妻宮壓力大: {pressure_score}"
-        
-        # 3. 十神結構檢查（簡化）
+        # 2. 只檢查極端十神結構問題
         shi_shen_structure = target_bazi.get('shi_shen_structure', '普通結構')
         # 只檢查極端問題結構
-        problematic_structures = ['官殺混雜極重', '財星壞印嚴重', '食傷制殺過度']
+        problematic_structures = ['官殺混雜極重', '財星壞印嚴重']
         
         if any(problem in shi_shen_structure for problem in problematic_structures):
             return False, f"十神結構有問題: {shi_shen_structure}"
-        
-        # 4. 神煞檢查（簡化）
-        shen_sha_names = target_bazi.get('shen_sha_names', '無')
-        # 只檢查極端不良神煞
-        problematic_shen_sha = ['孤辰寡宿並見', '羊刃飛刃雙全']
-        
-        if any(problem in shen_sha_names for problem in problematic_shen_sha):
-            return False, f"有問題神煞: {shen_sha_names}"
         
         return True, "結構檢查通過"
     
@@ -186,7 +139,6 @@ class SoulmateFinder:
             
             # 1. 大運預算加分（簡化）
             luck_bonus = 0
-            # 簡化：不進行複雜的大運計算
             
             # 2. 化解係數實裝
             resolution_factor = 1.0
@@ -240,7 +192,7 @@ class SoulmateFinder:
             sampled_dates = dates
             logger.info(f"使用全部 {len(dates)} 個日期")
         
-        # 2. 預篩選（放寬條件）
+        # 2. 預篩選（極度放寬條件）
         pre_filtered = []
         pre_filter_count = 0
         
@@ -268,7 +220,7 @@ class SoulmateFinder:
                 target_bazi['birth_day'] = day
                 target_bazi['birth_hour'] = hour
                 
-                # 預篩選（放寬條件）
+                # 預篩選（極度放寬條件）
                 passed, reason = SoulmateFinder.pre_filter(
                     user_bazi, target_bazi, user_gender, user_gender
                 )
@@ -290,7 +242,7 @@ class SoulmateFinder:
         logger.info(f"預篩選完成: 處理{pre_filter_count}個，通過{len(pre_filtered)}個")
         
         if not pre_filtered:
-            logger.warning("預篩選無結果，嘗試放寬條件...")
+            logger.warning("預篩選無結果，嘗試直接計算幾個日期")
             # 如果預篩選無結果，嘗試直接計算幾個日期
             backup_dates = [
                 (start_year, 6, 15, 12),  # 年中中午
@@ -319,7 +271,7 @@ class SoulmateFinder:
                 logger.error("即使備用日期也無結果")
                 return []
         
-        # 3. 結構檢查（放寬條件）
+        # 3. 結構檢查（極度放寬條件）
         structure_filtered = []
         structure_count = 0
         
@@ -482,96 +434,3 @@ def format_find_soulmate_result(matches: List[Dict[str, Any]], start_year: int,
     
     return "\n".join(text_parts)
 # ========1.1 Find Soulmate 功能結束 ========#
-
-# ========文件信息開始 ========#
-"""
-文件: bazi_soulmate.py
-功能: 真命天子搜尋功能（獨立檔案）
-
-引用文件: new_calculator.py
-被引用文件: bot.py (主程序)
-
-主要修改：
-1. 修正導入錯誤 - 移除對 new_calculator.scoring 的錯誤導入
-2. 放寬篩選標準 - 提高匹配率，避免無結果
-3. 降低分數閾值 - 從75分降低到65分，提高匹配率
-4. 簡化檢查邏輯 - 移除過於複雜的檢查條件
-5. 添加降級機制 - 當無合格匹配時，嘗試降低標準
-6. 改進錯誤處理 - 更穩定的異常處理
-
-修改記錄：
-2026-02-08 提高匹配率和修正錯誤：
-1. 問題：find_soulmate完全無出到結果
-   位置：pre_filter和structure_check方法過於嚴格
-   後果：篩選掉所有候選，導致0結果
-   修正：極度放寬所有篩選條件
-
-2. 問題：導入錯誤 No module named 'new_calculator.scoring'
-   位置：頂部導入語句
-   後果：模塊無法正常使用
-   修正：從正確位置導入 ScoringEngine
-
-3. 問題：分數閾值太高
-   位置：MIN_SCORE_THRESHOLD使用75分
-   後果：很少有匹配能達到這個分數
-   修正：降低到65分並添加降級機制
-
-4. 問題：大運計算過於隨機
-   位置：calculate_luck_period方法
-   後果：結果不可靠
-   修正：簡化大運計算，避免隨機性
-"""
-# ========文件信息結束 ========#
-
-# ========目錄開始 ========#
-"""
-1.1 Find Soulmate 功能 - SoulmateFinder 類和格式化函數
-    1.1.1 地支常量（簡化版）
-    1.1.2 分數引擎（簡化版）
-    1.1.3 真命天子搜尋器
-        1.1.3.1 生成日期範圍
-        1.1.3.2 計算大運（簡化版）
-        1.1.3.3 第一階段：Pre-filter
-        1.1.3.4 第二階段：Structure Check
-        1.1.3.5 第三階段：資深精算加分項
-        1.1.3.6 主搜尋函數
-    1.1.4 格式化Find Soulmate結果
-"""
-# ========目錄結束 ========#
-
-# ========修正紀錄開始 ========#
-"""
-修正紀錄:
-2026-02-08 提高匹配率和修正錯誤：
-1. 問題：find_soulmate完全無出到結果
-   位置：pre_filter和structure_check方法過於嚴格
-   後果：篩選掉所有候選，導致0結果
-   修正：極度放寬所有篩選條件，只保留最基本檢查
-
-2. 問題：導入錯誤
-   位置：from new_calculator.scoring import ScoringEngine
-   後果：啟動時報錯 No module named 'new_calculator.scoring'
-   修正：改為 from new_calculator import ScoringEngine
-
-3. 問題：分數閾值設置不當
-   位置：MIN_SCORE_THRESHOLD使用THRESHOLD_GOOD_MATCH（75分）
-   後果：很少有八字能達到這個分數
-   修正：降低到65分並添加降級到60分的機制
-
-4. 問題：大運計算隨機性過大
-   位置：calculate_luck_period方法使用random.choice
-   後果：結果不可靠
-   修正：簡化為固定的評估，避免隨機性
-
-5. 問題：篩選條件矛盾
-   位置：多個檢查條件可能互相矛盾
-   後果：通過率極低
-   修正：簡化檢查邏輯，只保留最重要檢查
-
-2026-02-07 最終修正：
-1. 問題：find_soulmate完全無出到結果
-   位置：pre_filter和structure_check方法過於嚴格
-   後果：篩選掉所有候選，導致0結果
-   修正：極度放寬所有篩選條件，僅拒絕極端無數據情況
-"""
-# ========修正紀錄結束 ========#
