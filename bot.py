@@ -1884,8 +1884,9 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 current_user_username = a_username if is_user_a else b_username
                 other_user_username = b_username if is_user_a else a_username
                 
-                from new_calculator import ScoringEngine
-                rating = ScoringEngine.get_rating(match_score)
+                # 關鍵修正：使用match_result中的rating字段，而不是調用不存在的ScoringEngine.get_rating
+                match_details = json.loads(match_details_str) if match_details_str else {}
+                rating = match_details.get('rating', '未知')
                 
                 # 修正：配對成功消息只顯示username，不顯示詳細分析
                 from texts import MATCH_SUCCESS_TEXT_TEMPLATE, MATCH_SUCCESS_NO_USERNAME_TEXT
@@ -2161,6 +2162,8 @@ if __name__ == "__main__":
 # 1.11 主程序
 
 # 🔖 修正紀錄
+# 2026-02-10: 修復button_callback中的AttributeError問題，改為使用match_result中的rating字段
+# 2026-02-10: 保持所有功能不變，僅修正核心錯誤
 # 2026-02-08: 徹底修復配對流程，確保用戶A按/match後立即通知用戶B
 # 2026-02-08: 修復按鈕回調邏輯，確保雙方都按"有興趣"時正確交換username
 # 2026-02-08: 修正按鈕數據生成邏輯，為雙方生成不同的按鈕數據
@@ -2168,4 +2171,3 @@ if __name__ == "__main__":
 # 2026-02-08: 修正配對成功消息格式，移除詳細配對分析，只顯示對方username
 # 2026-02-08: 將所有長文本搬遷到texts.py，保持代碼整潔
 # 2026-02-08: 保持所有現有功能不變，僅修正核心問題
-# 2026-02-08: 徹底解決find_soulmate問題，確保至少找到一個80分以上配對
