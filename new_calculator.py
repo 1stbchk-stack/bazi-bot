@@ -2184,12 +2184,12 @@ class ProfessionalFormatters:
     
     @staticmethod
     def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
-        """1.7.1.1 專業個人資料格式化"""
+        """1.7.1.1 專業個人資料格式化 - 詳細版，跟要求21"""
         lines = []
         
         # 標題
         lines.append(f"📊 {username} 的專業八字分析")
-        lines.append("="*40)
+        lines.append("")
         
         # 基礎信息
         gender = bazi_data.get('gender', '未知')
@@ -2200,11 +2200,18 @@ class ProfessionalFormatters:
         birth_minute = bazi_data.get('birth_minute', 0)
         
         hour_confidence = bazi_data.get('hour_confidence', '中')
-        confidence_text = hour_confidence
+        confidence_map = {
+            "高": "高信心度",
+            "中": "中信心度（時辰估算）",
+            "低": "低信心度（時辰未知）",
+            "估算": "估算時間"
+        }
+        confidence_text = confidence_map.get(hour_confidence, "信心度未知")
         
         lines.append(f"👤 性別：{gender}")
         lines.append(f"🎂 出生：{birth_year}年{birth_month}月{birth_day}日{birth_hour}時{birth_minute}分")
         lines.append(f"⏱️ 時間信心度：{confidence_text}")
+        lines.append("")
         
         # 八字四柱
         year_pillar = bazi_data.get('year_pillar', '')
@@ -2223,6 +2230,7 @@ class ProfessionalFormatters:
         
         lines.append(f"🐉 生肖：{zodiac}")
         lines.append(f"🎯 日主：{day_stem}{day_stem_element}（{day_stem_strength}，{strength_score:.1f}分）")
+        lines.append("")
         
         # 格局
         pattern_type = bazi_data.get('pattern_type', '正格')
@@ -2234,6 +2242,7 @@ class ProfessionalFormatters:
         
         lines.append(f"✅ 喜用神：{', '.join(useful_elements) if useful_elements else '無'}")
         lines.append(f"❌ 忌神：{', '.join(harmful_elements) if harmful_elements else '無'}")
+        lines.append("")
         
         # 十神結構
         shi_shen_structure = bazi_data.get('shi_shen_structure', '普通結構')
@@ -2248,7 +2257,11 @@ class ProfessionalFormatters:
         
         # 神煞
         shen_sha_names = bazi_data.get('shen_sha_names', '無')
-        lines.append(f"✨ 神煞：{shen_sha_names}")
+        shen_sha_bonus = bazi_data.get('shen_sha_bonus', 0)
+        if shen_sha_names != "無":
+            lines.append(f"✨ 神煞：{shen_sha_names}（{shen_sha_bonus}分）")
+        else:
+            lines.append(f"✨ 神煞：{shen_sha_names}")
         
         # 五行分佈
         elements = bazi_data.get('elements', {})
@@ -2259,52 +2272,150 @@ class ProfessionalFormatters:
         water = elements.get('水', 0)
         
         lines.append(f"🌳 五行分佈：木{wood:.1f}% 火{fire:.1f}% 土{earth:.1f}% 金{metal:.1f}% 水{water:.1f}%")
+        lines.append("")
         
-        # 新增：合適對象建議
-        lines.append(f"")
-        lines.append(f"💡 合適對象建議")
-        lines.append(f"="*40)
+        # 💡 個人特質分析 - 新增詳細分析
+        lines.append("💡 個人特質分析：")
+        
+        day_stem = bazi_data.get('day_stem', '')
+        day_element = bazi_data.get('day_stem_element', '')
+        strength = bazi_data.get('day_stem_strength', '中')
+        
+        # 日主特質分析
+        stem_descriptions = {
+            "甲": "如參天大樹，正直、有領導力、積極進取",
+            "乙": "如花草之木，溫和、有韌性、善於適應",
+            "丙": "如太陽之火，熱情、開朗、充滿活力",
+            "丁": "如燈燭之火，細膩、專注、有耐心",
+            "戊": "如高山之土，穩重、可靠、有責任感",
+            "己": "如田園之土，包容、務實、善於溝通",
+            "庚": "如斧鉞之金，果斷、有原則、堅毅",
+            "辛": "如珠寶之金，細緻、追求完美、重感情",
+            "壬": "如江河之水，聰明、靈活、適應力強",
+            "癸": "如雨露之水，溫柔、敏感、善解人意"
+        }
+        
+        element_descriptions = {
+            "木": "具有生長、發展的特性，重視理想和價值",
+            "火": "具有溫暖、光明的特性，重視熱情和表現",
+            "土": "具有穩定、包容的特性，重視安全和實際",
+            "金": "具有堅硬、鋒利的特性，重視原則和規則",
+            "水": "具有流動、柔軟的特性，重視智慧和適應"
+        }
+        
+        strength_descriptions = {
+            "強": "自主性強，不容易受外界影響",
+            "中": "平衡適中，能根據環境調整",
+            "弱": "需要較多支持，容易受外界影響",
+            "極弱": "依賴性較強，需要大量支持"
+        }
+        
+        if day_stem in stem_descriptions:
+            lines.append(f"您屬{day_stem}{day_element}日主，{stem_descriptions[day_stem]}。")
+        
+        if day_element in element_descriptions:
+            lines.append(f"{element_descriptions[day_element]}。")
+        
+        if strength in strength_descriptions:
+            lines.append(f"{strength_descriptions[strength]}。")
+        
+        # 格局分析
+        pattern = bazi_data.get('pattern_type', '')
+        if '身強' in pattern:
+            lines.append("身強格局顯示您自主性強，適合發揮影響力。")
+        elif '身弱' in pattern:
+            lines.append("身弱格局顯示您需要更多支持，容易受外界影響。")
+        elif '從' in pattern:
+            lines.append("從格顯示您能順應環境，適應力強。")
+        elif '專旺' in pattern:
+            lines.append("專旺格顯示您在某方面有特殊才能。")
+        
+        # 夫妻分析
+        if spouse_star_status != "未知":
+            spouse_desc = {
+                "無夫妻星": "感情方面需要主動創造機會",
+                "夫妻星單一": "感情專一，但需要用心經營",
+                "夫妻星明顯": "感情方面有較好基礎",
+                "夫妻星旺盛": "感情生活豐富"
+            }
+            if spouse_star_status in spouse_desc:
+                lines.append(f"夫妻星狀態：{spouse_desc[spouse_star_status]}。")
+        
+        if spouse_palace_status != "未知":
+            palace_desc = {
+                "夫妻宮旺": "夫妻關係基礎穩固",
+                "夫妻宮動": "夫妻關係活躍多變化",
+                "夫妻宮穩": "夫妻關係穩定持久",
+                "夫妻宮平": "夫妻關係普通"
+            }
+            if spouse_palace_status in palace_desc:
+                lines.append(f"夫妻宮狀態：{palace_desc[spouse_palace_status]}。")
+        
+        # 神煞分析
+        if "天乙貴人" in shen_sha_names:
+            lines.append("天乙貴人加持，一生常有貴人相助。")
+        if "紅鸞" in shen_sha_names:
+            lines.append("紅鸞星動，感情緣分較佳。")
+        if "天喜" in shen_sha_names:
+            lines.append("天喜星照，喜慶之事較多。")
+        
+        lines.append("")
+        
+        # 新增：合適對象建議 - 跟要求28
+        lines.append("💡 合適對象建議")
         
         if useful_elements:
+            lines.append(f"")
             lines.append(f"✅ 最適合：喜用{', '.join(useful_elements)}的人")
+            lines.append("")
+            lines.append("具體建議：")
             
-            # 具體建議
             for element in useful_elements:
                 if element == '木':
-                    lines.append(f"   • 木日主：甲、乙（正直有仁愛心）")
+                    lines.append("• 木日主：甲、乙（正直有仁愛心，能互相扶持）")
                 elif element == '火':
-                    lines.append(f"   • 火日主：丙、丁（熱情有活力）")
+                    lines.append("• 火日主：丙、丁（熱情有活力，能溫暖您）")
                 elif element == '土':
-                    lines.append(f"   • 土日主：戊、己（穩重可靠）")
+                    lines.append("• 土日主：戊、己（穩重可靠，能給您安全感）")
                 elif element == '金':
-                    lines.append(f"   • 金日主：庚、辛（果斷有原則）")
+                    lines.append("• 金日主：庚、辛（果斷有原則，能幫助您決斷）")
                 elif element == '水':
-                    lines.append(f"   • 水日主：壬、癸（聰明靈活）")
+                    lines.append("• 水日主：壬、癸（聰明靈活，能滋養您的成長）")
         
         if harmful_elements:
+            lines.append("")
             lines.append(f"❌ 要避開：忌神{', '.join(harmful_elements)}過重的人")
         
-        # 根據格局補充建議
-        if pattern_type == '身強':
-            lines.append(f"💪 身強格局：適合能約束你的人（官殺旺或食傷旺）")
-        elif pattern_type == '身弱':
-            lines.append(f"🤲 身弱格局：適合能支持你的人（印星旺或比劫旺）")
+        lines.append("")
+        
+        # 根據格局補充建議 - 跟要求28
+        if '身強' in pattern_type:
+            lines.append(f"💪 身強格局：適合能約束您的人（官殺旺或食傷旺）")
+            lines.append("   對方最好有較強的原則性或創造力")
+        elif '身弱' in pattern_type:
+            lines.append(f"🤲 身弱格局：適合能支持您的人（印星旺或比劫旺）")
+            lines.append("   對方最好有較強的包容性或合作精神")
         elif '從' in pattern_type:
             lines.append(f"🌀 從格：適合順從格局的人，避免克制格局五行")
+            lines.append("   對方最好能增強您格局的優勢")
         elif '專旺' in pattern_type:
             lines.append(f"🔥 專旺格：適合同五行旺的人，互相扶持")
+            lines.append("   對方最好有相似的專長或興趣")
+        
+        lines.append("")
+        lines.append("💡 溫馨提示：八字僅供參考，實際相處更重要。")
         
         return "\n".join(lines)
     
     @staticmethod
     def format_match_result(match_result: Dict, bazi1: Dict, bazi2: Dict,
                           user_a_name: str = "用戶A", user_b_name: str = "用戶B") -> str:
-        """1.7.1.2 專業配對結果格式化 - 實戰判局版本"""
+        """1.7.1.2 專業配對結果格式化 - 實戰判局詳細版本，跟要求22"""
         lines = []
         
         # 標題
         lines.append(f"🎯 {user_a_name} 與 {user_b_name} 的國師級八字配對結果")
-        lines.append("="*50)
+        lines.append("")
         
         # 八字信息
         pillars1 = f"{bazi1.get('year_pillar', '')} {bazi1.get('month_pillar', '')} {bazi1.get('day_pillar', '')} {bazi1.get('hour_pillar', '')}"
@@ -2312,24 +2423,24 @@ class ProfessionalFormatters:
         
         lines.append(f"{user_a_name}八字：{pillars1}")
         lines.append(f"{user_b_name}八字：{pillars2}")
+        lines.append("")
         
         # 核心分數和評級
         score = match_result.get('score', 0)
         rating = match_result.get('rating', '未知')
         rating_description = match_result.get('rating_description', '')
         
-        lines.append(f"")
         lines.append(f"📊 配對分數：{score:.1f}分")
         lines.append(f"✨ 評級：{rating}")
         lines.append(f"📝 解釋：{rating_description}")
         lines.append(f"🎭 關係模型：{match_result.get('relationship_model', '')}")
+        lines.append("")
         
-        # 🎯 實戰判局分析
-        lines.append(f"")
-        lines.append(f"🧠 國師級實戰判局分析")
-        lines.append(f"="*50)
+        # 🧠 實戰判局詳細分析
+        lines.append("🧠 國師級實戰判局分析")
+        lines.append("")
         
-        # 結構類型
+        # 1. 結構類型分析
         structure_type = match_result.get('structure_type', '')
         structure_details = match_result.get('structure_details', [])
         
@@ -2345,52 +2456,169 @@ class ProfessionalFormatters:
             "fuyin_disaster": "伏吟災難局",
         }
         
-        lines.append(f"1. 命局結構：{structure_names.get(structure_type, structure_type)}")
-        for detail in structure_details[:2]:
-            lines.append(f"   {detail}")
+        structure_name = structure_names.get(structure_type, structure_type)
+        lines.append(f"1. 命局結構：{structure_name}")
         
-        # 沖刑處理
+        if structure_details:
+            for detail in structure_details:
+                lines.append(f"   {detail}")
+        lines.append("")
+        
+        # 2. 能量互補分析 - 新增詳細分析
+        lines.append("2. 能量互補分析：")
+        
+        # 提取雙方喜用神和五行
+        useful_a = set(bazi1.get("useful_elements", []))
+        useful_b = set(bazi2.get("useful_elements", []))
+        elements_a = bazi1.get("elements", {})
+        elements_b = bazi2.get("elements", {})
+        
+        # 檢查A對B的供應
+        supply_count = 0
+        for element in useful_b:
+            if element in elements_a:
+                percentage = elements_a.get(element, 0)
+                if percentage > 20:
+                    lines.append(f"   ✅ {user_a_name}喜用{element}，{user_b_name}八字中{element}佔{percentage:.1f}%，能強力供應{user_b_name}的需求")
+                    supply_count += 1
+                elif percentage > 10:
+                    lines.append(f"   📊 {user_a_name}喜用{element}，{user_b_name}八字中{element}佔{percentage:.1f}%，能部分供應{user_b_name}的需求")
+                    supply_count += 1
+        
+        # 檢查B對A的供應
+        for element in useful_a:
+            if element in elements_b:
+                percentage = elements_b.get(element, 0)
+                if percentage > 20:
+                    lines.append(f"   ✅ {user_b_name}喜用{element}，{user_a_name}八字中{element}佔{percentage:.1f}%，能有效滿足{user_a_name}的需求")
+                    supply_count += 1
+                elif percentage > 10:
+                    lines.append(f"   📊 {user_b_name}喜用{element}，{user_a_name}八字中{element}佔{percentage:.1f}%，能部分滿足{user_a_name}的需求")
+                    supply_count += 1
+        
+        if supply_count == 0:
+            lines.append("   ⚠️ 雙方能量互補性較弱")
+        lines.append("")
+        
+        # 3. 日柱關係分析
+        lines.append("3. 日柱關係分析：")
+        
+        day_stem_a = bazi1.get('day_stem', '')
+        day_stem_b = bazi2.get('day_stem', '')
+        day_branch_a = bazi1.get('day_pillar', '  ')[1] if len(bazi1.get('day_pillar', '')) >= 2 else ''
+        day_branch_b = bazi2.get('day_pillar', '  ')[1] if len(bazi2.get('day_pillar', '')) >= 2 else ''
+        
+        # 檢查天干關係
+        stem_relations = {
+            ("甲", "己"): "甲己合土，有合作緣分",
+            ("乙", "庚"): "乙庚合金，有情義基礎",
+            ("丙", "辛"): "丙辛合水，有智慧交流",
+            ("丁", "壬"): "丁壬合木，有創造潛力",
+            ("戊", "癸"): "戊癸合火，有熱情互動"
+        }
+        
+        found_relation = False
+        for (s1, s2), desc in stem_relations.items():
+            if (day_stem_a == s1 and day_stem_b == s2) or (day_stem_a == s2 and day_stem_b == s1):
+                lines.append(f"   ✅ 天干{day_stem_a}與{day_stem_b}：{desc}")
+                found_relation = True
+                break
+        
+        if not found_relation:
+            # 檢查相生關係
+            generation_map = PC.ELEMENT_GENERATION
+            element_a = bazi1.get('day_stem_element', '')
+            element_b = bazi2.get('day_stem_element', '')
+            
+            if generation_map.get(element_a) == element_b:
+                lines.append(f"   ✅ {day_stem_a}{element_a}生{day_stem_b}{element_b}，{user_a_name}能滋養{user_b_name}")
+            elif generation_map.get(element_b) == element_a:
+                lines.append(f"   ✅ {day_stem_b}{element_b}生{day_stem_a}{element_a}，{user_b_name}能滋養{user_a_name}")
+            else:
+                lines.append(f"   📊 天干關係普通，需要更多磨合")
+        
+        # 檢查地支關係
+        if day_branch_a and day_branch_b:
+            if PC.is_branch_clash(day_branch_a, day_branch_b):
+                lines.append(f"   ⚠️ 地支{day_branch_a}與{day_branch_b}相沖，夫妻宮有衝突")
+            elif PC.is_branch_harm(day_branch_a, day_branch_b):
+                lines.append(f"   ⚠️ 地支{day_branch_a}與{day_branch_b}相害，需要小心處理")
+            else:
+                lines.append(f"   ✅ 地支關係和諧，夫妻宮匹配度良好")
+        
+        lines.append("")
+        
+        # 4. 五行平衡檢查
+        lines.append("4. 五行平衡檢查：")
+        
+        # 比較雙方五行分佈
+        elements_list = ['木', '火', '土', '金', '水']
+        balance_notes = []
+        
+        for element in elements_list:
+            a_val = elements_a.get(element, 0)
+            b_val = elements_b.get(element, 0)
+            
+            diff = abs(a_val - b_val)
+            if diff < 10:
+                balance_notes.append(f"   • 雙方{element}性相近（{user_a_name}{a_val:.1f}%，{user_b_name}{b_val:.1f}%），價值觀相似")
+            elif diff < 20:
+                balance_notes.append(f"   • 雙方{element}性有差異（{user_a_name}{a_val:.1f}%，{user_b_name}{b_val:.1f}%），可以互補")
+            else:
+                balance_notes.append(f"   • 雙方{element}性差異較大（{user_a_name}{a_val:.1f}%，{user_b_name}{b_val:.1f}%），需要互相理解")
+        
+        for note in balance_notes[:3]:  # 只顯示前3個最重要的
+            lines.append(note)
+        lines.append("")
+        
+        # 5. 沖刑處理
         clash_adjustment = match_result.get('clash_adjustment', 0)
         clash_details = match_result.get('clash_details', [])
-        if clash_adjustment != 0:
-            lines.append(f"2. 沖刑處理：{clash_adjustment:+.1f}分")
-            for detail in clash_details[:1]:
+        if clash_adjustment != 0 and clash_details:
+            lines.append("5. 沖刑處理：")
+            for detail in clash_details:
                 lines.append(f"   {detail}")
+            lines.append("")
         
-        # 伏吟處理
+        # 6. 伏吟處理
         fuyin_adjustment = match_result.get('fuyin_adjustment', 0)
         fuyin_details = match_result.get('fuyin_details', [])
-        if fuyin_adjustment != 0:
-            lines.append(f"3. 伏吟處理：{fuyin_adjustment:+.1f}分")
-            for detail in fuyin_details[:1]:
+        if fuyin_adjustment != 0 and fuyin_details:
+            lines.append("6. 伏吟處理：")
+            for detail in fuyin_details:
                 lines.append(f"   {detail}")
+            lines.append("")
         
-        # 供養關係
+        # 7. 供養關係
         supply_adjustment = match_result.get('supply_adjustment', 0)
         supply_details = match_result.get('supply_details', [])
-        if supply_adjustment != 0:
-            lines.append(f"4. 供養關係：{supply_adjustment:+.1f}分")
-            for detail in supply_details[:1]:
+        if supply_adjustment != 0 and supply_details:
+            lines.append("7. 供養關係：")
+            for detail in supply_details[:2]:  # 只顯示最重要的2個
                 lines.append(f"   {detail}")
+            lines.append("")
         
-        # 神煞影響
+        # 8. 神煞影響
         shen_sha_adjustment = match_result.get('shen_sha_adjustment', 0)
         shen_sha_details = match_result.get('shen_sha_details', [])
-        if shen_sha_adjustment != 0:
-            lines.append(f"5. 神煞影響：{shen_sha_adjustment:+.1f}分")
-            for detail in shen_sha_details[:1]:
+        if shen_sha_adjustment != 0 and shen_sha_details:
+            lines.append("8. 神煞影響：")
+            for detail in shen_sha_details:
                 lines.append(f"   {detail}")
+            lines.append("")
         
-        # 現實校準
+        # 9. 現實校準
         reality_adjustment = match_result.get('reality_adjustment', 0)
         if reality_adjustment != 0:
-            lines.append(f"6. 現實校準：{reality_adjustment:+.1f}分")
+            lines.append("9. 現實校準：")
+            lines.append(f"   現實因素調整：{reality_adjustment:+.1f}分")
+            lines.append("")
         
-        # 特徵摘要
-        lines.append(f"")
-        lines.append(f"💡 關鍵特徵")
-        lines.append(f"="*50)
+        # 💡 關鍵特徵摘要
+        lines.append("💡 關鍵特徵")
+        lines.append("")
         
+        # 從match_result提取特徵
         if match_result.get('has_hongluan_tianxi', False):
             lines.append("• 紅鸞天喜：有特殊緣分，容易一見鍾情")
         
@@ -2403,51 +2631,102 @@ class ProfessionalFormatters:
         if match_result.get('has_three_punishment', False):
             lines.append("• 三刑：地支構成三刑，關係複雜")
         
-        # AI分析提示（保持不變）
-        lines.append(f"")
-        lines.append(f"🤖 AI分析提示")
-        lines.append(f"="*50)
+        if structure_type in ["closed_loop", "strong_complement"]:
+            lines.append("• 能量循環：形成生生不息的能量循環")
+        
+        if supply_count >= 2:
+            lines.append("• 現實互補：性格和能力上能互相補充")
+        
+        lines.append("")
+        
+        # 🤖 AI分析提示 - 跟要求24
+        lines.append("🤖 AI分析提示")
+        lines.append("")
         
         # 從 texts.py 導入 AI_ANALYSIS_PROMPTS
         from texts import AI_ANALYSIS_PROMPTS
         lines.append(AI_ANALYSIS_PROMPTS)
+        lines.append("")
         
-        # 建議
-        lines.append(f"")
-        lines.append(f"💡 國師建議")
-        lines.append(f"="*50)
+        # 💡 國師建議 - 跟分數給出具體建議
+        lines.append("💡 國師建議")
+        lines.append("")
+        
+        score = match_result.get('score', 0)
         
         if score >= PC.THRESHOLD_PERFECT_MATCH:
             lines.append("🌟 天作之合！雙方八字形成完美互補循環。")
-            lines.append("💕 建議：珍惜這段難得緣分，互相成就，幸福美滿。")
+            lines.append("")
+            lines.append("💕 具體建議：")
+            lines.append("1. 珍惜這段難得緣分，這是值得終身經營的關係")
+            lines.append("2. 互相成就，共同成長，能達到1+1>2的效果")
+            lines.append("3. 定期回顧關係進展，保持溝通順暢")
+            lines.append("4. 共同規劃未來，你們有很好的長期發展潛力")
         elif score >= PC.THRESHOLD_EXCELLENT_MATCH:
             lines.append("✅ 優秀配對！結構穩固，互補性強。")
-            lines.append("👍 建議：積極發展，互相支持，可白頭偕老。")
+            lines.append("")
+            lines.append("👍 具體建議：")
+            lines.append("1. 積極發展，互相支持，可白頭偕老")
+            lines.append("2. 學習欣賞對方的優點，形成良性互動")
+            lines.append("3. 遇到問題時多溝通，避免誤解積累")
+            lines.append("4. 共同建立信任基礎，這是長期關係的關鍵")
         elif score >= PC.THRESHOLD_GOOD_MATCH:
             lines.append("👍 良好配對！有發展潛力，需要用心經營。")
-            lines.append("💡 建議：多溝通理解，互相包容，關係會越來越好。")
+            lines.append("")
+            lines.append("💡 具體建議：")
+            lines.append("1. 多溝通理解，互相包容，關係會越來越好")
+            lines.append("2. 給彼此時間適應，不要急於求成")
+            lines.append("3. 關注對方的需求，及時給予支持")
+            lines.append("4. 建立共同的興趣和目標，增強連結")
         elif score >= PC.THRESHOLD_ACCEPTABLE:
             lines.append("⚠️ 可以嘗試！存在一些挑戰，需要更多包容。")
-            lines.append("📌 建議：給彼此時間適應，注意溝通方式。")
+            lines.append("")
+            lines.append("📌 具體建議：")
+            lines.append("1. 給彼此時間適應，注意溝通方式")
+            lines.append("2. 明確雙方的期望和底線，避免誤會")
+            lines.append("3. 從朋友做起，慢慢建立信任")
+            lines.append("4. 如果遇到困難，尋求專業建議")
         elif score >= PC.THRESHOLD_WARNING:
             lines.append("❌ 需要謹慎！存在較多衝突和挑戰。")
-            lines.append("⚠️ 建議：深入了解對方，不要急於決定。")
+            lines.append("")
+            lines.append("⚠️ 具體建議：")
+            lines.append("1. 深入了解對方，不要急於決定")
+            lines.append("2. 明確是否願意為關係付出額外努力")
+            lines.append("3. 考慮是否有不可調和的差異")
+            lines.append("4. 必要時尋求專業命理師進一步分析")
         elif score >= PC.THRESHOLD_STRONG_WARNING:
             lines.append("🚫 不建議！沖剋嚴重，難長久。")
-            lines.append("💔 建議：尋找更合適的對象，避免勉強。")
+            lines.append("")
+            lines.append("💔 具體建議：")
+            lines.append("1. 尋找更合適的對象，避免勉強")
+            lines.append("2. 如果堅持發展，需要極大耐心和智慧")
+            lines.append("3. 做好心理準備，這段關係挑戰很大")
+            lines.append("4. 定期評估關係是否健康可持續")
         else:
             lines.append("💥 強烈不建議！結構互毀，硬傷明顯。")
-            lines.append("🚨 建議：避免發展，極難長久，易分手。")
+            lines.append("")
+            lines.append("🚨 具體建議：")
+            lines.append("1. 避免發展，極難長久，易分手")
+            lines.append("2. 如果已有感情，需要專業介入調解")
+            lines.append("3. 考慮其他更合適的選擇")
+            lines.append("4. 保護好自己的情感和心理健康")
+        
+        lines.append("")
+        lines.append("💡 溫馨提示：八字配對是參考工具，幸福關係靠雙方共同經營！")
         
         return "\n".join(lines)
-
     
     @staticmethod
     def format_test_pair_result(match_result: Dict, bazi1: Dict, bazi2: Dict) -> str:
-        """1.7.1.3 測試配對結果格式化"""
-        return ProfessionalFormatters.format_match_result(
+        """1.7.1.3 測試配對結果格式化 - 跟要求23"""
+        base_result = ProfessionalFormatters.format_match_result(
             match_result, bazi1, bazi2, "測試用戶A", "測試用戶B"
         )
+        
+        # 添加測試專用提示
+        base_result += "\n\n💡 注意：這只是獨立測試，不會保存到配對數據庫中。\n如需正式配對，請使用 /match 命令。"
+        
+        return base_result
 
 # 保持向後兼容的別名
 BaziFormatters = ProfessionalFormatters
