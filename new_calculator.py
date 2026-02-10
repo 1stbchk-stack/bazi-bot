@@ -2274,9 +2274,9 @@ class ProfessionalFormatters:
     @staticmethod
     def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
         """1.7.1.1 專業個人資料格式化"""
-        lines = []
+        from texts import AI_ANALYSIS_PROMPTS
         
-        # 標題
+        lines = []
         lines.append(f"📊 {username} 的專業八字分析")
         lines.append("="*40)
         
@@ -2497,17 +2497,10 @@ class ProfessionalFormatters:
         lines.append(f"🤖 AI分析提示")
         lines.append(f"="*50)
         lines.append("以下問題可以幫助你更深入分析這段關係：")
-        lines.append("1. 雙方個性特質如何互相影響？")
-        lines.append("2. 在哪些生活領域最容易產生衝突？")
-        lines.append("3. 雙方價值觀和人生目標是否一致？")
-        lines.append("4. 遇到困難時，雙方會如何互相支持？")
-        lines.append("5. 長期相處需要特別注意哪些方面？")
-        lines.append("6. 雙方溝通方式有何差異？")
-        lines.append("7. 在金錢和物質方面的態度如何？")
-        lines.append("8. 對家庭和子女教育的看法是否一致？")
-        lines.append("9. 在社交和朋友圈方面是否和諧？")
-        lines.append("10. 雙方成長背景對關係有何影響？")
         
+        for i, prompt in enumerate(AI_ANALYSIS_PROMPTS[:10], 1):
+            lines.append(f"{i}. {prompt}")
+
         # 建議
         lines.append(f"")
         lines.append(f"💡 國師建議")
