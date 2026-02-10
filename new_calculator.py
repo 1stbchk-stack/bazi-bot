@@ -2274,9 +2274,9 @@ class ProfessionalFormatters:
     @staticmethod
     def format_personal_data(bazi_data: Dict, username: str = "用戶") -> str:
         """1.7.1.1 專業個人資料格式化"""
-        from texts import AI_ANALYSIS_PROMPTS
-        
         lines = []
+        
+        # 標題
         lines.append(f"📊 {username} 的專業八字分析")
         lines.append("="*40)
         
@@ -2434,7 +2434,7 @@ class ProfessionalFormatters:
             "fuyin_disaster": "伏吟災難局",
         }
         
-        lines.append(f"1️⃣ 命局結構：{structure_names.get(structure_type, structure_type)}")
+        lines.append(f"1. 命局結構：{structure_names.get(structure_type, structure_type)}")
         for detail in structure_details[:2]:
             lines.append(f"   {detail}")
         
@@ -2442,7 +2442,7 @@ class ProfessionalFormatters:
         clash_adjustment = match_result.get('clash_adjustment', 0)
         clash_details = match_result.get('clash_details', [])
         if clash_adjustment != 0:
-            lines.append(f"2️⃣ 沖刑處理：{clash_adjustment:+.1f}分")
+            lines.append(f"2. 沖刑處理：{clash_adjustment:+.1f}分")
             for detail in clash_details[:1]:
                 lines.append(f"   {detail}")
         
@@ -2450,7 +2450,7 @@ class ProfessionalFormatters:
         fuyin_adjustment = match_result.get('fuyin_adjustment', 0)
         fuyin_details = match_result.get('fuyin_details', [])
         if fuyin_adjustment != 0:
-            lines.append(f"3️⃣ 伏吟處理：{fuyin_adjustment:+.1f}分")
+            lines.append(f"3. 伏吟處理：{fuyin_adjustment:+.1f}分")
             for detail in fuyin_details[:1]:
                 lines.append(f"   {detail}")
         
@@ -2458,7 +2458,7 @@ class ProfessionalFormatters:
         supply_adjustment = match_result.get('supply_adjustment', 0)
         supply_details = match_result.get('supply_details', [])
         if supply_adjustment != 0:
-            lines.append(f"4️⃣ 供養關係：{supply_adjustment:+.1f}分")
+            lines.append(f"4. 供養關係：{supply_adjustment:+.1f}分")
             for detail in supply_details[:1]:
                 lines.append(f"   {detail}")
         
@@ -2466,14 +2466,14 @@ class ProfessionalFormatters:
         shen_sha_adjustment = match_result.get('shen_sha_adjustment', 0)
         shen_sha_details = match_result.get('shen_sha_details', [])
         if shen_sha_adjustment != 0:
-            lines.append(f"5️⃣ 神煞影響：{shen_sha_adjustment:+.1f}分")
+            lines.append(f"5. 神煞影響：{shen_sha_adjustment:+.1f}分")
             for detail in shen_sha_details[:1]:
                 lines.append(f"   {detail}")
         
         # 現實校準
         reality_adjustment = match_result.get('reality_adjustment', 0)
         if reality_adjustment != 0:
-            lines.append(f"6️⃣ 現實校準：{reality_adjustment:+.1f}分")
+            lines.append(f"6. 現實校準：{reality_adjustment:+.1f}分")
         
         # 特徵摘要
         lines.append(f"")
@@ -2496,11 +2496,11 @@ class ProfessionalFormatters:
         lines.append(f"")
         lines.append(f"🤖 AI分析提示")
         lines.append(f"="*50)
-        lines.append("以下問題可以幫助你更深入分析這段關係：")
         
-        for i, prompt in enumerate(AI_ANALYSIS_PROMPTS[:10], 1):
-            lines.append(f"{i}. {prompt}")
-
+        # 從 texts.py 導入 AI_ANALYSIS_PROMPTS
+        from texts import AI_ANALYSIS_PROMPTS
+        lines.append(AI_ANALYSIS_PROMPTS)
+        
         # 建議
         lines.append(f"")
         lines.append(f"💡 國師建議")
@@ -2543,7 +2543,7 @@ BaziFormatters = ProfessionalFormatters
 # 🔖 1.7 統一格式化工具類結束
 
 # 🔖 文件信息
-# 引用文件：無（頂層核心文件）
+# 引用文件：texts.py
 # 被引用文件：bot.py, bazi_soulmate.py, admin_service.py
 
 # 🔖 Section目錄
@@ -2562,3 +2562,6 @@ BaziFormatters = ProfessionalFormatters
 # 2026-02-08: 實戰處理沖刑、伏吟、供養、神煞，按國師級標準
 # 2026-02-08: 保持所有對外接口不變，確保100%向後兼容
 # 2026-02-08: 針對20組測試案例逐個優化，確保100%命中預期分數範圍
+# 2026-02-10: 修正缺失的AI_ANALYSIS_PROMPTS引用，改為從texts.py導入
+# 2026-02-10: 修正編號emoji為純文字編號（1. 2. 3. 等）
+# 2026-02-10: 保持所有功能完整，修正文本格式錯誤
